@@ -18,7 +18,7 @@ import { LifecycleStageProps } from "@/components/lifecycle/LifecycleStage";
 import { MessageSquare, Instagram, Globe, Mail, Smartphone } from "lucide-react";
 
 const Lifecycle = () => {
-  const [selectedCustomer, setSelectedCustomer] = useState(customers[0].id);
+  const [selectedCustomer, setSelectedCustomer] = useState("");
   const [customerList, setCustomerList] = useState<Customer[]>([]);
   const [customerStages, setCustomerStages] = useState<LifecycleStageProps[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +39,8 @@ const Lifecycle = () => {
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
+        setLoading(true);
+        
         const { data, error } = await supabase
           .from('customers')
           .select('*');
@@ -47,54 +49,43 @@ const Lifecycle = () => {
           throw error;
         }
 
+        console.log("Fetched customers:", data);
+
         if (data && data.length > 0) {
           setCustomerList(data);
           setSelectedCustomer(data[0].id);
         } else {
+          console.log("No customers found, creating from mock data");
           // If no customers exist in the database, use mock data
           // and create them in the database
-          for (const customer of customers) {
-            const dbCustomerId = getDbCustomerId(customer.id);
-            // Check if customer exists
-            const { data: existingCustomer } = await supabase
-              .from('customers')
-              .select('id')
-              .eq('id', dbCustomerId)
-              .maybeSingle();
-              
-            if (!existingCustomer) {
-              // Create the customer
-              await supabase
-                .from('customers')
-                .insert({
-                  id: dbCustomerId,
-                  name: customer.name,
-                  segment: customer.segment,
-                  region: customer.region,
-                  stage: customer.stage,
-                  status: customer.status,
-                  contract_size: customer.contractSize,
-                  owner_id: customer.owner?.id
-                });
-            }
-          }
+          await createMockCustomers();
           
           // After inserting, fetch again
-          const { data: updatedData } = await supabase
+          const { data: updatedData, error: refetchError } = await supabase
             .from('customers')
             .select('*');
             
-          if (updatedData) {
+          if (refetchError) {
+            throw refetchError;
+          }
+            
+          if (updatedData && updatedData.length > 0) {
+            console.log("Created and fetched customers:", updatedData);
             setCustomerList(updatedData);
-            setSelectedCustomer(updatedData[0]?.id || customers[0].id);
+            setSelectedCustomer(updatedData[0]?.id || "");
+          } else {
+            console.log("Still no customers, using mock data directly");
+            // Fall back to mock data directly
+            setCustomerList(customers);
+            setSelectedCustomer(customers[0]?.id || "");
           }
         }
       } catch (error) {
         console.error("Error fetching customers:", error);
         toast.error("Failed to load customers");
         // Fall back to mock data
-        setCustomerList([]);
-        setSelectedCustomer(customers[0].id);
+        setCustomerList(customers);
+        setSelectedCustomer(customers[0]?.id || "");
       } finally {
         setLoading(false);
       }
@@ -102,6 +93,43 @@ const Lifecycle = () => {
 
     fetchCustomers();
   }, []);
+
+  const createMockCustomers = async () => {
+    try {
+      for (const customer of customers) {
+        const dbCustomerId = getDbCustomerId(customer.id);
+        // Check if customer exists
+        const { data: existingCustomer } = await supabase
+          .from('customers')
+          .select('id')
+          .eq('id', dbCustomerId)
+          .maybeSingle();
+          
+        if (!existingCustomer) {
+          console.log("Creating customer:", customer.name, "with ID:", dbCustomerId);
+          // Create the customer
+          const { error: insertError } = await supabase
+            .from('customers')
+            .insert({
+              id: dbCustomerId,
+              name: customer.name,
+              segment: customer.segment,
+              region: customer.region,
+              stage: customer.stage,
+              status: customer.status,
+              contract_size: customer.contractSize,
+              owner_id: customer.owner?.id
+            });
+            
+          if (insertError) {
+            console.error("Error creating customer:", insertError);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error creating mock customers:", error);
+    }
+  };
 
   // Default integration stages to add for new customers
   const defaultIntegrationStages = [
@@ -163,11 +191,17 @@ const Lifecycle = () => {
   ];
 
   const handleCustomerChange = async (value: string) => {
+    console.log("Selected customer changed to:", value);
     setSelectedCustomer(value);
     await fetchCustomerStages(value);
   };
 
   const fetchCustomerStages = async (customerId: string) => {
+    if (!customerId) {
+      console.log("No customer ID provided, can't fetch stages");
+      return;
+    }
+    
     try {
       setLoading(true);
       const dbCustomerId = getDbCustomerId(customerId);
@@ -186,8 +220,9 @@ const Lifecycle = () => {
         throw error;
       }
 
+      console.log("Fetched stages:", data);
+      
       if (data) {
-        console.log("Fetched stages:", data);
         // Convert Supabase data to LifecycleStageProps format
         const formattedStages: LifecycleStageProps[] = data.map((stage: any) => ({
           id: stage.id,
@@ -210,19 +245,24 @@ const Lifecycle = () => {
         
         // If no stages are found, automatically add default stages
         if (formattedStages.length === 0) {
+          console.log("No stages found, adding default stages");
           await handleAddDefaultIntegrations(customerId);
         }
       }
     } catch (error) {
       console.error("Error fetching lifecycle stages:", error);
       toast.error("Failed to load lifecycle stages");
+      setCustomerStages([]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleAddDefaultIntegrations = async (customerId = selectedCustomer) => {
-    if (!customerId) return;
+    if (!customerId) {
+      console.log("No customer ID provided, can't add default integrations");
+      return;
+    }
     
     try {
       setLoading(true);
@@ -281,7 +321,7 @@ const Lifecycle = () => {
     }
   };
 
-  const handleStagesUpdate = (updatedStages: any) => {
+  const handleStagesUpdate = (updatedStages: LifecycleStageProps[]) => {
     setCustomerStages(updatedStages);
     console.log("Updated stages:", updatedStages);
     toast.success("Lifecycle stages updated successfully");
@@ -293,6 +333,7 @@ const Lifecycle = () => {
 
   useEffect(() => {
     if (selectedCustomer) {
+      console.log("Selected customer useEffect:", selectedCustomer);
       fetchCustomerStages(selectedCustomer);
     }
   }, [selectedCustomer]);
@@ -322,7 +363,7 @@ const Lifecycle = () => {
             <Button 
               variant="outline" 
               onClick={() => handleAddDefaultIntegrations()}
-              disabled={loading}
+              disabled={loading || !selectedCustomer}
             >
               Add Integration Stages
             </Button>
@@ -336,6 +377,22 @@ const Lifecycle = () => {
             stages={customerStages}
             onStagesUpdate={handleStagesUpdate}
           />
+        )}
+        
+        {loading && (
+          <div className="flex justify-center py-8">
+            <div className="animate-pulse text-center">
+              <p className="text-muted-foreground">Loading lifecycle data...</p>
+            </div>
+          </div>
+        )}
+        
+        {!loading && !selectedCustomerData && (
+          <div className="flex justify-center py-8">
+            <div className="text-center">
+              <p className="text-muted-foreground">No customer selected or available. Please select a customer.</p>
+            </div>
+          </div>
         )}
       </div>
     </DashboardLayout>

@@ -1,3 +1,4 @@
+
 import React from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "./DashboardSidebar";
@@ -28,22 +29,27 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Notification } from "@/utils/notificationHelpers";
+import { Notification } from "@/types/notifications";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
+// Create a key for localStorage to persist theme
+const THEME_KEY = 'doo-theme-preference';
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [theme, setTheme] = useState<"light" | "dark">("light"); // Default to light
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const navigate = useNavigate();
   
-  // Toggle theme functionality
+  // Toggle theme functionality with localStorage persistence
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
+    localStorage.setItem(THEME_KEY, newTheme);
+    
     if (newTheme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
@@ -51,12 +57,21 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   };
   
-  // Set initial theme based on system preference
+  // Set initial theme based on localStorage or default to light
   useEffect(() => {
-    const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    if (isDark) {
-      setTheme("dark");
-      document.documentElement.classList.add("dark");
+    const savedTheme = localStorage.getItem(THEME_KEY) as "light" | "dark" | null;
+    
+    if (savedTheme) {
+      setTheme(savedTheme);
+      if (savedTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+    } else {
+      // Default to light theme instead of system preference
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem(THEME_KEY, "light");
     }
   }, []);
 
