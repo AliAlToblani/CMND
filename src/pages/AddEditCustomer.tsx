@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -27,6 +26,8 @@ import { toast } from "sonner";
 import { customers } from "@/data/mockData";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { supabase } from "@/integrations/supabase/client";
+import { CustomerInsert } from "@/types/customers";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -46,8 +47,54 @@ const AddEditCustomer = () => {
   const navigate = useNavigate();
   const isEditing = !!id;
   const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
   
-  const customer = isEditing ? customers.find(c => c.id === id) : null;
+  const getDbCustomerId = () => {
+    if (id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return id;
+    }
+    return id ? `00000000-0000-0000-0000-${id.replace(/\D/g, '').padStart(12, '0')}` : null;
+  };
+  
+  const [customer, setCustomer] = React.useState<any>(null);
+  
+  React.useEffect(() => {
+    const fetchCustomer = async () => {
+      if (isEditing) {
+        const dbCustomerId = getDbCustomerId();
+        
+        try {
+          const { data, error } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('id', dbCustomerId)
+            .single();
+          
+          if (error) {
+            console.error("Error fetching customer:", error);
+            const mockCustomer = customers.find(c => c.id === id);
+            setCustomer(mockCustomer);
+          } else {
+            setCustomer({
+              ...data,
+              contractSize: data.contract_size,
+              owner: {
+                id: data.owner_id,
+                name: "Unknown",
+                role: "Unknown"
+              }
+            });
+          }
+        } catch (error) {
+          console.error("Error in fetch operation:", error);
+          const mockCustomer = customers.find(c => c.id === id);
+          setCustomer(mockCustomer);
+        }
+      }
+    };
+    
+    fetchCustomer();
+  }, [id, isEditing]);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -58,15 +105,27 @@ const AddEditCustomer = () => {
       stage: customer?.stage || "Onboarding",
       status: customer?.status || "not-started",
       contractSize: customer?.contractSize || 0,
-      ownerId: customer?.owner.id || "user-001",
+      ownerId: customer?.owner?.id || "user-001",
     },
   });
   
   React.useEffect(() => {
-    if (customer?.logo) {
-      setLogoPreview(customer.logo);
+    if (customer) {
+      form.reset({
+        name: customer.name || "",
+        segment: customer.segment || "Enterprise",
+        region: customer.region || "",
+        stage: customer.stage || "Onboarding",
+        status: customer.status || "not-started",
+        contractSize: customer.contractSize || customer.contract_size || 0,
+        ownerId: customer.owner?.id || customer.owner_id || "user-001",
+      });
+      
+      if (customer.logo) {
+        setLogoPreview(customer.logo);
+      }
     }
-  }, [customer]);
+  }, [customer, form]);
   
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -81,15 +140,47 @@ const AddEditCustomer = () => {
     }
   };
   
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // In a real app, you would save this data to your backend
-    console.log(values);
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsSubmitting(true);
     
-    // Simulate an API call
-    setTimeout(() => {
-      toast.success(isEditing ? "Customer updated successfully" : "Customer added successfully");
+    try {
+      const customerData: CustomerInsert = {
+        name: values.name,
+        segment: values.segment,
+        region: values.region,
+        stage: values.stage,
+        status: values.status,
+        contract_size: values.contractSize,
+        owner_id: values.ownerId,
+        logo: values.logo || null
+      };
+      
+      if (isEditing) {
+        const { error } = await supabase
+          .from('customers')
+          .update(customerData)
+          .eq('id', getDbCustomerId());
+        
+        if (error) throw error;
+        
+        toast.success("Customer updated successfully");
+      } else {
+        const { error } = await supabase
+          .from('customers')
+          .insert(customerData);
+        
+        if (error) throw error;
+        
+        toast.success("Customer added successfully");
+      }
+      
       navigate("/customers");
-    }, 500);
+    } catch (error) {
+      console.error("Error saving customer:", error);
+      toast.error(isEditing ? "Failed to update customer" : "Failed to add customer");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
   
   return (
@@ -294,7 +385,9 @@ const AddEditCustomer = () => {
                 />
                 
                 <div className="flex justify-end">
-                  <Button type="submit">{isEditing ? "Update Customer" : "Add Customer"}</Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? "Saving..." : isEditing ? "Update Customer" : "Add Customer"}
+                  </Button>
                 </div>
               </form>
             </Form>

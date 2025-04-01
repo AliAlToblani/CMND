@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { CustomerCard, CustomerData } from "@/components/customers/CustomerCard";
@@ -27,7 +26,6 @@ const Customers = () => {
   const [customers, setCustomers] = useState<CustomerData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Convert mock customer to CustomerData format
   const convertMockToCustomerData = (mockCustomer: any): CustomerData => {
     return {
       id: mockCustomer.id,
@@ -50,7 +48,24 @@ const Customers = () => {
     };
   };
 
-  // Fetch customers from Supabase
+  const formatDatabaseCustomer = (dbCustomer: any): CustomerData => {
+    return {
+      id: dbCustomer.id,
+      name: dbCustomer.name,
+      logo: dbCustomer.logo || undefined,
+      segment: dbCustomer.segment || "Unknown Segment",
+      region: dbCustomer.region || "Unknown Region",
+      stage: dbCustomer.stage || "New",
+      status: (dbCustomer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
+      contractSize: dbCustomer.contract_size || 0,
+      owner: {
+        id: dbCustomer.owner_id || "unknown",
+        name: "Unassigned",
+        role: "Unassigned"
+      }
+    };
+  };
+
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
@@ -69,33 +84,15 @@ const Customers = () => {
         console.log("Customers data fetched:", data);
 
         if (data && data.length > 0) {
-          // Convert Supabase data to our CustomerData format
-          const formattedCustomers: CustomerData[] = data.map((customer: any) => ({
-            id: customer.id,
-            name: customer.name,
-            logo: customer.logo || undefined,
-            segment: customer.segment || "Unknown Segment",
-            region: customer.region || "Unknown Region",
-            stage: customer.stage || "New",
-            status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
-            contractSize: customer.contract_size || 0,
-            owner: {
-              id: customer.owner_id || "unknown",
-              name: "Unassigned", // We don't have the owner data from this query
-              role: "Unassigned"
-            }
-          }));
-
+          const formattedCustomers = data.map(formatDatabaseCustomer);
           setCustomers(formattedCustomers);
         } else {
           console.log("No customers found in database, using mock data");
-          // Use mock data if no customers found
           setCustomers(mockCustomers.map(convertMockToCustomerData));
         }
       } catch (error) {
         console.error("Error fetching customers:", error);
         toast.error("Failed to load customers, using mock data");
-        // Fall back to mock data
         setCustomers(mockCustomers.map(convertMockToCustomerData));
       } finally {
         setIsLoading(false);
@@ -105,9 +102,43 @@ const Customers = () => {
     fetchCustomers();
   }, []);
 
+  const refreshCustomers = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*');
+
+      if (error) {
+        throw error;
+      }
+
+      if (data && data.length > 0) {
+        const formattedCustomers = data.map(formatDatabaseCustomer);
+        setCustomers(formattedCustomers);
+      }
+    } catch (error) {
+      console.error("Error refreshing customers:", error);
+      toast.error("Failed to refresh customers");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    const handleFocus = () => {
+      refreshCustomers();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
   const handleSort = (field: "name" | "contractSize") => {
     if (sortBy === field) {
-      // Cycle through: none -> asc -> desc -> none
       if (sortOrder === "none") setSortOrder("asc");
       else if (sortOrder === "asc") setSortOrder("desc");
       else setSortOrder("none");
@@ -127,7 +158,6 @@ const Customers = () => {
             ? a.contractSize - b.contractSize 
             : b.contractSize - a.contractSize;
         } else {
-          // Sort by name
           return sortOrder === "asc"
             ? a.name.localeCompare(b.name)
             : b.name.localeCompare(a.name);
@@ -139,12 +169,10 @@ const Customers = () => {
   };
 
   const filteredCustomers = getSortedCustomers().filter((customer) => {
-    // Filter by status
     if (filter !== "all" && customer.status !== filter) {
       return false;
     }
     
-    // Filter by search term
     if (
       searchTerm &&
       !customer.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -160,9 +188,14 @@ const Customers = () => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-bold">Customers</h1>
-          <Button onClick={() => navigate("/customers/new")}>
-            <Plus className="mr-2 h-4 w-4" /> Add Customer
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={refreshCustomers} variant="outline">
+              Refresh
+            </Button>
+            <Button onClick={() => navigate("/customers/new")}>
+              <Plus className="mr-2 h-4 w-4" /> Add Customer
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-wrap">
