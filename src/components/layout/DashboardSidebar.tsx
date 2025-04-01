@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Link } from "react-router-dom";
-import { Home, Users, Calendar, Settings, BarChart, FileText, MessageSquare } from "lucide-react";
+import { Home, Users, Calendar, BarChart, FileText, Bell } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 
 const mainNavItems = [
@@ -24,31 +24,21 @@ const mainNavItems = [
     title: "Contracts",
     icon: FileText,
     path: "/contracts"
-  },
-  {
-    title: "Reports",
-    icon: BarChart,
-    path: "/reports"
   }
 ];
 
 const secondaryNavItems = [
   {
-    title: "Messages",
-    icon: MessageSquare,
-    path: "/messages"
-  },
-  {
-    title: "Settings",
-    icon: Settings,
-    path: "/settings"
+    title: "Notifications",
+    icon: Bell,
+    path: "/notifications"
   }
 ];
 
 export function DashboardSidebar() {
   return (
-    <Sidebar className="glass-sidebar border-0 transition-all duration-300 bg-gray-100 dark:bg-gray-800">
-      <SidebarHeader className="p-4 bg-gray-200/80 dark:bg-gray-700/80 backdrop-blur-md border-b border-gray-300/20 dark:border-gray-600/20">
+    <Sidebar className="glass-sidebar border-0 transition-all duration-300 bg-gray-200 dark:bg-gray-800">
+      <SidebarHeader className="p-4 bg-gray-300/80 dark:bg-gray-700/80 backdrop-blur-md border-b border-gray-300/20 dark:border-gray-600/20">
         <div className="flex items-center space-x-2">
           <img src="/lovable-uploads/7103ec49-9766-44ba-a938-b218c15a85e7.png" alt="DOO Command" className="h-10 w-10" />
           <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Customer Center</h2>

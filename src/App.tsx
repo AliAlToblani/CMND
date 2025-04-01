@@ -11,9 +11,8 @@ import CustomerDetails from "./pages/CustomerDetails";
 import AddEditCustomer from "./pages/AddEditCustomer";
 import Lifecycle from "./pages/Lifecycle";
 import Contracts from "./pages/Contracts";
-import Reports from "./pages/Reports";
-import Messages from "./pages/Messages";
-import Settings from "./pages/Settings";
+import Notifications from "./pages/Notifications";
+import TeamManagement from "./pages/TeamManagement";
 import NotFound from "./pages/NotFound";
 
 // Create a client
@@ -35,9 +34,8 @@ const App = () => {
               <Route path="/customers/:id" element={<CustomerDetails />} />
               <Route path="/lifecycle" element={<Lifecycle />} />
               <Route path="/contracts" element={<Contracts />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/messages" element={<Messages />} />
-              <Route path="/settings" element={<Settings />} />
+              <Route path="/notifications" element={<Notifications />} />
+              <Route path="/team" element={<TeamManagement />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

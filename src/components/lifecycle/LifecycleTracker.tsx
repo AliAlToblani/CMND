@@ -6,6 +6,7 @@ import { AddEditStage } from "./AddEditStage";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { LifecycleStage, LifecycleStageWithOwner } from "@/types/customers";
+import { createNotification } from "@/utils/notificationHelpers";
 
 interface LifecycleTrackerProps {
   customerId: string;
@@ -84,6 +85,37 @@ export function LifecycleTracker({
         if (onStagesUpdate) {
           onStagesUpdate(updatedStages);
         }
+
+        // Create notification for the new stage
+        await createNotification({
+          type: 'lifecycle',
+          title: 'New Lifecycle Stage Added',
+          message: `A new stage "${newStageData.name}" has been added for ${customerName}`,
+          related_id: data[0].id,
+          related_type: 'lifecycle_stage'
+        });
+
+        // If stage has an owner, create assignment notification
+        if (newStageData.owner) {
+          await createNotification({
+            type: 'lifecycle',
+            title: 'Lifecycle Stage Assigned',
+            message: `"${newStageData.name}" for ${customerName} has been assigned to ${newStageData.owner.name}`,
+            related_id: data[0].id,
+            related_type: 'lifecycle_stage'
+          });
+        }
+
+        // If stage has a deadline, create deadline notification
+        if (newStageData.deadline) {
+          await createNotification({
+            type: 'deadline',
+            title: 'New Deadline Added',
+            message: `A deadline has been set for "${newStageData.name}" (${customerName}) - ${new Date(newStageData.deadline).toLocaleDateString()}`,
+            related_id: data[0].id,
+            related_type: 'lifecycle_stage'
+          });
+        }
       }
 
       toast.success("Stage added successfully");
@@ -113,6 +145,9 @@ export function LifecycleTracker({
         throw error;
       }
 
+      // Get the current stage data before update (for notification)
+      const currentStage = stages.find(stage => stage.id === stageId);
+      
       const updatedStages = stages.map(stage => {
         if (stage.id === stageId) {
           return { ...stage, ...updatedStage };
@@ -124,6 +159,48 @@ export function LifecycleTracker({
       
       if (onStagesUpdate) {
         onStagesUpdate(updatedStages);
+      }
+
+      // Create notification for the updated stage
+      await createNotification({
+        type: 'lifecycle',
+        title: 'Lifecycle Stage Updated',
+        message: `Stage "${updatedStage.name || currentStage?.name}" for ${customerName} has been updated`,
+        related_id: stageId,
+        related_type: 'lifecycle_stage'
+      });
+
+      // If owner changed, create assignment notification
+      if (updatedStage.owner && (!currentStage?.owner || currentStage.owner.id !== updatedStage.owner.id)) {
+        await createNotification({
+          type: 'lifecycle',
+          title: 'Lifecycle Stage Assigned',
+          message: `"${updatedStage.name || currentStage?.name}" for ${customerName} has been assigned to ${updatedStage.owner.name}`,
+          related_id: stageId,
+          related_type: 'lifecycle_stage'
+        });
+      }
+
+      // If status changed to done, create completion notification
+      if (updatedStage.status === 'done' && currentStage?.status !== 'done') {
+        await createNotification({
+          type: 'lifecycle',
+          title: 'Lifecycle Stage Completed',
+          message: `"${updatedStage.name || currentStage?.name}" for ${customerName} has been marked as complete`,
+          related_id: stageId,
+          related_type: 'lifecycle_stage'
+        });
+      }
+
+      // If deadline changed, create deadline notification
+      if (updatedStage.deadline && (!currentStage?.deadline || currentStage.deadline !== updatedStage.deadline)) {
+        await createNotification({
+          type: 'deadline',
+          title: 'Deadline Updated',
+          message: `Deadline for "${updatedStage.name || currentStage?.name}" (${customerName}) has been updated to ${new Date(updatedStage.deadline).toLocaleDateString()}`,
+          related_id: stageId,
+          related_type: 'lifecycle_stage'
+        });
       }
 
       toast.success("Stage updated successfully");
