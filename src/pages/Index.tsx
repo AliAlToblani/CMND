@@ -7,14 +7,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Users, Calendar, FileText, Link } from "lucide-react";
 import { dashboardStats, customers } from "@/data/mockData";
+import { useNavigate } from "react-router-dom";
 
 const Index = () => {
+  const navigate = useNavigate();
+  
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <Button>
+          <Button onClick={() => navigate("/customers")}>
             <Plus className="mr-2 h-4 w-4" /> Add Customer
           </Button>
         </div>
@@ -27,12 +30,12 @@ const Index = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Customers */}
-          <Card className="col-span-2">
+          <Card className="col-span-2 bg-card">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg font-medium">
                 Recent Customers
               </CardTitle>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" onClick={() => navigate("/customers")}>
                 View All
               </Button>
             </CardHeader>
@@ -46,26 +49,26 @@ const Index = () => {
           </Card>
 
           {/* Quick Actions */}
-          <Card>
+          <Card className="bg-card">
             <CardHeader>
               <CardTitle className="text-lg font-medium">
                 Quick Actions
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button className="w-full justify-start" variant="outline">
+              <Button className="w-full justify-start" variant="outline" onClick={() => navigate("/customers")}>
                 <Users className="mr-2 h-4 w-4" />
                 View All Customers
               </Button>
-              <Button className="w-full justify-start" variant="outline">
+              <Button className="w-full justify-start" variant="outline" onClick={() => navigate("/lifecycle")}>
                 <Calendar className="mr-2 h-4 w-4" />
                 Customer Lifecycle
               </Button>
-              <Button className="w-full justify-start" variant="outline">
+              <Button className="w-full justify-start" variant="outline" onClick={() => navigate("/contracts")}>
                 <FileText className="mr-2 h-4 w-4" />
                 Contracts & Documents
               </Button>
-              <Button className="w-full justify-start" variant="outline">
+              <Button className="w-full justify-start" variant="outline" onClick={() => navigate("/integrations")}>
                 <Link className="mr-2 h-4 w-4" />
                 Integration Center
               </Button>

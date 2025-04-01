@@ -1,4 +1,3 @@
-
 import { LifecycleStageProps, OwnerType } from "@/components/lifecycle/LifecycleStage";
 
 // Mock customers
@@ -11,6 +10,12 @@ export const customers = [
     region: "Middle East",
     stage: "Integration Setup",
     status: "in-progress" as const,
+    contractSize: 75000,
+    owner: {
+      id: "user-001",
+      name: "Ahmed Abdullah",
+      role: "Account Executive"
+    }
   },
   {
     id: "cust-002",
@@ -20,6 +25,12 @@ export const customers = [
     region: "MENA",
     stage: "Contract Signed",
     status: "done" as const,
+    contractSize: 120000,
+    owner: {
+      id: "user-002",
+      name: "Fatima Hassan",
+      role: "Customer Success Manager"
+    }
   },
   {
     id: "cust-003",
@@ -29,6 +40,12 @@ export const customers = [
     region: "GCC",
     stage: "Demo Completed",
     status: "not-started" as const,
+    contractSize: 45000,
+    owner: {
+      id: "user-003",
+      name: "Khalid Al-Farsi",
+      role: "Finance Manager"
+    }
   },
   {
     id: "cust-004",
@@ -38,6 +55,12 @@ export const customers = [
     region: "MENA",
     stage: "Go Live",
     status: "blocked" as const,
+    contractSize: 85000,
+    owner: {
+      id: "user-004",
+      name: "Mohammed Rahman",
+      role: "Integration Engineer"
+    }
   },
   {
     id: "cust-005",
@@ -47,6 +70,12 @@ export const customers = [
     region: "MENA",
     stage: "Proposal Sent",
     status: "in-progress" as const,
+    contractSize: 95000,
+    owner: {
+      id: "user-001",
+      name: "Ahmed Abdullah",
+      role: "Account Executive"
+    }
   },
   {
     id: "cust-006",
@@ -56,6 +85,12 @@ export const customers = [
     region: "UAE",
     stage: "Interest Captured",
     status: "not-started" as const,
+    contractSize: 200000,
+    owner: {
+      id: "user-002",
+      name: "Fatima Hassan",
+      role: "Customer Success Manager"
+    }
   },
 ];
 

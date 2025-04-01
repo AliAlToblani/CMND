@@ -3,21 +3,41 @@ import React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, User } from "lucide-react";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { useNavigate } from "react-router-dom";
 
-interface CustomerCardProps {
-  customer: {
-    id: string;
-    name: string;
-    logo?: string;
-    segment: string;
-    region: string;
-    stage: string;
-    status: "not-started" | "in-progress" | "done" | "blocked";
-  };
+export interface CustomerOwner {
+  id: string;
+  name: string;
+  role: string;
 }
 
-export function CustomerCard({ customer }: CustomerCardProps) {
+export interface CustomerData {
+  id: string;
+  name: string;
+  logo?: string;
+  segment: string;
+  region: string;
+  stage: string;
+  status: "not-started" | "in-progress" | "done" | "blocked";
+  contractSize: number;
+  owner: CustomerOwner;
+}
+
+interface CustomerCardProps {
+  customer: CustomerData;
+  showEditOptions?: boolean;
+}
+
+export function CustomerCard({ customer, showEditOptions = false }: CustomerCardProps) {
+  const navigate = useNavigate();
+  
   const getStatusClass = (status: string) => {
     switch (status) {
       case "not-started":
@@ -41,38 +61,54 @@ export function CustomerCard({ customer }: CustomerCardProps) {
       .toUpperCase();
   };
 
+  const handleViewDetails = () => {
+    navigate(`/customers/${customer.id}`);
+  };
+
   return (
-    <Card className="overflow-hidden hover:shadow-md transition-shadow duration-200">
+    <Card className="overflow-hidden hover:shadow-md transition-shadow duration-200 bg-card">
       <CardContent className="p-0">
         <div className="p-4">
           <div className="flex items-center space-x-3">
             <Avatar className="h-10 w-10">
               <AvatarImage src={customer.logo} alt={customer.name} />
-              <AvatarFallback className="bg-blue-100 text-blue-800">
+              <AvatarFallback className="bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100">
                 {getInitials(customer.name)}
               </AvatarFallback>
             </Avatar>
             <div>
               <h3 className="font-medium">{customer.name}</h3>
-              <div className="flex items-center space-x-2 text-sm text-gray-500">
+              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <span>{customer.segment}</span>
                 <span>•</span>
                 <span>{customer.region}</span>
               </div>
             </div>
           </div>
-          <div className="mt-4 flex items-center justify-between">
+          
+          <div className="mt-4 grid grid-cols-2 gap-2">
             <div>
-              <p className="text-sm text-gray-500">Current Stage</p>
+              <p className="text-sm text-muted-foreground">Current Stage</p>
               <p className="font-medium">{customer.stage}</p>
             </div>
+            <div className="text-right">
+              <p className="text-sm text-muted-foreground">Contract Size</p>
+              <p className="font-medium">${customer.contractSize.toLocaleString()}</p>
+            </div>
+          </div>
+          
+          <div className="mt-3 flex items-center justify-between">
             <span className={getStatusClass(customer.status)}>
               {customer.status.replace("-", " ")}
             </span>
+            <div className="flex items-center text-xs text-muted-foreground">
+              <User className="h-3 w-3 mr-1" />
+              <span>{customer.owner.name}</span>
+            </div>
           </div>
         </div>
-        <div className="border-t p-3 bg-gray-50 flex justify-end">
-          <Button variant="ghost" size="sm" className="text-sm">
+        <div className="border-t p-3 bg-muted/50 flex justify-end">
+          <Button variant="ghost" size="sm" className="text-sm" onClick={handleViewDetails}>
             View Details <ArrowRight className="ml-1 h-4 w-4" />
           </Button>
         </div>

@@ -1,9 +1,9 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { CustomerCard } from "@/components/customers/CustomerCard";
+import { CustomerCard, CustomerData } from "@/components/customers/CustomerCard";
 import { Button } from "@/components/ui/button";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, ArrowUpDown } from "lucide-react";
 import { customers } from "@/data/mockData";
 import { 
   Select,
@@ -12,12 +12,48 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 const Customers = () => {
-  const [filter, setFilter] = React.useState("all");
-  const [searchTerm, setSearchTerm] = React.useState("");
+  const [filter, setFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc" | "none">("none");
+  const [sortBy, setSortBy] = useState<"name" | "contractSize">("name");
 
-  const filteredCustomers = customers.filter((customer) => {
+  const handleSort = (field: "name" | "contractSize") => {
+    if (sortBy === field) {
+      // Cycle through: none -> asc -> desc -> none
+      if (sortOrder === "none") setSortOrder("asc");
+      else if (sortOrder === "asc") setSortOrder("desc");
+      else setSortOrder("none");
+    } else {
+      setSortBy(field);
+      setSortOrder("asc");
+    }
+  };
+
+  const getSortedCustomers = () => {
+    let result = [...customers];
+    
+    if (sortOrder !== "none") {
+      result.sort((a, b) => {
+        if (sortBy === "contractSize") {
+          return sortOrder === "asc" 
+            ? a.contractSize - b.contractSize 
+            : b.contractSize - a.contractSize;
+        } else {
+          // Sort by name
+          return sortOrder === "asc"
+            ? a.name.localeCompare(b.name)
+            : b.name.localeCompare(a.name);
+        }
+      });
+    }
+    
+    return result;
+  };
+
+  const filteredCustomers = getSortedCustomers().filter((customer) => {
     // Filter by status
     if (filter !== "all" && customer.status !== filter) {
       return false;
@@ -44,17 +80,18 @@ const Customers = () => {
           </Button>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-wrap">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <input
+            <Input
               type="text"
               placeholder="Search customers..."
-              className="pl-8 pr-4 py-2 border rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="pl-8 pr-4 py-2 w-full"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+          
           <Select value={filter} onValueChange={setFilter}>
             <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Filter by status" />
@@ -67,6 +104,20 @@ const Customers = () => {
               <SelectItem value="blocked">Blocked</SelectItem>
             </SelectContent>
           </Select>
+          
+          <Button 
+            variant="outline" 
+            onClick={() => handleSort("contractSize")}
+            className="flex items-center gap-2"
+          >
+            <span>Sort by Contract Size</span>
+            <ArrowUpDown className="h-4 w-4" />
+            {sortBy === "contractSize" && sortOrder !== "none" && (
+              <span className="text-xs">
+                ({sortOrder === "asc" ? "Low to High" : "High to Low"})
+              </span>
+            )}
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -76,7 +127,7 @@ const Customers = () => {
           
           {filteredCustomers.length === 0 && (
             <div className="col-span-3 py-16 text-center">
-              <p className="text-gray-500">No customers found. Try adjusting your filters.</p>
+              <p className="text-gray-500 dark:text-gray-400">No customers found. Try adjusting your filters.</p>
             </div>
           )}
         </div>
