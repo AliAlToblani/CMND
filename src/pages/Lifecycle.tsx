@@ -196,7 +196,7 @@ const Lifecycle = () => {
             name: stage.staff.name,
             role: stage.staff.role
           } : {
-            id: "user-001",
+            id: "00000000-0000-0000-0000-000000000001",
             name: "Ahmed Abdullah",
             role: "Account Executive"
           },
@@ -231,10 +231,15 @@ const Lifecycle = () => {
       const dbCustomerId = getDbCustomerId(customerId);
       console.log("Adding default stages for customer ID:", customerId, "DB ID:", dbCustomerId);
       
-      const { data: existingStages } = await supabase
+      const { data: existingStages, error: checkError } = await supabase
         .from('lifecycle_stages')
         .select('name')
         .eq('customer_id', dbCustomerId);
+      
+      if (checkError) {
+        console.error("Error checking existing stages:", checkError);
+        throw checkError;
+      }
       
       const existingStageNames = existingStages?.map(stage => stage.name) || [];
       
@@ -243,7 +248,31 @@ const Lifecycle = () => {
       );
       
       if (stagesToAdd.length === 0) {
-        toast.info("Integration stages already exist for this customer");
+        const { data: allStages, error: getAllError } = await supabase
+          .from('lifecycle_stages')
+          .select('*')
+          .eq('customer_id', dbCustomerId);
+        
+        if (getAllError || !allStages || allStages.length === 0) {
+          const stagesToInsert = defaultIntegrationStages.map(stage => ({
+            customer_id: dbCustomerId,
+            name: stage.name,
+            status: stage.status,
+            owner_id: stage.owner.id,
+            notes: stage.notes
+          }));
+          
+          const { error: insertError } = await supabase
+            .from('lifecycle_stages')
+            .insert(stagesToInsert);
+          
+          if (!insertError) {
+            toast.success("Default integration stages added");
+            setCustomerStages(defaultIntegrationStages);
+          }
+        } else {
+          toast.info("Integration stages already exist for this customer");
+        }
         return;
       }
       
@@ -268,11 +297,24 @@ const Lifecycle = () => {
       
       toast.success("Integration stages added successfully");
       
+      const updatedStages = [...customerStages, ...stagesToAdd.map(stage => ({
+        ...stage,
+        id: `temp-${Date.now()}-${Math.random()}`
+      }))];
+      setCustomerStages(updatedStages);
+      
       await fetchCustomerStages(customerId);
       
     } catch (error) {
       console.error("Error adding integration stages:", error);
       toast.error("Failed to add integration stages");
+      
+      if (customerStages.length === 0) {
+        setCustomerStages(defaultIntegrationStages.map(stage => ({
+          ...stage,
+          id: `temp-${Date.now()}-${Math.random()}`
+        })));
+      }
     } finally {
       setLoading(false);
     }

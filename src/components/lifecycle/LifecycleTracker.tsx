@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LifecycleStageComponent, LifecycleStageProps } from "./LifecycleStage";
@@ -7,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { LifecycleStage, LifecycleStageWithOwner } from "@/types/customers";
 import { createNotification } from "@/utils/notificationHelpers";
+import { MessageSquare, Instagram, Globe, Mail, Smartphone } from "lucide-react";
 
 interface LifecycleTrackerProps {
   customerId: string;
@@ -15,23 +15,46 @@ interface LifecycleTrackerProps {
   onStagesUpdate?: (stages: LifecycleStageProps[]) => void;
 }
 
+const defaultFallbackStages: LifecycleStageProps[] = [
+  {
+    id: "fallback-stage-1",
+    name: "Chat Integration",
+    status: "not-started",
+    owner: {
+      id: "00000000-0000-0000-0000-000000000001",
+      name: "Ahmed Abdullah",
+      role: "Account Executive"
+    },
+    notes: "Implement customer chat integration for real-time support.",
+    icon: <MessageSquare className="h-5 w-5" />
+  },
+  {
+    id: "fallback-stage-2",
+    name: "Social Media Connect",
+    status: "not-started",
+    owner: {
+      id: "00000000-0000-0000-0000-000000000004",
+      name: "Mohammed Rahman",
+      role: "Integration Engineer"
+    },
+    notes: "Set up Instagram business account connection for the customer.",
+    icon: <Instagram className="h-5 w-5" />
+  }
+];
+
 export function LifecycleTracker({
   customerId,
   customerName,
   stages: initialStages,
   onStagesUpdate,
 }: LifecycleTrackerProps) {
-  const [stages, setStages] = useState(initialStages);
+  const [stages, setStages] = useState<LifecycleStageProps[]>(initialStages && initialStages.length > 0 ? initialStages : []);
+  const [hasFetchedStages, setHasFetchedStages] = useState(false);
 
-  // Convert customerId to UUID format if it's not already
   const getDbCustomerId = () => {
-    // If it's already a UUID, return it
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(customerId)) {
       return customerId;
     }
-    
-    // For our mock customers with format like "cust-001", we'll create a deterministic UUID
-    // This approach ensures the same mock ID always maps to the same UUID
     return `00000000-0000-0000-0000-${customerId.replace(/\D/g, '').padStart(12, '0')}`;
   };
 
@@ -50,7 +73,6 @@ export function LifecycleTracker({
         notes: newStage.notes,
       };
 
-      // Prepare the data for Supabase with converted customerId
       const { data, error } = await supabase
         .from('lifecycle_stages')
         .insert({
@@ -69,12 +91,11 @@ export function LifecycleTracker({
       }
 
       if (data && data.length > 0) {
-        // Convert Supabase data to LifecycleStageProps format
         const newStageData: LifecycleStageProps = {
           id: data[0].id,
           name: data[0].name,
           status: data[0].status as "not-started" | "in-progress" | "done" | "blocked",
-          owner: stageWithId.owner, // Using the provided owner data
+          owner: stageWithId.owner,
           deadline: data[0].deadline,
           notes: data[0].notes,
         };
@@ -86,7 +107,6 @@ export function LifecycleTracker({
           onStagesUpdate(updatedStages);
         }
 
-        // Create notification for the new stage
         await createNotification({
           type: 'lifecycle',
           title: 'New Lifecycle Stage Added',
@@ -95,7 +115,6 @@ export function LifecycleTracker({
           related_type: 'lifecycle_stage'
         });
 
-        // If stage has an owner, create assignment notification
         if (newStageData.owner) {
           await createNotification({
             type: 'lifecycle',
@@ -106,7 +125,6 @@ export function LifecycleTracker({
           });
         }
 
-        // If stage has a deadline, create deadline notification
         if (newStageData.deadline) {
           await createNotification({
             type: 'deadline',
@@ -127,7 +145,6 @@ export function LifecycleTracker({
 
   const handleUpdateStage = async (stageId: string, updatedStage: Partial<LifecycleStageProps>) => {
     try {
-      // Prepare the update data for Supabase
       const updateData: any = {};
       if (updatedStage.name) updateData.name = updatedStage.name;
       if (updatedStage.status) updateData.status = updatedStage.status;
@@ -145,7 +162,6 @@ export function LifecycleTracker({
         throw error;
       }
 
-      // Get the current stage data before update (for notification)
       const currentStage = stages.find(stage => stage.id === stageId);
       
       const updatedStages = stages.map(stage => {
@@ -161,7 +177,6 @@ export function LifecycleTracker({
         onStagesUpdate(updatedStages);
       }
 
-      // Create notification for the updated stage
       await createNotification({
         type: 'lifecycle',
         title: 'Lifecycle Stage Updated',
@@ -170,7 +185,6 @@ export function LifecycleTracker({
         related_type: 'lifecycle_stage'
       });
 
-      // If owner changed, create assignment notification
       if (updatedStage.owner && (!currentStage?.owner || currentStage.owner.id !== updatedStage.owner.id)) {
         await createNotification({
           type: 'lifecycle',
@@ -181,7 +195,6 @@ export function LifecycleTracker({
         });
       }
 
-      // If status changed to done, create completion notification
       if (updatedStage.status === 'done' && currentStage?.status !== 'done') {
         await createNotification({
           type: 'lifecycle',
@@ -192,7 +205,6 @@ export function LifecycleTracker({
         });
       }
 
-      // If deadline changed, create deadline notification
       if (updatedStage.deadline && (!currentStage?.deadline || currentStage.deadline !== updatedStage.deadline)) {
         await createNotification({
           type: 'deadline',
@@ -210,11 +222,11 @@ export function LifecycleTracker({
     }
   };
 
-  // Load lifecycle stages from Supabase when component mounts
   useEffect(() => {
     const fetchLifecycleStages = async () => {
+      if (!customerId || hasFetchedStages) return;
+      
       try {
-        // Use the converted customer ID for database operations
         const dbCustomerId = getDbCustomerId();
         console.log("Fetching lifecycle stages for customer ID:", customerId, "DB ID:", dbCustomerId);
 
@@ -233,7 +245,6 @@ export function LifecycleTracker({
 
         if (data) {
           console.log("Fetched lifecycle stages:", data);
-          // Convert Supabase data to LifecycleStageProps format
           const formattedStages: LifecycleStageProps[] = data.map((stage: any) => ({
             id: stage.id,
             name: stage.name,
@@ -243,7 +254,7 @@ export function LifecycleTracker({
               name: stage.staff.name,
               role: stage.staff.role
             } : {
-              id: "user-001",
+              id: "00000000-0000-0000-0000-000000000001",
               name: "Ahmed Abdullah",
               role: "Account Executive"
             },
@@ -252,6 +263,7 @@ export function LifecycleTracker({
           }));
 
           setStages(formattedStages);
+          setHasFetchedStages(true);
           
           if (onStagesUpdate) {
             onStagesUpdate(formattedStages);
@@ -266,7 +278,17 @@ export function LifecycleTracker({
     if (customerId) {
       fetchLifecycleStages();
     }
-  }, [customerId, onStagesUpdate]);
+  }, [customerId, onStagesUpdate, hasFetchedStages]);
+  
+  useEffect(() => {
+    if (hasFetchedStages && stages.length === 0) {
+      console.log("No stages found after fetch, using fallback stages");
+      setStages(defaultFallbackStages);
+      if (onStagesUpdate) {
+        onStagesUpdate(defaultFallbackStages);
+      }
+    }
+  }, [hasFetchedStages, stages.length, onStagesUpdate]);
 
   return (
     <Card className="w-full glass-card">

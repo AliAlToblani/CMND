@@ -39,7 +39,7 @@ export function AddEditStage({ stage, isEditing = false, onSave, customerId }: A
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState(stage?.name || "");
   const [status, setStatus] = React.useState<LifecycleStageProps["status"]>(stage?.status || "not-started");
-  const [ownerId, setOwnerId] = React.useState(stage?.owner?.id || "");
+  const [ownerId, setOwnerId] = React.useState(stage?.owner?.id || "00000000-0000-0000-0000-000000000001");
   const [date, setDate] = React.useState<Date | undefined>(
     stage?.deadline ? new Date(stage.deadline) : undefined
   );
@@ -63,6 +63,7 @@ export function AddEditStage({ stage, isEditing = false, onSave, customerId }: A
       },
       notes,
       ...(date && { deadline: format(date, "yyyy-MM-dd") }),
+      ...(stage?.icon && { icon: stage.icon }), // Preserve icon if it exists
     };
     
     onSave(updatedStage);
@@ -77,20 +78,20 @@ export function AddEditStage({ stage, isEditing = false, onSave, customerId }: A
   
   const getOwnerName = (id: string) => {
     switch(id) {
-      case "user-001": return "Ahmed Abdullah";
-      case "user-002": return "Fatima Hassan";
-      case "user-003": return "Khalid Al-Farsi";
-      case "user-004": return "Mohammed Rahman";
+      case "00000000-0000-0000-0000-000000000001": return "Ahmed Abdullah";
+      case "00000000-0000-0000-0000-000000000002": return "Fatima Hassan";
+      case "00000000-0000-0000-0000-000000000003": return "Khalid Al-Farsi";
+      case "00000000-0000-0000-0000-000000000004": return "Mohammed Rahman";
       default: return "Unknown";
     }
   };
   
   const getOwnerRole = (id: string) => {
     switch(id) {
-      case "user-001": return "Account Executive";
-      case "user-002": return "Customer Success Manager";
-      case "user-003": return "Finance Manager";
-      case "user-004": return "Integration Engineer";
+      case "00000000-0000-0000-0000-000000000001": return "Account Executive";
+      case "00000000-0000-0000-0000-000000000002": return "Customer Success Manager";
+      case "00000000-0000-0000-0000-000000000003": return "Finance Manager";
+      case "00000000-0000-0000-0000-000000000004": return "Integration Engineer";
       default: return "Unknown";
     }
   };
@@ -149,10 +150,10 @@ export function AddEditStage({ stage, isEditing = false, onSave, customerId }: A
                   <SelectValue placeholder="Select owner" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="user-001">Ahmed Abdullah (Account Executive)</SelectItem>
-                  <SelectItem value="user-002">Fatima Hassan (Customer Success Manager)</SelectItem>
-                  <SelectItem value="user-003">Khalid Al-Farsi (Finance Manager)</SelectItem>
-                  <SelectItem value="user-004">Mohammed Rahman (Integration Engineer)</SelectItem>
+                  <SelectItem value="00000000-0000-0000-0000-000000000001">Ahmed Abdullah (Account Executive)</SelectItem>
+                  <SelectItem value="00000000-0000-0000-0000-000000000002">Fatima Hassan (Customer Success Manager)</SelectItem>
+                  <SelectItem value="00000000-0000-0000-0000-000000000003">Khalid Al-Farsi (Finance Manager)</SelectItem>
+                  <SelectItem value="00000000-0000-0000-0000-000000000004">Mohammed Rahman (Integration Engineer)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
