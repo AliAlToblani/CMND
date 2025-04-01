@@ -13,7 +13,8 @@ import {
 import { customers } from "@/data/mockData";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Customer, LifecycleStageProps } from "@/types/customers";
+import { Customer } from "@/types/customers";
+import { LifecycleStageProps } from "@/components/lifecycle/LifecycleStage";
 import { MessageSquare, Instagram, Globe, Mail, Smartphone } from "lucide-react";
 
 const Lifecycle = () => {
