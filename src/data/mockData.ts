@@ -1,4 +1,4 @@
-import { LifecycleStageProps, OwnerType } from "@/components/lifecycle/LifecycleStage";
+import { LifecycleStageProps } from "@/components/lifecycle/LifecycleStage";
 
 // Mock customers
 export const customers = [

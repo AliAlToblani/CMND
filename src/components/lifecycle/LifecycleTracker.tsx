@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LifecycleStage as LifecycleStageComponent, LifecycleStageProps } from "./LifecycleStage";
+import { LifecycleStageComponent, LifecycleStageProps } from "./LifecycleStage";
 import { AddEditStage } from "./AddEditStage";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
