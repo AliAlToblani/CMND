@@ -6,7 +6,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   Bell, 
   Search,
-  Settings,
   HelpCircle,
   Moon,
   Sun
@@ -55,9 +54,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="min-h-screen flex w-full">
         <DashboardSidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="glass-card border-b h-16 flex items-center justify-between px-6 z-10">
+          <header className="backdrop-blur-lg bg-white/70 dark:bg-black/50 border-b border-white/10 dark:border-white/5 h-16 flex items-center justify-between px-6 z-10 shadow-sm">
             <div className="flex items-center">
-              <SidebarTrigger className="mr-4 hover:bg-white/10 p-2 rounded-md transition-colors" />
+              <SidebarTrigger className="mr-4 hover:bg-white/10 p-2 rounded-md transition-colors text-gray-700 dark:text-gray-200" />
               <div className="relative w-64">
                 <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
@@ -96,13 +95,13 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="glass-card">
+                <DropdownMenuContent align="end" className="glass-dropdown">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="cursor-pointer">Profile</DropdownMenuItem>
-                  <DropdownMenuItem className="cursor-pointer">Settings</DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="cursor-pointer">Log out</DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem className="cursor-pointer hover:bg-white/10 dark:hover:bg-white/5 transition-colors">Profile</DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer hover:bg-white/10 dark:hover:bg-white/5 transition-colors">Settings</DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem className="cursor-pointer hover:bg-white/10 dark:hover:bg-white/5 transition-colors">Log out</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

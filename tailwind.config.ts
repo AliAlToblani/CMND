@@ -97,10 +97,23 @@ export default {
 					}
 				}
 			},
+			backgroundImage: {
+				'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+				'glass-gradient': 'linear-gradient(to right bottom, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.3))',
+				'dark-glass-gradient': 'linear-gradient(to right bottom, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.3))',
+			},
+			backdropBlur: {
+				xs: '2px',
+			},
 			borderRadius: {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
+			},
+			boxShadow: {
+				'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
+				'glass-sm': '0 2px 8px 0 rgba(31, 38, 135, 0.07)',
+				'glass-lg': '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
 			},
 			keyframes: {
 				'accordion-down': {

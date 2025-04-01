@@ -72,26 +72,26 @@ const secondaryNavItems = [
 
 export function DashboardSidebar() {
   return (
-    <Sidebar>
-      <SidebarHeader className="p-4">
+    <Sidebar className="glass-sidebar border-0 transition-all duration-300">
+      <SidebarHeader className="p-4 bg-sidebar-background/30 backdrop-blur-md border-b border-sidebar-border/10">
         <div className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">
+          <div className="h-8 w-8 rounded-full bg-doo-purple-500/80 backdrop-blur-sm flex items-center justify-center text-white font-bold shadow-lg border border-white/20">
             D
           </div>
-          <h2 className="text-xl font-bold text-white">DOO Command</h2>
+          <h2 className="text-xl font-bold text-white/90">DOO Command</h2>
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="bg-transparent">
         <SidebarGroup>
-          <SidebarGroupLabel>Main</SidebarGroupLabel>
-          <SidebarGroupContent>
+          <SidebarGroupLabel className="text-white/70 font-medium">Main</SidebarGroupLabel>
+          <SidebarGroupContent className="mt-1">
             <SidebarMenu>
               {mainNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <Link to={item.path} className="flex items-center">
-                      <item.icon className="mr-2 h-5 w-5" />
-                      <span>{item.title}</span>
+                  <SidebarMenuButton asChild className="transition-all duration-200 hover:bg-white/10">
+                    <Link to={item.path} className="flex items-center group">
+                      <item.icon className="mr-2 h-5 w-5 text-white/80 group-hover:text-white" />
+                      <span className="text-white/90 group-hover:text-white">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -101,15 +101,15 @@ export function DashboardSidebar() {
         </SidebarGroup>
         
         <SidebarGroup>
-          <SidebarGroupLabel>Account</SidebarGroupLabel>
-          <SidebarGroupContent>
+          <SidebarGroupLabel className="text-white/70 font-medium">Account</SidebarGroupLabel>
+          <SidebarGroupContent className="mt-1">
             <SidebarMenu>
               {secondaryNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <Link to={item.path} className="flex items-center">
-                      <item.icon className="mr-2 h-5 w-5" />
-                      <span>{item.title}</span>
+                  <SidebarMenuButton asChild className="transition-all duration-200 hover:bg-white/10">
+                    <Link to={item.path} className="flex items-center group">
+                      <item.icon className="mr-2 h-5 w-5 text-white/80 group-hover:text-white" />
+                      <span className="text-white/90 group-hover:text-white">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

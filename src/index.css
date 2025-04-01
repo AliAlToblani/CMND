@@ -109,17 +109,18 @@
   }
   
   .status-done {
-    @apply bg-green-100 text-green-800;
+    @apply bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300;
   }
   
   .status-blocked {
-    @apply bg-red-100 text-red-800;
+    @apply bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300;
   }
   
   .lifecycle-stage {
     @apply p-4 border rounded-lg shadow-sm hover:shadow-md transition-all duration-300;
   }
   
+  /* Enhanced glassmorphism styles */
   .glass-card {
     @apply bg-white/70 dark:bg-black/30 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-lg;
   }
@@ -129,11 +130,27 @@
   }
   
   .glass-button {
-    @apply bg-primary/80 hover:bg-primary/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-all duration-300 border border-primary/20;
+    @apply bg-primary/80 hover:bg-primary/90 backdrop-blur-sm shadow-md hover:shadow-lg transition-all duration-300 border border-primary/20 text-white;
   }
   
   .glass-sidebar {
-    @apply bg-sidebar-background/90 backdrop-blur-md border-r border-sidebar-border/50;
+    @apply bg-sidebar-background/90 backdrop-blur-xl border-r border-white/5 shadow-[0_4px_30px_rgba(0,0,0,0.1)];
+  }
+  
+  .glass-dialog {
+    @apply bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-xl;
+  }
+  
+  .glass-dropdown {
+    @apply bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-lg;
+  }
+  
+  .glass-popover {
+    @apply bg-white/90 dark:bg-gray-900/90 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-lg;
+  }
+  
+  .neo-blur {
+    @apply backdrop-blur-2xl bg-black/40 border border-white/10;
   }
   
   .fade-in {
