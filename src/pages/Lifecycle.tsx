@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Customer } from "@/types/customers";
 import { LifecycleStageProps } from "@/components/lifecycle/LifecycleStage";
-import { defaultLifecycleStages } from "@/data/mockData";
+import { defaultLifecycleStages, icons } from "@/data/mockData";
 
 // Helper function to convert mock customer to DB Customer type
 const convertMockToCustomer = (mockCustomer: any): Customer => {
@@ -31,6 +31,15 @@ const convertMockToCustomer = (mockCustomer: any): Customer => {
     owner_id: mockCustomer.owner?.id || null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
+  };
+};
+
+// Helper function to convert default stage format to lifecycle stage props with icon
+const convertDefaultStageToProps = (defaultStage: any): LifecycleStageProps => {
+  const IconComponent = icons[defaultStage.iconName];
+  return {
+    ...defaultStage,
+    icon: IconComponent ? <IconComponent className="h-5 w-5" /> : undefined
   };
 };
 
@@ -130,6 +139,8 @@ const Lifecycle = () => {
             ds => ds.name === stage.name && ds.category === stage.category
           );
           
+          const IconComponent = defaultStage ? icons[defaultStage.iconName] : undefined;
+          
           return {
             id: stage.id,
             name: stage.name,
@@ -146,7 +157,7 @@ const Lifecycle = () => {
             },
             deadline: stage.deadline,
             notes: stage.notes,
-            icon: defaultStage?.icon
+            icon: IconComponent ? <IconComponent className="h-5 w-5" /> : undefined
           };
         });
 

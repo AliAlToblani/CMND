@@ -2,7 +2,8 @@ import { LifecycleStageProps } from "@/components/lifecycle/LifecycleStage";
 import { 
   MessageSquare, Instagram, Globe, Mail, Smartphone, 
   FileCheck, Users, Briefcase, DollarSign, Calendar, 
-  BookOpen, HeartHandshake, Medal, Zap, CheckSquare 
+  BookOpen, HeartHandshake, Medal, Zap, CheckSquare,
+  LucideIcon
 } from "lucide-react";
 
 // Mock customers
@@ -136,7 +137,7 @@ export const dashboardStats = [
 ];
 
 // Default lifecycle stages by category
-export const defaultLifecycleStages: LifecycleStageProps[] = [
+export const defaultLifecycleStages: Omit<LifecycleStageProps, "icon"> & { iconName: keyof typeof icons }[] = [
   {
     id: "sales-stage-1",
     name: "Initial Contact",
@@ -148,7 +149,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Account Executive"
     },
     notes: "First connection with the potential customer.",
-    icon: <Briefcase className="h-5 w-5" />
+    iconName: "Briefcase"
   },
   {
     id: "sales-stage-2",
@@ -161,7 +162,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Account Executive"
     },
     notes: "Product demonstration for key stakeholders.",
-    icon: <Briefcase className="h-5 w-5" />
+    iconName: "Briefcase"
   },
   {
     id: "sales-stage-3",
@@ -174,7 +175,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Account Executive"
     },
     notes: "Formal proposal shared with pricing and terms.",
-    icon: <FileCheck className="h-5 w-5" />
+    iconName: "FileCheck"
   },
   
   {
@@ -188,7 +189,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Finance Manager"
     },
     notes: "Completed contract with signatures from all parties.",
-    icon: <FileCheck className="h-5 w-5" />
+    iconName: "FileCheck"
   },
   {
     id: "finance-stage-2",
@@ -201,7 +202,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Finance Manager"
     },
     notes: "Initial invoice sent to customer.",
-    icon: <DollarSign className="h-5 w-5" />
+    iconName: "DollarSign"
   },
   {
     id: "finance-stage-3",
@@ -214,7 +215,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Finance Manager"
     },
     notes: "First payment successfully received.",
-    icon: <DollarSign className="h-5 w-5" />
+    iconName: "DollarSign"
   },
   
   {
@@ -228,7 +229,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Customer Success Manager"
     },
     notes: "Initial project kickoff with key stakeholders.",
-    icon: <Calendar className="h-5 w-5" />
+    iconName: "Calendar"
   },
   {
     id: "onboarding-stage-2",
@@ -241,7 +242,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Customer Success Manager"
     },
     notes: "Document detailed customer requirements and configuration needs.",
-    icon: <CheckSquare className="h-5 w-5" />
+    iconName: "CheckSquare"
   },
   {
     id: "onboarding-stage-3",
@@ -254,7 +255,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Customer Success Manager"
     },
     notes: "Set up customer account with initial configuration.",
-    icon: <Users className="h-5 w-5" />
+    iconName: "Users"
   },
   
   {
@@ -268,7 +269,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Integration Engineer"
     },
     notes: "Implement customer chat integration for real-time support.",
-    icon: <MessageSquare className="h-5 w-5" />
+    iconName: "MessageSquare"
   },
   {
     id: "integration-stage-2",
@@ -281,7 +282,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Integration Engineer"
     },
     notes: "Set up Instagram business account connection for the customer.",
-    icon: <Instagram className="h-5 w-5" />
+    iconName: "Instagram"
   },
   {
     id: "integration-stage-3",
@@ -294,7 +295,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Integration Engineer"
     },
     notes: "Configure API endpoints for the customer's website integration.",
-    icon: <Globe className="h-5 w-5" />
+    iconName: "Globe"
   },
   {
     id: "integration-stage-4",
@@ -307,7 +308,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Customer Success Manager"
     },
     notes: "Set up email marketing integration with customer's CRM.",
-    icon: <Mail className="h-5 w-5" />
+    iconName: "Mail"
   },
   {
     id: "integration-stage-5",
@@ -320,7 +321,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Integration Engineer"
     },
     notes: "Configure mobile app settings and push notification services.",
-    icon: <Smartphone className="h-5 w-5" />
+    iconName: "Smartphone"
   },
   
   {
@@ -334,7 +335,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Customer Success Manager"
     },
     notes: "Train customer administrators on platform management.",
-    icon: <BookOpen className="h-5 w-5" />
+    iconName: "BookOpen"
   },
   {
     id: "training-stage-2",
@@ -347,7 +348,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Customer Success Manager"
     },
     notes: "Train end users on daily operations and features.",
-    icon: <Users className="h-5 w-5" />
+    iconName: "Users"
   },
   
   {
@@ -361,7 +362,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Customer Success Manager"
     },
     notes: "Official launch of the solution for customer use.",
-    icon: <Zap className="h-5 w-5" />
+    iconName: "Zap"
   },
   {
     id: "success-stage-2",
@@ -374,7 +375,7 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Customer Success Manager"
     },
     notes: "Post-implementation review after 30 days of live usage.",
-    icon: <HeartHandshake className="h-5 w-5" />
+    iconName: "HeartHandshake"
   },
   {
     id: "success-stage-3",
@@ -387,9 +388,28 @@ export const defaultLifecycleStages: LifecycleStageProps[] = [
       role: "Customer Success Manager"
     },
     notes: "Key performance indicators and success metrics have been met.",
-    icon: <Medal className="h-5 w-5" />
+    iconName: "Medal"
   }
 ];
+
+// Icon mapping for the lifecycle stages
+export const icons = {
+  MessageSquare,
+  Instagram, 
+  Globe, 
+  Mail, 
+  Smartphone,
+  FileCheck, 
+  Users, 
+  Briefcase, 
+  DollarSign, 
+  Calendar,
+  BookOpen, 
+  HeartHandshake, 
+  Medal, 
+  Zap, 
+  CheckSquare
+};
 
 // Legacy lifecycle stages - keep for backward compatibility
 export const lifecycleStages: LifecycleStageProps[] = [

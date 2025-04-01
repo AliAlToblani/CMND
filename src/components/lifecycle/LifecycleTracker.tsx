@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { LifecycleStage, LifecycleStageWithOwner } from "@/types/customers";
 import { createNotification } from "@/utils/notificationHelpers";
-import { defaultLifecycleStages } from "@/data/mockData";
+import { defaultLifecycleStages, icons } from "@/data/mockData";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface LifecycleTrackerProps {
@@ -42,6 +42,15 @@ export function LifecycleTracker({
       return customerId;
     }
     return `00000000-0000-0000-0000-${customerId.replace(/\D/g, '').padStart(12, '0')}`;
+  };
+
+  // Convert a defaultLifecycleStage to a LifecycleStageProps with icon
+  const convertDefaultStageToProps = (defaultStage: any): LifecycleStageProps => {
+    const IconComponent = icons[defaultStage.iconName];
+    return {
+      ...defaultStage,
+      icon: IconComponent ? <IconComponent className="h-5 w-5" /> : undefined
+    };
   };
 
   const handleAddStage = async (newStage: Partial<LifecycleStageProps>) => {
@@ -79,6 +88,13 @@ export function LifecycleTracker({
       }
 
       if (data && data.length > 0) {
+        // Look for a matching default stage to get the icon
+        const matchingDefaultStage = defaultLifecycleStages.find(
+          ds => ds.name === data[0].name && ds.category === data[0].category
+        );
+        
+        const IconComponent = matchingDefaultStage ? icons[matchingDefaultStage.iconName] : undefined;
+        
         const newStageData: LifecycleStageProps = {
           id: data[0].id,
           name: data[0].name,
@@ -87,6 +103,7 @@ export function LifecycleTracker({
           owner: stageWithId.owner,
           deadline: data[0].deadline,
           notes: data[0].notes,
+          icon: IconComponent ? <IconComponent className="h-5 w-5" /> : undefined
         };
 
         const updatedStages = [...stages, newStageData];
@@ -214,7 +231,10 @@ export function LifecycleTracker({
 
   const handleAddDefaultStages = async () => {
     try {
-      setStages([...stages, ...defaultLifecycleStages]);
+      // Convert default stages to proper LifecycleStageProps with icons
+      const stagesWithIcons = defaultLifecycleStages.map(convertDefaultStageToProps);
+      
+      setStages([...stages, ...stagesWithIcons]);
       toast.success("Default stages loaded");
       
       const dbCustomerId = getDbCustomerId();
@@ -272,6 +292,8 @@ export function LifecycleTracker({
             ds => ds.name === stage.name && ds.category === stage.category
           );
           
+          const IconComponent = defaultStage ? icons[defaultStage.iconName] : undefined;
+          
           return {
             id: stage.id,
             name: stage.name,
@@ -288,7 +310,7 @@ export function LifecycleTracker({
             },
             deadline: stage.deadline,
             notes: stage.notes,
-            icon: defaultStage?.icon
+            icon: IconComponent ? <IconComponent className="h-5 w-5" /> : undefined
           };
         });
 
