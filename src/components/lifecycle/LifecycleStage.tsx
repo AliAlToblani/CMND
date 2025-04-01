@@ -1,6 +1,6 @@
 
 import React from "react";
-import { CalendarClock, Clock, FileEdit, MoreHorizontal, Users } from "lucide-react";
+import { CalendarClock, Clock, FileEdit, MoreHorizontal, Users, MessageSquare, Instagram, Globe, Mail, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
   DropdownMenu,
@@ -54,6 +54,23 @@ export function LifecycleStage({
     }
   };
 
+  const getIntegrationIcon = () => {
+    if (name.includes("WhatsApp")) {
+      return <MessageSquare className="h-4 w-4 mr-2 text-green-600" />;
+    } else if (name.includes("Instagram")) {
+      return <Instagram className="h-4 w-4 mr-2 text-pink-600" />;
+    } else if (name.includes("Website")) {
+      return <Globe className="h-4 w-4 mr-2 text-blue-600" />;
+    } else if (name.includes("Email")) {
+      return <Mail className="h-4 w-4 mr-2 text-yellow-600" />;
+    } else if (name.includes("Mobile")) {
+      return <Smartphone className="h-4 w-4 mr-2 text-purple-600" />;
+    }
+    return null;
+  };
+
+  const integrationIcon = getIntegrationIcon();
+
   const handleSaveStage = (updatedStage: Partial<LifecycleStageProps>) => {
     if (onUpdate) {
       onUpdate(id, updatedStage);
@@ -63,7 +80,10 @@ export function LifecycleStage({
   return (
     <div className="lifecycle-stage glass-card animate-fade-in">
       <div className="flex justify-between items-start mb-3">
-        <h3 className="text-base font-semibold">{name}</h3>
+        <h3 className="text-base font-semibold flex items-center">
+          {integrationIcon}
+          {name}
+        </h3>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">

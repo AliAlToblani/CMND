@@ -1,8 +1,7 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { LifecycleTracker } from "@/components/lifecycle/LifecycleTracker";
-import { lifecycleStages } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import { 
   Select,
@@ -13,28 +12,219 @@ import {
 } from "@/components/ui/select";
 import { customers } from "@/data/mockData";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { Customer, LifecycleStageProps } from "@/types/customers";
+import { MessageSquare, Instagram, Globe, Mail, Smartphone } from "lucide-react";
 
 const Lifecycle = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(customers[0].id);
-  const [customerStages, setCustomerStages] = useState(lifecycleStages);
+  const [customerList, setCustomerList] = useState<Customer[]>([]);
+  const [customerStages, setCustomerStages] = useState<LifecycleStageProps[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleCustomerChange = (value: string) => {
+  // Fetch customers from Supabase
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('customers')
+          .select('*');
+
+        if (error) {
+          throw error;
+        }
+
+        if (data && data.length > 0) {
+          setCustomerList(data);
+          setSelectedCustomer(data[0].id);
+        }
+      } catch (error) {
+        console.error("Error fetching customers:", error);
+        toast.error("Failed to load customers");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCustomers();
+  }, []);
+
+  // Default integration stages to add for new customers
+  const defaultIntegrationStages = [
+    {
+      name: "WhatsApp Integration",
+      status: "not-started",
+      owner: {
+        id: "user-004",
+        name: "Mohammed Rahman",
+        role: "Integration Engineer"
+      },
+      notes: "Set up WhatsApp Business API for document uploads and verification",
+      icon: <MessageSquare className="h-5 w-5 text-green-600" />
+    },
+    {
+      name: "Instagram Account",
+      status: "not-started",
+      owner: {
+        id: "user-004",
+        name: "Mohammed Rahman",
+        role: "Integration Engineer"
+      },
+      notes: "Set up Instagram business account and API connections",
+      icon: <Instagram className="h-5 w-5 text-pink-600" />
+    },
+    {
+      name: "Website Widget",
+      status: "not-started",
+      owner: {
+        id: "user-004",
+        name: "Mohammed Rahman",
+        role: "Integration Engineer"
+      },
+      notes: "Embed the chat widget on customer website for interactions",
+      icon: <Globe className="h-5 w-5 text-blue-600" />
+    },
+    {
+      name: "Email Integration",
+      status: "not-started",
+      owner: {
+        id: "user-004",
+        name: "Mohammed Rahman",
+        role: "Integration Engineer"
+      },
+      notes: "Connect email service for notifications and communications",
+      icon: <Mail className="h-5 w-5 text-yellow-600" />
+    },
+    {
+      name: "Mobile SDK Setup",
+      status: "not-started",
+      owner: {
+        id: "user-004",
+        name: "Mohammed Rahman",
+        role: "Integration Engineer"
+      },
+      notes: "Implement native SDK for iOS and Android applications",
+      icon: <Smartphone className="h-5 w-5 text-purple-600" />
+    }
+  ];
+
+  const handleCustomerChange = async (value: string) => {
     setSelectedCustomer(value);
-    // In a real app, you would fetch stages for the selected customer
-    // For now, we'll just reset to the default stages
-    setCustomerStages(lifecycleStages);
+    await fetchCustomerStages(value);
+  };
+
+  const fetchCustomerStages = async (customerId: string) => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('lifecycle_stages')
+        .select(`
+          *,
+          staff(id, name, role)
+        `)
+        .eq('customer_id', customerId);
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        // Convert Supabase data to LifecycleStageProps format
+        const formattedStages: LifecycleStageProps[] = data.map((stage: any) => ({
+          id: stage.id,
+          name: stage.name,
+          status: stage.status as "not-started" | "in-progress" | "done" | "blocked",
+          owner: stage.staff ? {
+            id: stage.staff.id,
+            name: stage.staff.name,
+            role: stage.staff.role
+          } : {
+            id: "user-001",
+            name: "Ahmed Abdullah",
+            role: "Account Executive"
+          },
+          deadline: stage.deadline,
+          notes: stage.notes,
+        }));
+
+        setCustomerStages(formattedStages);
+      }
+    } catch (error) {
+      console.error("Error fetching lifecycle stages:", error);
+      toast.error("Failed to load lifecycle stages");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddDefaultIntegrations = async () => {
+    if (!selectedCustomer) return;
+    
+    try {
+      setLoading(true);
+      
+      // Check if integrations already exist for this customer
+      const { data: existingStages } = await supabase
+        .from('lifecycle_stages')
+        .select('name')
+        .eq('customer_id', selectedCustomer);
+      
+      const existingStageNames = existingStages?.map(stage => stage.name) || [];
+      
+      // Filter out integration stages that already exist
+      const stagesToAdd = defaultIntegrationStages.filter(
+        stage => !existingStageNames.includes(stage.name)
+      );
+      
+      if (stagesToAdd.length === 0) {
+        toast.info("Integration stages already exist for this customer");
+        return;
+      }
+      
+      // Prepare stages for insertion
+      const stagesToInsert = stagesToAdd.map(stage => ({
+        customer_id: selectedCustomer,
+        name: stage.name,
+        status: stage.status,
+        owner_id: stage.owner.id,
+        notes: stage.notes
+      }));
+      
+      // Insert stages
+      const { error } = await supabase
+        .from('lifecycle_stages')
+        .insert(stagesToInsert);
+      
+      if (error) throw error;
+      
+      toast.success("Integration stages added successfully");
+      
+      // Refresh stages
+      await fetchCustomerStages(selectedCustomer);
+      
+    } catch (error) {
+      console.error("Error adding integration stages:", error);
+      toast.error("Failed to add integration stages");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleStagesUpdate = (updatedStages: any) => {
     setCustomerStages(updatedStages);
-    // In a real app, you would save these changes to your backend
     console.log("Updated stages:", updatedStages);
     toast.success("Lifecycle stages updated successfully");
   };
 
-  const selectedCustomerData = customers.find(
+  const selectedCustomerData = customerList.find(
     (customer) => customer.id === selectedCustomer
-  );
+  ) || customers.find((customer) => customer.id === selectedCustomer);
+
+  useEffect(() => {
+    if (selectedCustomer) {
+      fetchCustomerStages(selectedCustomer);
+    }
+  }, [selectedCustomer]);
 
   return (
     <DashboardLayout>
@@ -47,13 +237,24 @@ const Lifecycle = () => {
                 <SelectValue placeholder="Select customer" />
               </SelectTrigger>
               <SelectContent>
-                {customers.map((customer) => (
-                  <SelectItem key={customer.id} value={customer.id}>
-                    {customer.name}
-                  </SelectItem>
-                ))}
+                {loading ? (
+                  <SelectItem value="loading" disabled>Loading customers...</SelectItem>
+                ) : (
+                  (customerList.length > 0 ? customerList : customers).map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
+            <Button 
+              variant="outline" 
+              onClick={handleAddDefaultIntegrations}
+              disabled={loading}
+            >
+              Add Integration Stages
+            </Button>
           </div>
         </div>
 

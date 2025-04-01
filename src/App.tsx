@@ -11,7 +11,6 @@ import CustomerDetails from "./pages/CustomerDetails";
 import AddEditCustomer from "./pages/AddEditCustomer";
 import Lifecycle from "./pages/Lifecycle";
 import Contracts from "./pages/Contracts";
-import Integrations from "./pages/Integrations";
 import Reports from "./pages/Reports";
 import Messages from "./pages/Messages";
 import Settings from "./pages/Settings";
@@ -36,7 +35,6 @@ const App = () => {
               <Route path="/customers/:id" element={<CustomerDetails />} />
               <Route path="/lifecycle" element={<Lifecycle />} />
               <Route path="/contracts" element={<Contracts />} />
-              <Route path="/integrations" element={<Integrations />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/messages" element={<Messages />} />
               <Route path="/settings" element={<Settings />} />
