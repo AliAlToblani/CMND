@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LifecycleStage, LifecycleStageProps } from "./LifecycleStage";
+import { LifecycleStage as LifecycleStageComponent, LifecycleStageProps } from "./LifecycleStage";
 import { AddEditStage } from "./AddEditStage";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { LifecycleStageWithOwner } from "@/types/customers";
+import { LifecycleStage, LifecycleStageWithOwner } from "@/types/customers";
 
 interface LifecycleTrackerProps {
   customerId: string;
@@ -48,28 +48,29 @@ export function LifecycleTracker({
           deadline: stageWithId.deadline,
           notes: stageWithId.notes
         })
-        .select()
-        .single();
+        .select();
 
       if (error) {
         throw error;
       }
 
-      // Convert Supabase data to LifecycleStageProps format
-      const newStageData: LifecycleStageProps = {
-        id: data.id,
-        name: data.name,
-        status: data.status as "not-started" | "in-progress" | "done" | "blocked",
-        owner: stageWithId.owner, // Using the provided owner data
-        deadline: data.deadline,
-        notes: data.notes,
-      };
+      if (data && data.length > 0) {
+        // Convert Supabase data to LifecycleStageProps format
+        const newStageData: LifecycleStageProps = {
+          id: data[0].id,
+          name: data[0].name,
+          status: data[0].status as "not-started" | "in-progress" | "done" | "blocked",
+          owner: stageWithId.owner, // Using the provided owner data
+          deadline: data[0].deadline,
+          notes: data[0].notes,
+        };
 
-      const updatedStages = [...stages, newStageData];
-      setStages(updatedStages);
-      
-      if (onStagesUpdate) {
-        onStagesUpdate(updatedStages);
+        const updatedStages = [...stages, newStageData];
+        setStages(updatedStages);
+        
+        if (onStagesUpdate) {
+          onStagesUpdate(updatedStages);
+        }
       }
 
       toast.success("Stage added successfully");
@@ -126,9 +127,7 @@ export function LifecycleTracker({
           .from('lifecycle_stages')
           .select(`
             *,
-            staff:owner_id (
-              id, name, role
-            )
+            staff(id, name, role)
           `)
           .eq('customer_id', customerId);
 
@@ -185,7 +184,7 @@ export function LifecycleTracker({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {stages.map((stage, index) => (
             <div key={stage.id} className="animate-slide-in" style={{ animationDelay: `${index * 0.05}s` }}>
-              <LifecycleStage 
+              <LifecycleStageComponent 
                 {...stage} 
                 onUpdate={handleUpdateStage}
               />

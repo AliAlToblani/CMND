@@ -1,35 +1,107 @@
 
-import type { Database } from "@/integrations/supabase/types";
+// Define basic types without relying on Supabase generated types
+// These types match our database schema but don't depend on the generated types
 
 // Customers types
-export type Customer = Database["public"]["Tables"]["customers"]["Row"];
-export type CustomerInsert = Database["public"]["Tables"]["customers"]["Insert"];
-export type CustomerUpdate = Database["public"]["Tables"]["customers"]["Update"];
+export interface Customer {
+  id: string;
+  name: string;
+  logo?: string | null;
+  segment?: string | null;
+  region?: string | null;
+  stage?: string | null;
+  status?: string | null;
+  contract_size?: number | null;
+  owner_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CustomerInsert = Omit<Customer, 'id' | 'created_at' | 'updated_at'>;
+export type CustomerUpdate = Partial<CustomerInsert>;
 
 // Staff types
-export type Staff = Database["public"]["Tables"]["staff"]["Row"];
-export type StaffInsert = Database["public"]["Tables"]["staff"]["Insert"];
-export type StaffUpdate = Database["public"]["Tables"]["staff"]["Update"];
+export interface Staff {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  avatar?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type StaffInsert = Omit<Staff, 'id' | 'created_at' | 'updated_at'>;
+export type StaffUpdate = Partial<StaffInsert>;
 
 // Lifecycle stages types
-export type LifecycleStage = Database["public"]["Tables"]["lifecycle_stages"]["Row"];
-export type LifecycleStageInsert = Database["public"]["Tables"]["lifecycle_stages"]["Insert"];
-export type LifecycleStageUpdate = Database["public"]["Tables"]["lifecycle_stages"]["Update"];
+export interface LifecycleStage {
+  id: string;
+  customer_id: string;
+  name: string;
+  status?: string | null;
+  owner_id?: string | null;
+  deadline?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type LifecycleStageInsert = Omit<LifecycleStage, 'id' | 'created_at' | 'updated_at'>;
+export type LifecycleStageUpdate = Partial<LifecycleStageInsert>;
 
 // Contracts types
-export type Contract = Database["public"]["Tables"]["contracts"]["Row"];
-export type ContractInsert = Database["public"]["Tables"]["contracts"]["Insert"];
-export type ContractUpdate = Database["public"]["Tables"]["contracts"]["Update"];
+export interface Contract {
+  id: string;
+  customer_id: string;
+  name: string;
+  status?: string | null;
+  value: number;
+  start_date: string;
+  end_date: string;
+  renewal_date?: string | null;
+  terms?: string | null;
+  owner_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ContractInsert = Omit<Contract, 'id' | 'created_at' | 'updated_at'>;
+export type ContractUpdate = Partial<ContractInsert>;
 
 // Renewal activities types
-export type RenewalActivity = Database["public"]["Tables"]["renewal_activities"]["Row"];
-export type RenewalActivityInsert = Database["public"]["Tables"]["renewal_activities"]["Insert"];
-export type RenewalActivityUpdate = Database["public"]["Tables"]["renewal_activities"]["Update"];
+export interface RenewalActivity {
+  id: string;
+  contract_id: string;
+  activity_type: string;
+  description: string;
+  status?: string | null;
+  due_date?: string | null;
+  completed_date?: string | null;
+  assigned_to?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type RenewalActivityInsert = Omit<RenewalActivity, 'id' | 'created_at' | 'updated_at'>;
+export type RenewalActivityUpdate = Partial<RenewalActivityInsert>;
 
 // Documents types
-export type Document = Database["public"]["Tables"]["documents"]["Row"];
-export type DocumentInsert = Database["public"]["Tables"]["documents"]["Insert"];
-export type DocumentUpdate = Database["public"]["Tables"]["documents"]["Update"];
+export interface Document {
+  id: string;
+  customer_id: string;
+  contract_id?: string | null;
+  name: string;
+  document_type: string;
+  file_path: string;
+  file_size?: number | null;
+  uploaded_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type DocumentInsert = Omit<Document, 'id' | 'created_at' | 'updated_at'>;
+export type DocumentUpdate = Partial<DocumentInsert>;
 
 // Enhanced types with additional fields for UI components
 export interface CustomerWithOwner extends Customer {

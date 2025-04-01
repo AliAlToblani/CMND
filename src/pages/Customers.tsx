@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { CustomerWithOwner } from "@/types/customers";
+import { Customer, CustomerWithOwner } from "@/types/customers";
 import { toast } from "sonner";
 
 const Customers = () => {
@@ -45,28 +45,30 @@ const Customers = () => {
           throw error;
         }
 
-        // Convert Supabase data to our CustomerData format
-        const formattedCustomers: CustomerData[] = data.map((customer: CustomerWithOwner) => ({
-          id: customer.id,
-          name: customer.name,
-          logo: customer.logo || undefined,
-          segment: customer.segment || "Unknown Segment",
-          region: customer.region || "Unknown Region",
-          stage: customer.stage || "New",
-          status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
-          contractSize: customer.contract_size || 0,
-          owner: customer.staff ? {
-            id: customer.staff.id,
-            name: customer.staff.name,
-            role: customer.staff.role || "Unknown Role"
-          } : {
-            id: "unknown",
-            name: "Unassigned",
-            role: "Unassigned"
-          }
-        }));
+        if (data) {
+          // Convert Supabase data to our CustomerData format
+          const formattedCustomers: CustomerData[] = data.map((customer: any) => ({
+            id: customer.id,
+            name: customer.name,
+            logo: customer.logo || undefined,
+            segment: customer.segment || "Unknown Segment",
+            region: customer.region || "Unknown Region",
+            stage: customer.stage || "New",
+            status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
+            contractSize: customer.contract_size || 0,
+            owner: customer.staff ? {
+              id: customer.staff.id,
+              name: customer.staff.name,
+              role: customer.staff.role || "Unknown Role"
+            } : {
+              id: "unknown",
+              name: "Unassigned",
+              role: "Unassigned"
+            }
+          }));
 
-        setCustomers(formattedCustomers);
+          setCustomers(formattedCustomers);
+        }
       } catch (error) {
         console.error("Error fetching customers:", error);
         toast.error("Failed to load customers");
