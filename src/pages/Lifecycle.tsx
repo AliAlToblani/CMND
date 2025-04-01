@@ -17,6 +17,23 @@ import { Customer } from "@/types/customers";
 import { LifecycleStageProps } from "@/components/lifecycle/LifecycleStage";
 import { MessageSquare, Instagram, Globe, Mail, Smartphone } from "lucide-react";
 
+// Helper function to convert mock customer to DB Customer type
+const convertMockToCustomer = (mockCustomer: any): Customer => {
+  return {
+    id: mockCustomer.id,
+    name: mockCustomer.name,
+    logo: mockCustomer.logo || null,
+    segment: mockCustomer.segment || null,
+    region: mockCustomer.region || null,
+    stage: mockCustomer.stage || null,
+    status: mockCustomer.status || null,
+    contract_size: mockCustomer.contractSize || null,
+    owner_id: mockCustomer.owner?.id || null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+};
+
 const Lifecycle = () => {
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [customerList, setCustomerList] = useState<Customer[]>([]);
@@ -75,17 +92,19 @@ const Lifecycle = () => {
             setSelectedCustomer(updatedData[0]?.id || "");
           } else {
             console.log("Still no customers, using mock data directly");
-            // Fall back to mock data directly
-            setCustomerList(customers);
-            setSelectedCustomer(customers[0]?.id || "");
+            // Fall back to mock data directly, but convert to Customer type
+            const convertedCustomers = customers.map(convertMockToCustomer);
+            setCustomerList(convertedCustomers);
+            setSelectedCustomer(convertedCustomers[0]?.id || "");
           }
         }
       } catch (error) {
         console.error("Error fetching customers:", error);
         toast.error("Failed to load customers");
-        // Fall back to mock data
-        setCustomerList(customers);
-        setSelectedCustomer(customers[0]?.id || "");
+        // Fall back to mock data but convert to Customer type
+        const convertedCustomers = customers.map(convertMockToCustomer);
+        setCustomerList(convertedCustomers);
+        setSelectedCustomer(convertedCustomers[0]?.id || "");
       } finally {
         setLoading(false);
       }
@@ -329,7 +348,7 @@ const Lifecycle = () => {
 
   const selectedCustomerData = customerList.find(
     (customer) => customer.id === selectedCustomer
-  ) || customers.find((customer) => customer.id === selectedCustomer);
+  ) || (selectedCustomer ? convertMockToCustomer(customers.find((c) => c.id === selectedCustomer)) : null);
 
   useEffect(() => {
     if (selectedCustomer) {
@@ -352,7 +371,7 @@ const Lifecycle = () => {
                 {loading ? (
                   <SelectItem value="loading" disabled>Loading customers...</SelectItem>
                 ) : (
-                  (customerList.length > 0 ? customerList : customers).map((customer) => (
+                  (customerList.length > 0 ? customerList : customers.map(convertMockToCustomer)).map((customer) => (
                     <SelectItem key={customer.id} value={customer.id}>
                       {customer.name}
                     </SelectItem>

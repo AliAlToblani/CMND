@@ -47,7 +47,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { NotificationData } from "@/utils/notificationHelpers";
+import { Notification, CreateNotificationParams } from "@/utils/notificationHelpers";
 
 interface TeamMember {
   id: string;
@@ -124,7 +124,6 @@ const TeamManagementPage = () => {
   const onSubmit: SubmitHandler<InviteFormValues> = async (data) => {
     try {
       if (editMember) {
-        // Update existing team member
         const { error } = await supabase
           .from('staff')
           .update({
@@ -138,7 +137,6 @@ const TeamManagementPage = () => {
 
         toast.success(`${data.name}'s details have been updated`);
         
-        // Create a notification about the team member update
         await createTeamNotification({
           type: 'team',
           title: 'Team Member Updated',
@@ -146,7 +144,6 @@ const TeamManagementPage = () => {
           related_id: editMember.id
         });
       } else {
-        // Invite new team member
         const { data: newMember, error } = await supabase
           .from('staff')
           .insert({
@@ -160,7 +157,6 @@ const TeamManagementPage = () => {
 
         toast.success(`Invitation sent to ${data.email}`);
         
-        // Create a notification about the new team member
         if (newMember && newMember.length > 0) {
           await createTeamNotification({
             type: 'team',
@@ -171,12 +167,10 @@ const TeamManagementPage = () => {
         }
       }
 
-      // Reset form and close dialog
       form.reset();
       setInviteDialogOpen(false);
       setEditMember(null);
       
-      // Refresh team members list
       fetchTeamMembers();
     } catch (error) {
       console.error("Error saving team member:", error);
@@ -200,7 +194,6 @@ const TeamManagementPage = () => {
 
       toast.success("Team member removed successfully");
       
-      // Create a notification about team member removal
       await createTeamNotification({
         type: 'team',
         title: 'Team Member Removed',
@@ -208,7 +201,6 @@ const TeamManagementPage = () => {
         related_id: memberId
       });
       
-      // Update local state
       setTeamMembers(teamMembers.filter(member => member.id !== memberId));
     } catch (error) {
       console.error("Error deleting team member:", error);
@@ -220,7 +212,7 @@ const TeamManagementPage = () => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
-  const createTeamNotification = async (notificationData: NotificationData) => {
+  const createTeamNotification = async (notificationData: CreateNotificationParams) => {
     try {
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-notification`, {
         method: 'POST',
@@ -291,7 +283,7 @@ const TeamManagementPage = () => {
                             type="email" 
                             {...field} 
                             className="glass-input"
-                            disabled={!!editMember} // Disable email editing for existing members
+                            disabled={!!editMember}
                           />
                         </FormControl>
                         <FormMessage />
