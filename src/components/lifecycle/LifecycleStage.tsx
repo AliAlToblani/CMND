@@ -9,21 +9,27 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 
+export interface OwnerType {
+  id: string;
+  name: string;
+  role: string;
+}
+
 export interface LifecycleStageProps {
   id: string;
-  title: string;
+  name: string;
   status: "not-started" | "in-progress" | "done" | "blocked";
-  owner: string;
-  dueDate?: string;
+  owner: OwnerType;
+  deadline?: string;
   notes?: string;
 }
 
 export function LifecycleStage({ 
   id, 
-  title, 
+  name, 
   status, 
   owner, 
-  dueDate, 
+  deadline, 
   notes 
 }: LifecycleStageProps) {
   
@@ -45,7 +51,7 @@ export function LifecycleStage({
   return (
     <div className="lifecycle-stage glass-card animate-fade-in">
       <div className="flex justify-between items-start mb-3">
-        <h3 className="text-base font-semibold">{title}</h3>
+        <h3 className="text-base font-semibold">{name}</h3>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -74,13 +80,13 @@ export function LifecycleStage({
           <span className={`status-badge ${getStatusClass()}`}>
             {status.replace("-", " ").replace(/\b\w/g, c => c.toUpperCase())}
           </span>
-          <span className="text-xs text-muted-foreground">{owner}</span>
+          <span className="text-xs text-muted-foreground">{owner.name}</span>
         </div>
         
-        {dueDate && (
+        {deadline && (
           <div className="flex items-center text-xs text-muted-foreground">
             <Clock className="h-3 w-3 mr-1" />
-            <span>Due {dueDate}</span>
+            <span>Due {deadline}</span>
           </div>
         )}
         
