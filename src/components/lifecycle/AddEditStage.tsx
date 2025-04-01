@@ -38,7 +38,7 @@ interface AddEditStageProps {
 export function AddEditStage({ stage, isEditing = false, onSave, customerId }: AddEditStageProps) {
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState(stage?.name || "");
-  const [status, setStatus] = React.useState(stage?.status || "not-started");
+  const [status, setStatus] = React.useState<LifecycleStageProps["status"]>(stage?.status || "not-started");
   const [ownerId, setOwnerId] = React.useState(stage?.owner?.id || "");
   const [date, setDate] = React.useState<Date | undefined>(
     stage?.deadline ? new Date(stage.deadline) : undefined
@@ -55,7 +55,7 @@ export function AddEditStage({ stage, isEditing = false, onSave, customerId }: A
     
     const updatedStage: Partial<LifecycleStageProps> = {
       name,
-      status: status as LifecycleStageProps["status"],
+      status,
       owner: {
         id: ownerId,
         name: getOwnerName(ownerId),
@@ -68,6 +68,11 @@ export function AddEditStage({ stage, isEditing = false, onSave, customerId }: A
     onSave(updatedStage);
     toast.success(isEditing ? "Stage updated successfully" : "Stage added successfully");
     setOpen(false);
+  };
+  
+  // Fixed type handler for status
+  const handleStatusChange = (value: string) => {
+    setStatus(value as LifecycleStageProps["status"]);
   };
   
   const getOwnerName = (id: string) => {
@@ -124,7 +129,7 @@ export function AddEditStage({ stage, isEditing = false, onSave, customerId }: A
             
             <div className="grid gap-2">
               <Label htmlFor="status">Status</Label>
-              <Select value={status} onValueChange={setStatus}>
+              <Select value={status} onValueChange={handleStatusChange}>
                 <SelectTrigger id="status">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>

@@ -51,7 +51,7 @@ export function AddEditContract({ contract, isEditing = false, onSave }: AddEdit
   const [open, setOpen] = useState(false);
   const [customerId, setCustomerId] = useState(contract?.customerId || "");
   const [type, setType] = useState(contract?.type || "Service Agreement");
-  const [status, setStatus] = useState(contract?.status || "draft");
+  const [status, setStatus] = useState<ContractData["status"]>(contract?.status || "draft");
   const [startDate, setStartDate] = useState<Date | undefined>(
     contract?.startDate && contract.startDate !== "-" ? new Date(contract.startDate) : undefined
   );
@@ -86,7 +86,7 @@ export function AddEditContract({ contract, isEditing = false, onSave }: AddEdit
       customer: customerName,
       customerId,
       type,
-      status: status as ContractData["status"],
+      status,
       startDate: startDate ? format(startDate, "yyyy-MM-dd") : "-",
       endDate: endDate ? format(endDate, "yyyy-MM-dd") : "-",
       value: `$${value}`,
@@ -105,6 +105,11 @@ export function AddEditContract({ contract, isEditing = false, onSave }: AddEdit
       setDocument(file);
       setDocumentName(file.name);
     }
+  };
+  
+  // Fixed type handler for status
+  const handleStatusChange = (value: string) => {
+    setStatus(value as ContractData["status"]);
   };
   
   return (
@@ -162,7 +167,7 @@ export function AddEditContract({ contract, isEditing = false, onSave }: AddEdit
             
             <div className="grid gap-2">
               <Label htmlFor="status">Status</Label>
-              <Select value={status} onValueChange={setStatus}>
+              <Select value={status} onValueChange={handleStatusChange}>
                 <SelectTrigger id="status">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
