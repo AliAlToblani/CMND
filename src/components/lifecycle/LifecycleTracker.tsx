@@ -240,7 +240,7 @@ export function LifecycleTracker({
         status: stage.status,
         owner_id: stage.owner.id,
         notes: stage.notes,
-        category: stage.category
+        category: stage.category || null
       }));
       
       const { error } = await supabase
@@ -279,7 +279,7 @@ export function LifecycleTracker({
         throw error;
       }
 
-      if (data) {
+      if (data && Array.isArray(data)) {
         console.log("Fetched lifecycle stages:", data);
         const formattedStages: LifecycleStageProps[] = data.map((stage: any) => {
           const defaultStage = defaultLifecycleStages.find(

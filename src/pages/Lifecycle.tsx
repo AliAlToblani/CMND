@@ -127,7 +127,7 @@ const Lifecycle = () => {
 
       console.log("Fetched stages:", data);
       
-      if (data) {
+      if (data && Array.isArray(data)) {
         const formattedStages: LifecycleStageProps[] = data.map((stage: any) => {
           const defaultStage = defaultLifecycleStages.find(
             ds => ds.name === stage.name && (stage.category ? ds.category === stage.category : true)
@@ -193,7 +193,7 @@ const Lifecycle = () => {
       
       const stagesToAdd = defaultLifecycleStages.filter(stage => {
         return !existingStages?.some(
-          existing => existing.name === stage.name && existing.category === stage.category
+          existing => existing.name === stage.name && (existing.category || "") === (stage.category || "")
         );
       });
       
@@ -208,7 +208,7 @@ const Lifecycle = () => {
         status: stage.status,
         owner_id: stage.owner.id,
         notes: stage.notes,
-        category: stage.category
+        category: stage.category || null
       }));
       
       console.log(`Inserting ${stagesToInsert.length} stages:`, stagesToInsert);
