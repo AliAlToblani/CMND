@@ -1,124 +1,95 @@
 
 import React from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { CalendarClock, Clock, FileEdit, MoreHorizontal, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { 
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from "@/components/ui/tooltip";
-import { Check, Clock, AlertCircle } from "lucide-react";
-
-export interface StageOwner {
-  id: string;
-  name: string;
-  avatar?: string;
-  role: string;
-}
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 
 export interface LifecycleStageProps {
   id: string;
-  name: string;
+  title: string;
   status: "not-started" | "in-progress" | "done" | "blocked";
-  owner?: StageOwner;
-  deadline?: string;
+  owner: string;
+  dueDate?: string;
   notes?: string;
 }
 
-export function LifecycleStage({
-  id,
-  name,
-  status,
-  owner,
-  deadline,
-  notes,
+export function LifecycleStage({ 
+  id, 
+  title, 
+  status, 
+  owner, 
+  dueDate, 
+  notes 
 }: LifecycleStageProps) {
-  const getStatusIcon = (status: string) => {
+  
+  const getStatusClass = () => {
     switch (status) {
       case "not-started":
-        return <Clock className="h-4 w-4 text-gray-400" />;
+        return "status-not-started";
       case "in-progress":
-        return <Clock className="h-4 w-4 text-blue-500" />;
+        return "status-in-progress";
       case "done":
-        return <Check className="h-4 w-4 text-green-500" />;
+        return "status-done";
       case "blocked":
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
+        return "status-blocked";
       default:
-        return <Clock className="h-4 w-4 text-gray-400" />;
+        return "status-not-started";
     }
-  };
-
-  const getStatusClass = (status: string) => {
-    switch (status) {
-      case "not-started":
-        return "status-badge status-not-started";
-      case "in-progress":
-        return "status-badge status-in-progress";
-      case "done":
-        return "status-badge status-done";
-      case "blocked":
-        return "status-badge status-blocked";
-      default:
-        return "status-badge status-not-started";
-    }
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
   };
 
   return (
-    <div className="lifecycle-stage">
+    <div className="lifecycle-stage glass-card animate-fade-in">
       <div className="flex justify-between items-start mb-3">
-        <h3 className="font-medium text-gray-900">{name}</h3>
-        <span className={getStatusClass(status)}>
-          <div className="flex items-center">
-            {getStatusIcon(status)}
-            <span className="ml-1 capitalize">{status.replace("-", " ")}</span>
-          </div>
-        </span>
+        <h3 className="text-base font-semibold">{title}</h3>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="glass-card">
+            <DropdownMenuItem className="cursor-pointer">
+              <FileEdit className="mr-2 h-4 w-4" />
+              <span>Edit</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer">
+              <Users className="mr-2 h-4 w-4" />
+              <span>Change Owner</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer">
+              <CalendarClock className="mr-2 h-4 w-4" />
+              <span>Set Deadline</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       
-      {owner && (
-        <div className="flex items-center mt-4">
-          <span className="text-sm text-gray-500 mr-2">Owner:</span>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center">
-                  <Avatar className="h-6 w-6 mr-2">
-                    <AvatarImage src={owner.avatar} alt={owner.name} />
-                    <AvatarFallback className="text-xs bg-blue-100 text-blue-800">
-                      {getInitials(owner.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm font-medium">{owner.name}</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{owner.role}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+      <div className="flex flex-col space-y-3">
+        <div className="flex items-center justify-between">
+          <span className={`status-badge ${getStatusClass()}`}>
+            {status.replace("-", " ").replace(/\b\w/g, c => c.toUpperCase())}
+          </span>
+          <span className="text-xs text-muted-foreground">{owner}</span>
         </div>
-      )}
-      
-      {deadline && (
-        <div className="mt-2 text-sm text-gray-500">
-          <span className="font-medium">Deadline:</span> {deadline}
-        </div>
-      )}
-      
-      {notes && notes.length > 0 && (
-        <div className="mt-2 text-sm text-gray-500">
-          <div className="font-medium">Notes:</div>
-          <p className="mt-1 text-gray-600">{notes}</p>
-        </div>
-      )}
+        
+        {dueDate && (
+          <div className="flex items-center text-xs text-muted-foreground">
+            <Clock className="h-3 w-3 mr-1" />
+            <span>Due {dueDate}</span>
+          </div>
+        )}
+        
+        {notes && (
+          <p className="text-xs mt-2 text-muted-foreground line-clamp-2">
+            {notes}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
