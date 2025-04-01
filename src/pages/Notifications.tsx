@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,20 +8,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Notification } from "@/utils/notificationHelpers";
 
 // Define notification types
 type NotificationType = "lifecycle" | "customer" | "deadline" | "contract" | "team";
-
-interface Notification {
-  id: string;
-  type: NotificationType;
-  title: string;
-  message: string;
-  created_at: string;
-  is_read: boolean;
-  related_id?: string;
-  related_type?: string;
-}
 
 const NotificationsPage = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -43,7 +32,7 @@ const NotificationsPage = () => {
       if (error) throw error;
 
       if (data) {
-        setNotifications(data);
+        setNotifications(data as Notification[]);
       }
     } catch (error) {
       console.error("Error fetching notifications:", error);

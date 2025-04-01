@@ -9,6 +9,19 @@ export interface NotificationData {
   related_type?: string;
 }
 
+// Define the Notification interface based on our database schema
+export interface Notification {
+  id: string;
+  type: 'lifecycle' | 'customer' | 'deadline' | 'contract' | 'team';
+  title: string;
+  message: string;
+  is_read: boolean;
+  related_id?: string;
+  related_type?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 /**
  * Create a notification in the database and trigger email notifications
  */

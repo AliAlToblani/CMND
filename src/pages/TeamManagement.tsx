@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +47,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { NotificationData } from "@/utils/notificationHelpers";
 
 interface TeamMember {
   id: string;
@@ -139,11 +139,11 @@ const TeamManagementPage = () => {
         toast.success(`${data.name}'s details have been updated`);
         
         // Create a notification about the team member update
-        await supabase.from('notifications').insert({
+        await createTeamNotification({
           type: 'team',
           title: 'Team Member Updated',
           message: `${data.name}'s details have been updated.`,
-          is_read: false,
+          related_id: editMember.id
         });
       } else {
         // Invite new team member
@@ -161,12 +161,14 @@ const TeamManagementPage = () => {
         toast.success(`Invitation sent to ${data.email}`);
         
         // Create a notification about the new team member
-        await supabase.from('notifications').insert({
-          type: 'team',
-          title: 'New Team Member',
-          message: `${data.name} has been invited to join the team.`,
-          is_read: false,
-        });
+        if (newMember && newMember.length > 0) {
+          await createTeamNotification({
+            type: 'team',
+            title: 'New Team Member',
+            message: `${data.name} has been invited to join the team.`,
+            related_id: newMember[0].id
+          });
+        }
       }
 
       // Reset form and close dialog
@@ -199,11 +201,11 @@ const TeamManagementPage = () => {
       toast.success("Team member removed successfully");
       
       // Create a notification about team member removal
-      await supabase.from('notifications').insert({
+      await createTeamNotification({
         type: 'team',
         title: 'Team Member Removed',
         message: `A team member has been removed from the team.`,
-        is_read: false,
+        related_id: memberId
       });
       
       // Update local state
@@ -216,6 +218,29 @@ const TeamManagementPage = () => {
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
+
+  const createTeamNotification = async (notificationData: NotificationData) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          notification: notificationData
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create notification');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error creating team notification:", error);
+    }
   };
 
   return (

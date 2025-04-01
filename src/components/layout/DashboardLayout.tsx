@@ -1,4 +1,3 @@
-
 import React from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "./DashboardSidebar";
@@ -29,18 +28,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Notification } from "@/utils/notificationHelpers";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-}
-
-interface Notification {
-  id: string;
-  type: 'lifecycle' | 'customer' | 'deadline' | 'contract' | 'team';
-  title: string;
-  message: string;
-  created_at: string;
-  is_read: boolean;
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
@@ -82,7 +73,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         if (error) throw error;
 
         if (data) {
-          setNotifications(data);
+          setNotifications(data as Notification[]);
           const unread = data.filter(n => !n.is_read).length;
           setUnreadCount(unread);
         }
