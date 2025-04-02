@@ -165,7 +165,7 @@ export const formatCurrency = (amount: number): string => {
   if (amount >= 1000000) {
     return `$${(amount / 1000000).toFixed(1)}M`;
   } else if (amount >= 1000) {
-    return `$${(amount / 1000).toFixed(0)}k`;
+    return `$${(amount / 1000).toFixed(0)}K`;
   }
   return `$${amount}`;
 };
@@ -180,10 +180,15 @@ export const getCustomerARRData = (customers: CustomerData[]): {
 } => {
   const arrStages = ["Live", "Production", "Launched", "Active", "Paid", "Signed", "Invoice Sent"];
   
-  const relevantCustomers = customers.filter(customer => 
-    customer.status === "done" || 
-    arrStages.some(stage => customer.stage?.includes(stage))
-  );
+  const relevantCustomers = customers.filter(customer => {
+    if (customer.status === "done") return true;
+    if (!customer.stage) return false;
+    
+    // Check if customer stage contains any of the ARR stages
+    return arrStages.some(stage => 
+      customer.stage?.toLowerCase().includes(stage.toLowerCase())
+    );
+  });
   
   const totalARR = relevantCustomers.reduce((sum, customer) => sum + (customer.contractSize || 0), 0);
   
@@ -209,10 +214,15 @@ export const getDealsPipeline = (customers: CustomerData[]): {
 } => {
   const arrStages = ["Live", "Production", "Launched", "Active", "Paid", "Signed", "Invoice Sent"];
   
-  const pipelineCustomers = customers.filter(customer => 
-    customer.status !== "done" && 
-    !arrStages.some(stage => customer.stage?.includes(stage))
-  );
+  const pipelineCustomers = customers.filter(customer => {
+    if (customer.status === "done") return false;
+    if (!customer.stage) return true;
+    
+    // Check if customer stage does NOT contain any of the ARR stages
+    return !arrStages.some(stage => 
+      customer.stage?.toLowerCase().includes(stage.toLowerCase())
+    );
+  });
   
   const totalValue = pipelineCustomers.reduce((sum, c) => sum + (c.contractSize || 0), 0);
   const count = pipelineCustomers.length;
@@ -240,7 +250,7 @@ export const calculateChurnRate = (customers: CustomerData[]): string => {
 };
 
 /**
- * Calculate sales lifecycle time
+ * Calculate sales lifecycle
  */
 export const calculateSalesLifecycle = (): string => {
   return "45 days";

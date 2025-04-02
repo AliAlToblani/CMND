@@ -1,40 +1,33 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { customers as realCustomers } from "@/data/realCustomers";
-import { toast } from "sonner";
 
 /**
- * Syncs all customers from the local data to the database
+ * Syncs all customers from the local data to the database if they don't exist
  * This function is called automatically on application startup
  */
 export const syncCustomersToDatabase = async (): Promise<boolean> => {
   try {
-    console.log("Starting customer data sync to database...");
+    console.log("Starting customer data sync check to database...");
     
-    // First, check if we already have customers in the database
-    const { data: existingCustomers, error: checkError } = await supabase
+    const { data: existingCustomers, error: fetchError } = await supabase
       .from('customers')
-      .select('id, name')
-      .limit(1);
+      .select('name');
       
-    if (checkError) {
-      console.error("Error checking existing customers:", checkError);
+    if (fetchError) {
+      console.error("Error checking existing customers:", fetchError);
       return false;
     }
     
-    // If we already have customers, don't duplicate them
-    if (existingCustomers && existingCustomers.length > 0) {
-      console.log("Customers already exist in database, skipping sync");
-      return true;
-    }
+    const existingNames = new Set(existingCustomers?.map(c => c.name.toLowerCase()) || []);
     
-    // Format customers for database insertion, ensuring IDs are proper UUIDs
-    const customersToInsert = realCustomers.map(customer => {
-      // Generate a valid UUID for each customer instead of using custom IDs
-      const validUuid = crypto.randomUUID();
-      
+    // Find customers that don't exist in the database yet
+    const customersToInsert = realCustomers.filter(
+      c => !existingNames.has(c.name.toLowerCase())
+    ).map(customer => {
+      // Generate a valid UUID for each customer
       return {
-        id: validUuid,
+        id: crypto.randomUUID(),
         name: customer.name,
         segment: customer.segment || null,
         region: customer.region || null,
@@ -45,17 +38,26 @@ export const syncCustomersToDatabase = async (): Promise<boolean> => {
       };
     });
     
-    // Insert all customers
-    const { error: insertError } = await supabase
-      .from('customers')
-      .insert(customersToInsert);
-    
-    if (insertError) {
-      console.error("Error inserting customers:", insertError);
-      return false;
+    if (customersToInsert.length === 0) {
+      console.log("No new customers to sync to database");
+      return true;
     }
     
-    console.log(`Successfully synced ${customersToInsert.length} customers to the database`);
+    console.log(`Found ${customersToInsert.length} new customers to sync to database`);
+    
+    // Insert new customers in batches to avoid too large requests
+    for (let i = 0; i < customersToInsert.length; i += 50) {
+      const batch = customersToInsert.slice(i, i + 50);
+      const { error: insertError } = await supabase
+        .from('customers')
+        .insert(batch);
+      
+      if (insertError) {
+        console.error(`Error inserting batch ${i}-${i+batch.length}:`, insertError);
+      }
+    }
+    
+    console.log(`Successfully synced new customers to the database`);
     return true;
   } catch (error) {
     console.error("Error in syncCustomersToDatabase:", error);

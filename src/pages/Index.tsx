@@ -6,7 +6,6 @@ import { CustomerCard } from "@/components/customers/CustomerCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Users, Calendar, FileText, BarChart3, TrendingUp, Activity, Clock, Briefcase, LifeBuoy } from "lucide-react";
-import { customers as realCustomers } from "@/data/realCustomers";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomerData } from "@/components/customers/CustomerCard";
@@ -43,8 +42,7 @@ const Index = () => {
         const { data, error } = await supabase
           .from('customers')
           .select('*')
-          .order('contract_size', { ascending: false })
-          .limit(8);
+          .order('contract_size', { ascending: false });
 
         if (error) {
           throw error;
@@ -69,46 +67,43 @@ const Index = () => {
           }));
           setCustomers(formattedCustomers);
         } else {
-          console.log("No customers found in database, using real customer data");
+          console.log("No customers found in database, checking again");
+          // If no customers in DB, try to sync them again
+          await syncCustomersToDatabase();
+          // Try one more fetch
+          const { data: retryData, error: retryError } = await supabase
+            .from('customers')
+            .select('*')
+            .order('contract_size', { ascending: false });
+            
+          if (retryError) {
+            throw retryError;
+          }
           
-          const formattedRealCustomers = realCustomers.slice(0, 8).map(customer => ({
-            id: customer.id || crypto.randomUUID(),
-            name: customer.name,
-            logo: undefined,
-            segment: customer.segment || "Unknown Segment", 
-            region: customer.region || "Unknown Region",
-            stage: customer.stage || "New",
-            status: "not-started" as "not-started" | "in-progress" | "done" | "blocked",
-            contractSize: customer.contractSize || 0,
-            owner: {
-              id: "unknown",
-              name: customer.owner?.name || "Account Manager",
-              role: customer.owner?.role || "Sales"
-            }
-          }));
-          
-          setCustomers(formattedRealCustomers);
+          if (retryData && retryData.length > 0) {
+            const formattedCustomers: CustomerData[] = retryData.map(customer => ({
+              id: customer.id,
+              name: customer.name,
+              logo: customer.logo || undefined,
+              segment: customer.segment || "Unknown Segment",
+              region: customer.region || "Unknown Region",
+              stage: customer.stage || "New",
+              status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
+              contractSize: customer.contract_size || 0,
+              owner: {
+                id: customer.owner_id || "unknown",
+                name: "Account Manager",
+                role: "Sales"
+              }
+            }));
+            setCustomers(formattedCustomers);
+          } else {
+            setCustomers([]);
+          }
         }
       } catch (error) {
         console.error("Error fetching customers:", error);
-        
-        const formattedRealCustomers = realCustomers.slice(0, 8).map(customer => ({
-          id: customer.id || crypto.randomUUID(),
-          name: customer.name,
-          logo: undefined,
-          segment: customer.segment || "Unknown Segment",
-          region: customer.region || "Unknown Region",
-          stage: customer.stage || "New",
-          status: "not-started" as "not-started" | "in-progress" | "done" | "blocked",
-          contractSize: customer.contractSize || 0,
-          owner: {
-            id: "unknown",
-            name: customer.owner?.name || "Account Manager",
-            role: customer.owner?.role || "Sales"
-          }
-        }));
-        
-        setCustomers(formattedRealCustomers);
+        setCustomers([]);
       } finally {
         setLoading(false);
       }
@@ -124,7 +119,7 @@ const Index = () => {
   const formattedDealsPipeline = formatCurrency(dealsPipeline.value);
   
   const getTotalCustomersCount = () => {
-    return realCustomers.length;
+    return customers.length;
   };
   
   const dashboardStats = [

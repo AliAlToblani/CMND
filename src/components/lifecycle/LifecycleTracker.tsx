@@ -4,8 +4,6 @@ import { LifecycleStageComponent, LifecycleStageProps } from "./LifecycleStage";
 import { AddEditStage } from "./AddEditStage";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { LifecycleStage, LifecycleStageWithOwner } from "@/types/customers";
-import { createNotification } from "@/utils/notificationHelpers";
 import { defaultCustomerLifecycleStages, icons } from "@/data/realCustomers";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LifecycleProgress } from "./LifecycleProgress";
@@ -295,31 +293,25 @@ export function LifecycleTracker({
         console.error("Error checking existing stages:", fetchError);
       }
       
-      if (existingStages && existingStages.length > 0) {
-        console.log(`Found ${existingStages.length} existing stages, replacing them with defaults`);
-        const { error: deleteError } = await supabase
-          .from('lifecycle_stages')
-          .delete()
-          .eq('customer_id', dbCustomerId);
-        
-        if (deleteError) {
-          console.error("Error deleting existing stages:", deleteError);
-        }
-      } else {
+      if (!existingStages || existingStages.length === 0) {
         console.log("No existing stages found, adding defaults");
+        
+        for (let i = 0; i < stagesToInsert.length; i += 10) {
+          const batch = stagesToInsert.slice(i, i + 10);
+          const { error } = await supabase
+            .from('lifecycle_stages')
+            .insert(batch);
+          
+          if (error) {
+            console.error(`Error inserting batch ${i}-${i+batch.length}:`, error);
+          }
+        }
+        
+        await fetchLifecycleStages();
+        toast.success("Default lifecycle stages added");
+      } else {
+        console.log(`Found ${existingStages.length} existing stages, not adding defaults`);
       }
-      
-      const { error } = await supabase
-        .from('lifecycle_stages')
-        .insert(stagesToInsert);
-      
-      if (error) {
-        console.error("Error details:", error);
-        throw error;
-      }
-      
-      await fetchLifecycleStages();
-      toast.success("Default lifecycle stages added");
     } catch (error) {
       console.error("Error adding default stages:", error);
       toast.error("Failed to add default stages");
@@ -339,7 +331,7 @@ export function LifecycleTracker({
         .from('lifecycle_stages')
         .select(`
           *,
-          staff(id, name, role)
+          staff:owner_id (id, name, role)
         `)
         .eq('customer_id', dbCustomerId);
 
