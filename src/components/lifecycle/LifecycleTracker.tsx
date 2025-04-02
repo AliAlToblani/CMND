@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LifecycleStageComponent, LifecycleStageProps } from "./LifecycleStage";
@@ -279,7 +280,7 @@ export function LifecycleTracker({
       
       const stagesToAdd = defaultLifecycleStages.filter(stage => {
         return !existingStages?.some(
-          existing => existing.name === stage.name && (existing.category ? ds.category === stage.category : true)
+          existing => existing.name === stage.name && (existing.category ? existing.category === stage.category : true)
         );
       });
       

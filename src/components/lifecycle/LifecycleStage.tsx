@@ -128,10 +128,11 @@ export function LifecycleStageComponent({
           
           <div className="flex items-center justify-between">
             <div className="text-sm text-muted-foreground flex items-center">
-              <Calendar className="h-3.5 w-3.5 mr-1" /> 
+              {/* Fix the calendar icon click handler by wrapping it within the PopoverTrigger */}
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="link" className="p-0 h-auto text-xs">
+                  <Button variant="link" className="p-0 h-auto text-xs flex items-center">
+                    <Calendar className="h-3.5 w-3.5 mr-1" />
                     {deadline ? new Date(deadline).toLocaleDateString() : "Set deadline"}
                   </Button>
                 </PopoverTrigger>
