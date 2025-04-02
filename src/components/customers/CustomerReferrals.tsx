@@ -285,11 +285,13 @@ export function CustomerReferrals({ customerId }: CustomerReferralsProps) {
         ) : (
           <div className="text-center py-8">
             <p className="text-muted-foreground mb-4">No referrals recorded for this customer yet.</p>
-            <DialogTrigger asChild>
-              <Button variant="outline" onClick={() => setOpen(true)}>
-                <Plus className="h-4 w-4 mr-1" /> Add First Referral
-              </Button>
-            </DialogTrigger>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" onClick={() => setOpen(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> Add First Referral
+                </Button>
+              </DialogTrigger>
+            </Dialog>
           </div>
         )}
       </CardContent>
