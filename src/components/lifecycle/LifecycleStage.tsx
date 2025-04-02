@@ -1,4 +1,3 @@
-
 import React from "react";
 import { AddEditStage } from "./AddEditStage";
 import { 
@@ -18,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 export interface LifecycleStageProps {
   id: string;
@@ -128,7 +128,6 @@ export function LifecycleStageComponent({
           
           <div className="flex items-center justify-between">
             <div className="text-sm text-muted-foreground flex items-center">
-              {/* Fix the calendar icon click handler by wrapping it within the PopoverTrigger */}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="link" className="p-0 h-auto text-xs flex items-center">
@@ -137,14 +136,12 @@ export function LifecycleStageComponent({
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <div className="p-3 pointer-events-auto">
-                    <Calendar
-                      mode="single"
-                      selected={deadline ? new Date(deadline) : undefined}
-                      onSelect={handleDateSelect}
-                      initialFocus
-                    />
-                  </div>
+                  <CalendarComponent
+                    mode="single"
+                    selected={deadline ? new Date(deadline) : undefined}
+                    onSelect={handleDateSelect}
+                    initialFocus
+                  />
                 </PopoverContent>
               </Popover>
             </div>
