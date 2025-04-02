@@ -1,3 +1,4 @@
+
 import { LifecycleStageProps } from "@/components/lifecycle/LifecycleStage";
 import { 
   MessageSquare, Instagram, Globe, Mail, Smartphone, 
@@ -164,7 +165,7 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Ahmed Abdullah",
       role: "Account Executive"
     },
-    iconName: "Clipboard"
+    iconName: "FileCheck"
   },
   {
     id: "stage-002",
@@ -176,7 +177,7 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Khalid Al-Farsi",
       role: "Finance Manager"
     },
-    iconName: "Receipt"
+    iconName: "DollarSign"
   },
   {
     id: "stage-003",
@@ -188,7 +189,7 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Khalid Al-Farsi",
       role: "Finance Manager"
     },
-    iconName: "CreditCard"
+    iconName: "DollarSign"
   },
   {
     id: "stage-004",
@@ -200,7 +201,7 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Fatima Hassan",
       role: "Customer Success Manager"
     },
-    iconName: "CalendarClock"
+    iconName: "Calendar"
   },
   {
     id: "stage-005",
@@ -212,7 +213,7 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Fatima Hassan",
       role: "Customer Success Manager"
     },
-    iconName: "ClipboardList"
+    iconName: "FileCheck"
   },
   {
     id: "stage-006",
@@ -224,7 +225,7 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Fatima Hassan",
       role: "Customer Success Manager"
     },
-    iconName: "Settings"
+    iconName: "Users"
   },
   {
     id: "stage-007",
@@ -236,7 +237,7 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Mohammed Rahman",
       role: "Integration Engineer"
     },
-    iconName: "Database"
+    iconName: "FileCheck"
   },
   {
     id: "stage-008",
@@ -296,7 +297,7 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Fatima Hassan",
       role: "Customer Success Manager"
     },
-    iconName: "GraduationCap"
+    iconName: "BookOpen"
   },
   {
     id: "stage-013",
@@ -320,7 +321,7 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Fatima Hassan",
       role: "Customer Success Manager"
     },
-    iconName: "Rocket"
+    iconName: "Zap"
   },
   {
     id: "stage-015",
@@ -332,7 +333,7 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Fatima Hassan",
       role: "Customer Success Manager"
     },
-    iconName: "ClipboardCheck"
+    iconName: "CheckSquare"
   },
   {
     id: "stage-016",
@@ -345,7 +346,7 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       role: "Customer Success Manager"
     },
     notes: "Limited deployment with key users to validate solution",
-    iconName: "Flask"
+    iconName: "Users"
   }
 ];
 

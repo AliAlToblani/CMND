@@ -197,6 +197,10 @@ const Lifecycle = () => {
     }
   };
 
+  const handleStagesUpdate = (stages: LifecycleStageProps[]) => {
+    setCustomerStages(stages);
+  };
+
   const handleMarkAllNotApplicable = async (customerId = selectedCustomer) => {
     if (!customerId) return;
     
