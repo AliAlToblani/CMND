@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { CustomerCard, CustomerData } from "@/components/customers/CustomerCard";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, ArrowUpDown } from "lucide-react";
+import { Plus, Search, ArrowUpDown, RefreshCw } from "lucide-react";
 import { 
   Select,
   SelectContent,
@@ -15,7 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Customer, CustomerWithOwner } from "@/types/customers";
 import { toast } from "sonner";
-import { customers as mockCustomers } from "@/data/mockData";
+import { realCustomers } from "@/data/realCustomers";
 
 const Customers = () => {
   const navigate = useNavigate();
@@ -26,20 +27,20 @@ const Customers = () => {
   const [customers, setCustomers] = useState<CustomerData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const convertMockToCustomerData = (mockCustomer: any): CustomerData => {
+  const convertToCustomerData = (customer: any): CustomerData => {
     return {
-      id: mockCustomer.id,
-      name: mockCustomer.name,
-      logo: mockCustomer.logo || undefined,
-      segment: mockCustomer.segment || "Unknown Segment",
-      region: mockCustomer.region || "Unknown Region",
-      stage: mockCustomer.stage || "New",
-      status: (mockCustomer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
-      contractSize: mockCustomer.contractSize || 0,
-      owner: mockCustomer.owner ? {
-        id: mockCustomer.owner.id,
-        name: mockCustomer.owner.name,
-        role: mockCustomer.owner.role || "Unknown Role"
+      id: customer.id || crypto.randomUUID(),
+      name: customer.name,
+      logo: customer.logo || undefined,
+      segment: customer.segment || customer.client || "Unknown Segment",
+      region: customer.region || "Unknown Region",
+      stage: customer.stage || "New",
+      status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
+      contractSize: customer.contractSize || customer.value || 0,
+      owner: customer.owner ? {
+        id: customer.owner.id,
+        name: customer.owner.name,
+        role: customer.owner.role || "Unknown Role"
       } : {
         id: "unknown",
         name: "Unassigned",
@@ -87,13 +88,49 @@ const Customers = () => {
           const formattedCustomers = data.map(formatDatabaseCustomer);
           setCustomers(formattedCustomers);
         } else {
-          console.log("No customers found in database, using mock data");
-          setCustomers(mockCustomers.map(convertMockToCustomerData));
+          console.log("No customers found in database, using real customer data");
+          
+          // Map real customers into the expected format
+          const formattedRealCustomers = realCustomers.map(customer => ({
+            id: crypto.randomUUID(),
+            name: customer.client,
+            logo: undefined,
+            segment: "Unknown Segment",
+            region: "Unknown Region",
+            stage: customer.stage,
+            status: "not-started" as "not-started" | "in-progress" | "done" | "blocked",
+            contractSize: parseInt(customer.value.replace(/[^0-9]/g, '')) || 0,
+            owner: {
+              id: "unknown",
+              name: "Unassigned",
+              role: "Unassigned"
+            }
+          }));
+          
+          setCustomers(formattedRealCustomers);
         }
       } catch (error) {
         console.error("Error fetching customers:", error);
-        toast.error("Failed to load customers, using mock data");
-        setCustomers(mockCustomers.map(convertMockToCustomerData));
+        toast.error("Failed to load customers, using real customer data");
+        
+        // Map real customers into the expected format
+        const formattedRealCustomers = realCustomers.map(customer => ({
+          id: crypto.randomUUID(),
+          name: customer.client,
+          logo: undefined,
+          segment: "Unknown Segment",
+          region: "Unknown Region",
+          stage: customer.stage,
+          status: "not-started" as "not-started" | "in-progress" | "done" | "blocked",
+          contractSize: parseInt(customer.value.replace(/[^0-9]/g, '')) || 0,
+          owner: {
+            id: "unknown",
+            name: "Unassigned",
+            role: "Unassigned"
+          }
+        }));
+        
+        setCustomers(formattedRealCustomers);
       } finally {
         setIsLoading(false);
       }
@@ -116,6 +153,26 @@ const Customers = () => {
       if (data && data.length > 0) {
         const formattedCustomers = data.map(formatDatabaseCustomer);
         setCustomers(formattedCustomers);
+      } else {
+        // If no data in database, use real customers data
+        const formattedRealCustomers = realCustomers.map(customer => ({
+          id: crypto.randomUUID(),
+          name: customer.client,
+          logo: undefined,
+          segment: "Unknown Segment",
+          region: "Unknown Region",
+          stage: customer.stage,
+          status: "not-started" as "not-started" | "in-progress" | "done" | "blocked",
+          contractSize: parseInt(customer.value.replace(/[^0-9]/g, '')) || 0,
+          owner: {
+            id: "unknown",
+            name: "Unassigned",
+            role: "Unassigned"
+          }
+        }));
+        
+        setCustomers(formattedRealCustomers);
+        toast.info("Using real customer data (not stored in database)");
       }
     } catch (error) {
       console.error("Error refreshing customers:", error);
@@ -190,6 +247,7 @@ const Customers = () => {
           <h1 className="text-2xl font-bold">Customers</h1>
           <div className="flex gap-2">
             <Button onClick={refreshCustomers} variant="outline">
+              <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </Button>
             <Button onClick={() => navigate("/customers/new")}>

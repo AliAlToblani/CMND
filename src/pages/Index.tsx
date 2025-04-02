@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Users, Calendar, FileText, Link, BarChart3, TrendingUp } from "lucide-react";
 import { customers as mockCustomers } from "@/data/mockData";
+import { realCustomers } from "@/data/realCustomers";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomerData } from "@/components/customers/CustomerCard";
@@ -48,11 +49,48 @@ const Index = () => {
           }));
           setCustomers(formattedCustomers);
         } else {
-          setCustomers(mockCustomers);
+          // Use real customers data instead of mock data
+          console.log("No customers found in database, using real customer data");
+          
+          const formattedRealCustomers = realCustomers.slice(0, 8).map(customer => ({
+            id: crypto.randomUUID(),
+            name: customer.client,
+            logo: undefined,
+            segment: "Unknown Segment", 
+            region: "Unknown Region",
+            stage: customer.stage,
+            status: "not-started" as "not-started" | "in-progress" | "done" | "blocked",
+            contractSize: parseInt(customer.value.replace(/[^0-9]/g, '')) || 0,
+            owner: {
+              id: "unknown",
+              name: "Account Manager",
+              role: "Sales"
+            }
+          }));
+          
+          setCustomers(formattedRealCustomers);
         }
       } catch (error) {
         console.error("Error fetching customers:", error);
-        setCustomers(mockCustomers);
+        
+        // Use real customers data instead of mock data
+        const formattedRealCustomers = realCustomers.slice(0, 8).map(customer => ({
+          id: crypto.randomUUID(),
+          name: customer.client,
+          logo: undefined,
+          segment: "Unknown Segment",
+          region: "Unknown Region",
+          stage: customer.stage,
+          status: "not-started" as "not-started" | "in-progress" | "done" | "blocked",
+          contractSize: parseInt(customer.value.replace(/[^0-9]/g, '')) || 0,
+          owner: {
+            id: "unknown",
+            name: "Account Manager",
+            role: "Sales"
+          }
+        }));
+        
+        setCustomers(formattedRealCustomers);
       } finally {
         setLoading(false);
       }
@@ -61,7 +99,7 @@ const Index = () => {
     fetchCustomers();
   }, []);
 
-  // Calculate total ARR from customers in database or mock data
+  // Calculate total ARR from customers in database or real data
   const calculateTotalARR = () => {
     const total = customers.reduce((sum, customer) => sum + (customer.contractSize || 0), 0);
     return total > 0 ? `$${(total / 1000).toFixed(0)}k` : "$0";
