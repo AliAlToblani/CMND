@@ -15,6 +15,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Customer } from "@/types/customers";
+import { CustomerReferrals } from "@/components/customers/CustomerReferrals";
+import { AddContractDialog } from "@/components/contracts/AddContractDialog";
 
 const CustomerDetails = () => {
   const { id } = useParams();
@@ -59,7 +61,7 @@ const CustomerDetails = () => {
   });
 
   // Query to fetch contracts for this customer
-  const { data: contracts = [], isLoading: contractsLoading } = useQuery({
+  const { data: contracts = [], isLoading: contractsLoading, refetch: refetchContracts } = useQuery({
     queryKey: ['customer-contracts', getDbCustomerId()],
     queryFn: async () => {
       const dbCustomerId = getDbCustomerId();
@@ -101,8 +103,8 @@ const CustomerDetails = () => {
     };
   }, [customer]);
 
-  const handleAddContract = () => {
-    navigate(`/contracts?customerId=${id}&action=new`);
+  const handleContractSuccess = () => {
+    refetchContracts();
   };
 
   if (customerLoading) {
@@ -152,19 +154,19 @@ const CustomerDetails = () => {
           stages={[]}
         />
         
+        <CustomerReferrals customerId={getDbCustomerId()} />
+        
         <Card className="w-full glass-card">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center">
               <FileText className="mr-2 h-5 w-5" />
-              Contract Details
+              Contracts
             </CardTitle>
             <div className="space-x-2">
-              <Button variant="outline" size="sm" onClick={() => navigate(`/contracts?customerId=${id}`)}>
-                View All
-              </Button>
-              <Button size="sm" onClick={handleAddContract}>
-                <Plus className="h-4 w-4 mr-1" /> Add Contract
-              </Button>
+              <AddContractDialog 
+                customerId={getDbCustomerId()} 
+                onSuccess={handleContractSuccess} 
+              />
             </div>
           </CardHeader>
           <CardContent>
@@ -196,13 +198,12 @@ const CustomerDetails = () => {
                       </div>
                     </div>
                     <div className="mt-2 flex justify-end">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => navigate(`/contracts?customerId=${id}&contractId=${contract.id}&action=edit`)}
-                      >
-                        <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
-                      </Button>
+                      <AddContractDialog
+                        customerId={getDbCustomerId()}
+                        contract={contract}
+                        isEditing={true}
+                        onSuccess={handleContractSuccess}
+                      />
                     </div>
                   </div>
                 ))}
@@ -210,9 +211,15 @@ const CustomerDetails = () => {
             ) : (
               <div className="text-center py-8">
                 <p className="text-muted-foreground mb-4">No contracts available for this customer.</p>
-                <Button onClick={handleAddContract} variant="outline">
-                  <Plus className="h-4 w-4 mr-1" /> Add First Contract
-                </Button>
+                <AddContractDialog 
+                  customerId={getDbCustomerId()} 
+                  onSuccess={handleContractSuccess}
+                  trigger={
+                    <Button variant="outline">
+                      <Plus className="h-4 w-4 mr-1" /> Add First Contract
+                    </Button>
+                  }
+                />
               </div>
             )}
           </CardContent>
