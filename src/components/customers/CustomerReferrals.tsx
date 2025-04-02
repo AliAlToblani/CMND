@@ -59,7 +59,7 @@ export function CustomerReferrals({ customerId }: CustomerReferralsProps) {
         return [];
       }
       
-      return data as Referral[];
+      return (data || []) as Referral[];
     },
     enabled: !!customerId
   });
