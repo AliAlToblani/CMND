@@ -92,9 +92,9 @@ const CustomerDetails = () => {
       region: customer.region || "Unknown Region",
       stage: customer.stage || "New",
       status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
-      contractSize: customer.contract_size || 0,
+      contractSize: (customer as Customer).contract_size || 0,
       owner: {
-        id: customer.owner_id || "unknown",
+        id: (customer as Customer).owner_id || "unknown",
         name: "Account Manager", // We'll fetch real owner data in a separate query in a future update
         role: "Sales"
       }
