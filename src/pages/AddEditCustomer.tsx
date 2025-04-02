@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -31,7 +30,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { CustomerInsert } from "@/types/customers";
 import { useQuery } from "@tanstack/react-query";
 
-// Predefined stage options
 const STAGE_OPTIONS = [
   "New",
   "Onboarding",
@@ -81,7 +79,6 @@ const AddEditCustomer = () => {
   
   const [customer, setCustomer] = React.useState<any>(null);
   
-  // Fetch all staff members
   const { data: staffMembers = [] } = useQuery({
     queryKey: ['staff-members'],
     queryFn: async () => {
@@ -98,25 +95,23 @@ const AddEditCustomer = () => {
     }
   });
 
-  // Fetch customer-staff assignments if editing
   const { data: customerTeamMembers = [] } = useQuery({
     queryKey: ['customer-team-members', id],
     queryFn: async () => {
       if (!id) return [];
       
       const dbCustomerId = getDbCustomerId();
-      const { data, error } = await supabase
-        .from('customer_team_members')
+      const response = await supabase
+        .from('customer_team_members' as any)
         .select('staff_id')
         .eq('customer_id', dbCustomerId);
         
-      if (error) {
-        console.error("Error fetching customer team members:", error);
+      if (response.error) {
+        console.error("Error fetching customer team members:", response.error);
         return [];
       }
       
-      // Extract staff IDs from the result
-      return data.map(item => item.staff_id);
+      return response.data?.map(item => item.staff_id) || [];
     },
     enabled: !!id
   });
@@ -220,7 +215,6 @@ const AddEditCustomer = () => {
       }
     });
     
-    // Update the form value
     form.setValue("teamMembers", selectedTeamMembers);
   };
   
@@ -250,7 +244,6 @@ const AddEditCustomer = () => {
         
         if (error) throw error;
         
-        // Save the customer ID for team member assignments
         customerId = dbCustomerId;
         
         toast.success("Customer updated successfully");
@@ -263,17 +256,14 @@ const AddEditCustomer = () => {
         
         if (error) throw error;
         
-        // Save the new customer ID for team member assignments
         customerId = data.id;
         
         toast.success("Customer added successfully");
       }
       
-      // Update team member assignments
       if (customerId) {
-        // First, remove existing assignments
         const { error: deleteError } = await supabase
-          .from('customer_team_members')
+          .from('customer_team_members' as any)
           .delete()
           .eq('customer_id', customerId);
         
@@ -281,7 +271,6 @@ const AddEditCustomer = () => {
           console.error("Error deleting existing team assignments:", deleteError);
         }
         
-        // Then add new assignments
         if (selectedTeamMembers.length > 0) {
           const teamAssignments = selectedTeamMembers.map(staffId => ({
             customer_id: customerId,
@@ -289,8 +278,8 @@ const AddEditCustomer = () => {
           }));
           
           const { error: insertError } = await supabase
-            .from('customer_team_members')
-            .insert(teamAssignments);
+            .from('customer_team_members' as any)
+            .insert(teamAssignments as any);
           
           if (insertError) {
             console.error("Error assigning team members:", insertError);

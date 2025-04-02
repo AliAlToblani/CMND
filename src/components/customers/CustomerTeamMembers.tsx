@@ -36,7 +36,7 @@ export function CustomerTeamMembers({ customerId }: CustomerTeamMembersProps) {
         throw new Error(error.message);
       }
       
-      // Extract staff data from the result
+      // Extract staff data from the result and handle types properly
       const members: TeamMember[] = data
         .filter(item => item.staff) // Filter out any null staff references
         .map(item => ({

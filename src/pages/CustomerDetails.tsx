@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -21,7 +22,7 @@ const CustomerDetails = () => {
     return id ? `00000000-0000-0000-0000-${id.replace(/\D/g, '').padStart(12, '0')}` : null;
   };
 
-  // Mock customer data for demonstration
+  // Mock customer data for demonstration with proper typing
   const customer = {
     id: id || "customer-001",
     name: "Acme Corp",
@@ -29,7 +30,7 @@ const CustomerDetails = () => {
     segment: "Enterprise",
     region: "North America",
     stage: "Onboarding",
-    status: "in-progress",
+    status: "in-progress" as "not-started" | "in-progress" | "done" | "blocked",
     contractSize: 50000,
     owner: {
       id: "user-001",
