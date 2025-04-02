@@ -128,7 +128,7 @@ export function LifecycleStageComponent({
           </div>
           
           <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground flex items-center">
+            <div className="text-sm text-muted-foreground">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="link" className="p-0 h-auto text-xs flex items-center">

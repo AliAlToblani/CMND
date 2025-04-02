@@ -108,7 +108,7 @@ export function LifecycleTracker({
 
       if (data && data.length > 0) {
         const matchingDefaultStage = defaultCustomerLifecycleStages.find(
-          ds => ds.name === data[0].name && ds.category === data[0].category
+          ds => ds.name === data[0].name && (data[0].category ? ds.category === data[0].category : true)
         );
         
         const IconComponent = matchingDefaultStage ? icons[matchingDefaultStage.iconName] : undefined;
@@ -189,8 +189,10 @@ export function LifecycleTracker({
 
       const currentStage = stages.find(stage => stage.id === stageId);
       
+      // Important: We maintain the position of the stage in the array
       const updatedStages = stages.map(stage => {
         if (stage.id === stageId) {
+          // Preserve the existing stage position and only update the properties that changed
           return { ...stage, ...updatedStage };
         }
         return stage;
@@ -245,6 +247,7 @@ export function LifecycleTracker({
       if (updatedStage.status && !updatedStage.name && !updatedStage.owner && !updatedStage.deadline && 
           updatedStage.notes === undefined && updatedStage.category === undefined) {
         // Status-only update
+        toast.success(`Status updated to ${updatedStage.status.replace("-", " ")}`);
       } else {
         toast.success("Stage updated successfully");
       }
