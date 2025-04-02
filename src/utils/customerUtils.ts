@@ -151,7 +151,16 @@ export const formatCustomerId = (customerId: string): string => {
  * A customer is considered live if their status is "done" or in specified live stages
  */
 export const getLiveCustomers = (customers: CustomerData[]): CustomerData[] => {
-  const liveStages = ["live", "production", "launched", "active", "paid"];
+  const liveStages = [
+    "live", 
+    "production", 
+    "launched", 
+    "active", 
+    "paid", 
+    "went live", 
+    "training completed"
+  ];
+  
   return customers.filter(customer => 
     customer.status === "done" || 
     (customer.stage && liveStages.some(stage => 
@@ -181,7 +190,19 @@ export const getCustomerARRData = (customers: CustomerData[]): {
   liveCustomers: CustomerData[], 
   growthRate: number 
 } => {
-  const arrStages = ["live", "production", "launched", "active", "paid", "invoice sent", "signed"];
+  const arrStages = [
+    "live", 
+    "production", 
+    "launched", 
+    "active", 
+    "paid", 
+    "invoice sent", 
+    "signed", 
+    "went live",
+    "invoice sent",
+    "paid",
+    "training completed"
+  ];
   
   const relevantCustomers = customers.filter(customer => {
     if (customer.status === "done") return true;

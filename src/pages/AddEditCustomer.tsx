@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -28,6 +29,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomerInsert } from "@/types/customers";
+import { useQuery } from "@tanstack/react-query";
+
+// Predefined stage options
+const STAGE_OPTIONS = [
+  "New",
+  "Onboarding",
+  "Integration",
+  "Training",
+  "Went Live",
+  "Signed",
+  "Invoice Sent",
+  "Paid",
+  "WhatsApp Integration",
+  "Instagram Integration",
+  "Facebook Integration",
+  "Website Integration",
+  "Agent Setup",
+  "Account Setup",
+  "Training Completed"
+];
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -40,6 +61,7 @@ const formSchema = z.object({
   contractSize: z.coerce.number().min(0),
   ownerId: z.string(),
   logo: z.any().optional(),
+  teamMembers: z.array(z.string()).optional(),
 });
 
 const AddEditCustomer = () => {
@@ -48,6 +70,7 @@ const AddEditCustomer = () => {
   const isEditing = !!id;
   const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [selectedTeamMembers, setSelectedTeamMembers] = React.useState<string[]>([]);
   
   const getDbCustomerId = () => {
     if (id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
@@ -57,6 +80,52 @@ const AddEditCustomer = () => {
   };
   
   const [customer, setCustomer] = React.useState<any>(null);
+  
+  // Fetch all staff members
+  const { data: staffMembers = [] } = useQuery({
+    queryKey: ['staff-members'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('staff')
+        .select('*')
+        .order('name');
+        
+      if (error) {
+        console.error("Error fetching staff:", error);
+        throw new Error(error.message);
+      }
+      return data || [];
+    }
+  });
+
+  // Fetch customer-staff assignments if editing
+  const { data: customerTeamMembers = [] } = useQuery({
+    queryKey: ['customer-team-members', id],
+    queryFn: async () => {
+      if (!id) return [];
+      
+      const dbCustomerId = getDbCustomerId();
+      const { data, error } = await supabase
+        .from('customer_team_members')
+        .select('staff_id')
+        .eq('customer_id', dbCustomerId);
+        
+      if (error) {
+        console.error("Error fetching customer team members:", error);
+        return [];
+      }
+      
+      // Extract staff IDs from the result
+      return data.map(item => item.staff_id);
+    },
+    enabled: !!id
+  });
+  
+  React.useEffect(() => {
+    if (customerTeamMembers.length > 0) {
+      setSelectedTeamMembers(customerTeamMembers);
+    }
+  }, [customerTeamMembers]);
   
   React.useEffect(() => {
     const fetchCustomer = async () => {
@@ -106,6 +175,7 @@ const AddEditCustomer = () => {
       status: customer?.status || "not-started",
       contractSize: customer?.contractSize || 0,
       ownerId: customer?.owner?.id || "user-001",
+      teamMembers: [],
     },
   });
   
@@ -119,13 +189,14 @@ const AddEditCustomer = () => {
         status: customer.status || "not-started",
         contractSize: customer.contractSize || customer.contract_size || 0,
         ownerId: customer.owner?.id || customer.owner_id || "user-001",
+        teamMembers: selectedTeamMembers,
       });
       
       if (customer.logo) {
         setLogoPreview(customer.logo);
       }
     }
-  }, [customer, form]);
+  }, [customer, form, selectedTeamMembers]);
   
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -138,6 +209,19 @@ const AddEditCustomer = () => {
       };
       reader.readAsDataURL(file);
     }
+  };
+  
+  const handleTeamMemberToggle = (staffId: string) => {
+    setSelectedTeamMembers(prev => {
+      if (prev.includes(staffId)) {
+        return prev.filter(id => id !== staffId);
+      } else {
+        return [...prev, staffId];
+      }
+    });
+    
+    // Update the form value
+    form.setValue("teamMembers", selectedTeamMembers);
   };
   
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -155,23 +239,64 @@ const AddEditCustomer = () => {
         logo: values.logo || null
       };
       
+      let customerId = id;
+      
       if (isEditing) {
+        const dbCustomerId = getDbCustomerId();
         const { error } = await supabase
           .from('customers')
           .update(customerData)
-          .eq('id', getDbCustomerId());
+          .eq('id', dbCustomerId);
         
         if (error) throw error;
+        
+        // Save the customer ID for team member assignments
+        customerId = dbCustomerId;
         
         toast.success("Customer updated successfully");
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('customers')
-          .insert(customerData);
+          .insert(customerData)
+          .select('id')
+          .single();
         
         if (error) throw error;
         
+        // Save the new customer ID for team member assignments
+        customerId = data.id;
+        
         toast.success("Customer added successfully");
+      }
+      
+      // Update team member assignments
+      if (customerId) {
+        // First, remove existing assignments
+        const { error: deleteError } = await supabase
+          .from('customer_team_members')
+          .delete()
+          .eq('customer_id', customerId);
+        
+        if (deleteError) {
+          console.error("Error deleting existing team assignments:", deleteError);
+        }
+        
+        // Then add new assignments
+        if (selectedTeamMembers.length > 0) {
+          const teamAssignments = selectedTeamMembers.map(staffId => ({
+            customer_id: customerId,
+            staff_id: staffId
+          }));
+          
+          const { error: insertError } = await supabase
+            .from('customer_team_members')
+            .insert(teamAssignments);
+          
+          if (insertError) {
+            console.error("Error assigning team members:", insertError);
+            toast.error("Failed to assign team members");
+          }
+        }
       }
       
       navigate("/customers");
@@ -301,9 +426,21 @@ const AddEditCustomer = () => {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Current Stage</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Current stage" {...field} />
-                        </FormControl>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select stage" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {STAGE_OPTIONS.map(stage => (
+                              <SelectItem key={stage} value={stage}>{stage}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -383,6 +520,36 @@ const AddEditCustomer = () => {
                     </FormItem>
                   )}
                 />
+                
+                <div className="space-y-4">
+                  <FormLabel>Team Members</FormLabel>
+                  <div className="border rounded-md p-4 max-h-48 overflow-y-auto">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {staffMembers.map(staff => (
+                        <div key={staff.id} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id={`staff-${staff.id}`}
+                            checked={selectedTeamMembers.includes(staff.id)}
+                            onChange={() => handleTeamMemberToggle(staff.id)}
+                            className="h-4 w-4 rounded"
+                          />
+                          <label htmlFor={`staff-${staff.id}`} className="flex items-center gap-2 cursor-pointer">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage src={staff.avatar || `https://avatar.vercel.sh/${staff.name}.png`} alt={staff.name} />
+                              <AvatarFallback className="text-xs">{staff.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{staff.name} ({staff.role})</span>
+                          </label>
+                        </div>
+                      ))}
+                      
+                      {staffMembers.length === 0 && (
+                        <p className="text-sm text-muted-foreground">No team members available</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 
                 <div className="flex justify-end">
                   <Button type="submit" disabled={isSubmitting}>
