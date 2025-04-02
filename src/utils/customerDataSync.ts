@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { customers as realCustomers } from "@/data/realCustomers";
 
@@ -98,6 +99,23 @@ export const ensureCustomerExists = async (customerId: string): Promise<boolean>
     if (!customer) {
       console.error("Customer not found in real data:", customerId);
       return false;
+    }
+    
+    // Check if customer with this name already exists in the database
+    const { data: existingData, error: existingError } = await supabase
+      .from('customers')
+      .select('id')
+      .ilike('name', customer.name);
+      
+    if (existingError) {
+      console.error("Error checking existing customer by name:", existingError);
+      return false;
+    }
+    
+    // If customer already exists, return true
+    if (existingData && existingData.length > 0) {
+      console.log("Found existing customer with name:", customer.name);
+      return true;
     }
     
     // Create a new valid UUID for this customer

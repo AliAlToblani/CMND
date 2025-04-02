@@ -9,7 +9,7 @@ import { Plus, Users, Calendar, FileText, BarChart3, TrendingUp, Activity, Clock
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomerData } from "@/components/customers/CustomerCard";
-import { syncCustomersToDatabase } from "@/utils/customerDataSync";
+import { syncCustomersToDatabase, checkForDuplicateStages } from "@/utils/customerDataSync";
 import { toast } from "sonner";
 import { 
   getLiveCustomers, 
@@ -30,6 +30,8 @@ const Index = () => {
     const initialSync = async () => {
       // Sync customers automatically on first load
       await syncCustomersToDatabase();
+      // Check for duplicates after loading
+      await Promise.all(customers.map(customer => checkForDuplicateStages(customer.id)));
     };
     
     initialSync();
@@ -66,6 +68,9 @@ const Index = () => {
             }
           }));
           setCustomers(formattedCustomers);
+          
+          // After loading customers, check for duplicates in lifecycle stages
+          await Promise.all(formattedCustomers.map(customer => checkForDuplicateStages(customer.id)));
         } else {
           console.log("No customers found in database, checking again");
           // If no customers in DB, try to sync them again
@@ -173,6 +178,11 @@ const Index = () => {
     }
   ];
   
+  // Get unique customers for the Recent Customers section to avoid duplicates
+  const recentCustomers = customers.filter((customer, index, self) => 
+    index === self.findIndex((c) => c.name === customer.name)
+  ).slice(0, 4);
+  
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -208,7 +218,7 @@ const Index = () => {
                     <div key={i} className="h-48 bg-gray-100 animate-pulse rounded-md"></div>
                   ))
                 ) : (
-                  customers.slice(0, 4).map((customer) => (
+                  recentCustomers.map((customer) => (
                     <CustomerCard key={customer.id} customer={customer} />
                   ))
                 )}

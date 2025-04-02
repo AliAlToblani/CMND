@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { customers as realCustomers } from "@/data/realCustomers";
 import { CustomerData } from "@/components/customers/CustomerCard";
@@ -150,10 +151,12 @@ export const formatCustomerId = (customerId: string): string => {
  * A customer is considered live if their status is "done" or in specified live stages
  */
 export const getLiveCustomers = (customers: CustomerData[]): CustomerData[] => {
-  const liveStages = ["Live", "Production", "Launched", "Active"];
+  const liveStages = ["live", "production", "launched", "active", "paid"];
   return customers.filter(customer => 
     customer.status === "done" || 
-    liveStages.some(stage => customer.stage?.includes(stage))
+    (customer.stage && liveStages.some(stage => 
+      customer.stage?.toLowerCase().includes(stage.toLowerCase())
+    ))
   );
 };
 
@@ -178,15 +181,24 @@ export const getCustomerARRData = (customers: CustomerData[]): {
   liveCustomers: CustomerData[], 
   growthRate: number 
 } => {
-  const arrStages = ["Live", "Production", "Launched", "Active", "Paid", "Invoice Sent"];
+  const arrStages = ["live", "production", "launched", "active", "paid", "invoice sent"];
   
   const relevantCustomers = customers.filter(customer => {
     if (customer.status === "done") return true;
     if (!customer.stage) return false;
     
     // Check if customer stage contains any of the ARR stages
+    // Explicitly exclude "signed" status
+    const stageLower = customer.stage.toLowerCase();
+    if (stageLower.includes("signed") && !arrStages.some(stage => 
+      stageLower.includes(stage.toLowerCase())
+    )) {
+      return false;
+    }
+    
+    // Check if customer stage contains any of the ARR stages
     return arrStages.some(stage => 
-      customer.stage?.toLowerCase().includes(stage.toLowerCase())
+      stageLower.includes(stage.toLowerCase())
     );
   });
   
@@ -213,9 +225,12 @@ export const getDealsPipeline = (customers: CustomerData[]): {
   value: number, 
   count: number 
 } => {
-  const arrStages = ["Live", "Production", "Launched", "Active", "Paid", "Invoice Sent"];
+  const arrStages = ["live", "production", "launched", "active", "paid", "invoice sent"];
   
   const pipelineCustomers = customers.filter(customer => {
+    // Include signed customers in pipeline
+    if (customer.stage?.toLowerCase().includes("signed")) return true;
+    
     if (customer.status === "done") return false;
     if (!customer.stage) return true;
     

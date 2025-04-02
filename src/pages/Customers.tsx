@@ -17,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Customer, CustomerWithOwner } from "@/types/customers";
 import { toast } from "sonner";
 import { customers as realCustomers } from "@/data/realCustomers";
-import { syncCustomersToDatabase } from "@/utils/customerDataSync";
+import { syncCustomersToDatabase, checkForDuplicateStages } from "@/utils/customerDataSync";
 
 const Customers = () => {
   const navigate = useNavigate();
@@ -96,7 +96,16 @@ const Customers = () => {
 
       if (data && data.length > 0) {
         const formattedCustomers = data.map(formatDatabaseCustomer);
-        setCustomers(formattedCustomers);
+        
+        // Filter out duplicates by name
+        const uniqueCustomers = formattedCustomers.filter((customer, index, self) => 
+          index === self.findIndex((c) => c.name === customer.name)
+        );
+        
+        setCustomers(uniqueCustomers);
+        
+        // Run duplicate stage check for all customers
+        await Promise.all(uniqueCustomers.map(customer => checkForDuplicateStages(customer.id)));
       } else {
         console.log("No customers found in database, using real customer data");
         
