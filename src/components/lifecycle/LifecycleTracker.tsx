@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LifecycleStageComponent, LifecycleStageProps } from "./LifecycleStage";
@@ -8,6 +9,7 @@ import { LifecycleStage, LifecycleStageWithOwner } from "@/types/customers";
 import { createNotification } from "@/utils/notificationHelpers";
 import { defaultLifecycleStages, icons, DefaultLifecycleStage } from "@/data/mockData";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LifecycleProgress } from "./LifecycleProgress";
 
 interface LifecycleTrackerProps {
   customerId: string;
@@ -257,16 +259,34 @@ export function LifecycleTracker({
         }
       }
       
-      const stagesWithIcons = defaultLifecycleStages.map(convertDefaultStageToProps);
-      
-      setStages([...stages, ...stagesWithIcons]);
-      toast.success("Default stages loaded");
-      
+      // First check for existing stages to prevent duplication
       const dbCustomerId = getDbCustomerId();
       
+      const { data: existingStages, error: checkError } = await supabase
+        .from('lifecycle_stages')
+        .select('name, category')
+        .eq('customer_id', dbCustomerId);
+      
+      if (checkError) {
+        console.error("Error checking existing stages:", checkError);
+        throw checkError;
+      }
+      
+      const stagesToAdd = defaultLifecycleStages.filter(stage => {
+        return !existingStages?.some(
+          existing => existing.name === stage.name && (existing.category || "") === (stage.category || "")
+        );
+      });
+      
+      if (stagesToAdd.length === 0) {
+        console.log("All default stages already exist");
+        return;
+      }
+      
+      // Use a fallback staff ID if needed
       const defaultStaffId = validStaffIds[0];
       
-      const stagesToInsert = defaultLifecycleStages.map(stage => ({
+      const stagesToInsert = stagesToAdd.map(stage => ({
         customer_id: dbCustomerId,
         name: stage.name,
         status: stage.status,
@@ -380,6 +400,8 @@ export function LifecycleTracker({
         />
       </CardHeader>
       <CardContent>
+        <LifecycleProgress stages={stages} />
+        
         <Tabs defaultValue="All" value={activeCategory} onValueChange={setActiveCategory} className="mb-6">
           <TabsList className="mb-4">
             {STAGE_CATEGORIES.map(category => (

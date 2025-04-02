@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { LifecycleTracker } from "@/components/lifecycle/LifecycleTracker";
@@ -56,7 +55,6 @@ const Lifecycle = () => {
     return `00000000-0000-0000-0000-${customerId.replace(/\D/g, '').padStart(12, '0')}`;
   };
 
-  // Fetch valid staff IDs from the database
   const fetchValidStaffIds = async () => {
     try {
       const { data, error } = await supabase
@@ -76,7 +74,6 @@ const Lifecycle = () => {
   };
 
   useEffect(() => {
-    // Fetch valid staff IDs when component mounts
     const loadStaffIds = async () => {
       const ids = await fetchValidStaffIds();
       console.log("Valid staff IDs:", ids);
@@ -200,89 +197,6 @@ const Lifecycle = () => {
     }
   };
 
-  const handleAddAllDefaultStages = async (customerId = selectedCustomer) => {
-    if (!customerId) {
-      console.log("No customer ID provided, can't add default stages");
-      return;
-    }
-    
-    try {
-      if (validStaffIds.length === 0) {
-        const ids = await fetchValidStaffIds();
-        setValidStaffIds(ids);
-        
-        if (ids.length === 0) {
-          toast.error("No staff members found in the database. Please add staff members first.");
-          return;
-        }
-      }
-      
-      setLoading(true);
-      const dbCustomerId = getDbCustomerId(customerId);
-      console.log("Adding default stages for customer ID:", customerId, "DB ID:", dbCustomerId);
-      
-      const { data: existingStages, error: checkError } = await supabase
-        .from('lifecycle_stages')
-        .select('name, category')
-        .eq('customer_id', dbCustomerId);
-      
-      if (checkError) {
-        console.error("Error checking existing stages:", checkError);
-        throw checkError;
-      }
-      
-      const stagesToAdd = defaultLifecycleStages.filter(stage => {
-        return !existingStages?.some(
-          existing => existing.name === stage.name && (existing.category || "") === (stage.category || "")
-        );
-      });
-      
-      if (stagesToAdd.length === 0) {
-        toast.info("All default stages already exist for this customer");
-        return;
-      }
-      
-      // Use a fallback staff ID if the owner ID from default stages doesn't exist
-      const defaultStaffId = validStaffIds[0];
-      
-      const stagesToInsert = stagesToAdd.map(stage => ({
-        customer_id: dbCustomerId,
-        name: stage.name,
-        status: stage.status,
-        // Use the default owner_id if the specified one doesn't exist in the staff table
-        owner_id: validStaffIds.includes(stage.owner.id) ? stage.owner.id : defaultStaffId,
-        notes: stage.notes,
-        category: stage.category || null
-      }));
-      
-      console.log(`Inserting ${stagesToInsert.length} stages:`, stagesToInsert);
-      
-      const { error } = await supabase
-        .from('lifecycle_stages')
-        .insert(stagesToInsert);
-      
-      if (error) {
-        console.error("Error details:", error);
-        throw error;
-      }
-      
-      toast.success(`${stagesToInsert.length} default stages added successfully`);
-      
-      await fetchCustomerStages(customerId);
-      
-    } catch (error) {
-      console.error("Error adding default stages:", error);
-      toast.error("Failed to add default stages");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStagesUpdate = (updatedStages: LifecycleStageProps[]) => {
-    setCustomerStages(updatedStages);
-    console.log("Updated stages:", updatedStages);
-  };
-
   const handleMarkAllNotApplicable = async (customerId = selectedCustomer) => {
     if (!customerId) return;
     
@@ -351,13 +265,6 @@ const Lifecycle = () => {
                 )}
               </SelectContent>
             </Select>
-            <Button 
-              variant="outline" 
-              onClick={() => handleAddAllDefaultStages()}
-              disabled={loading || !selectedCustomer}
-            >
-              Add All Default Stages
-            </Button>
             <Button 
               variant="outline" 
               onClick={() => handleMarkAllNotApplicable()}

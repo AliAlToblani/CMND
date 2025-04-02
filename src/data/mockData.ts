@@ -137,15 +137,26 @@ export const dashboardStats = [
 ];
 
 // Define a type for the default lifecycle stage that includes iconName
-export interface DefaultLifecycleStage extends Omit<LifecycleStageProps, "icon"> {
+export interface DefaultLifecycleStage {
+  id: string;
+  name: string;
+  status: "not-started" | "in-progress" | "done" | "blocked" | "not-applicable";
+  category: string;
+  owner: {
+    id: string;
+    name: string;
+    role: string;
+  };
+  deadline?: string;
+  notes?: string;
   iconName: keyof typeof icons;
 }
 
 // Default lifecycle stages by category
 export const defaultLifecycleStages: DefaultLifecycleStage[] = [
   {
-    id: "sales-stage-1",
-    name: "Initial Contact",
+    id: "stage-001",
+    name: "Contract Approval",
     status: "not-started",
     category: "Sales",
     owner: {
@@ -153,39 +164,11 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Ahmed Abdullah",
       role: "Account Executive"
     },
-    notes: "First connection with the potential customer.",
-    iconName: "Briefcase"
+    iconName: "Clipboard"
   },
   {
-    id: "sales-stage-2",
-    name: "Demo Completed",
-    status: "not-started",
-    category: "Sales",
-    owner: {
-      id: "00000000-0000-0000-0000-000000000001",
-      name: "Ahmed Abdullah",
-      role: "Account Executive"
-    },
-    notes: "Product demonstration for key stakeholders.",
-    iconName: "Briefcase"
-  },
-  {
-    id: "sales-stage-3",
-    name: "Proposal Sent",
-    status: "not-started",
-    category: "Sales",
-    owner: {
-      id: "00000000-0000-0000-0000-000000000001",
-      name: "Ahmed Abdullah",
-      role: "Account Executive"
-    },
-    notes: "Formal proposal shared with pricing and terms.",
-    iconName: "FileCheck"
-  },
-  
-  {
-    id: "finance-stage-1",
-    name: "Contract Signed",
+    id: "stage-002",
+    name: "Invoice Generation",
     status: "not-started",
     category: "Finance",
     owner: {
@@ -193,12 +176,11 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Khalid Al-Farsi",
       role: "Finance Manager"
     },
-    notes: "Completed contract with signatures from all parties.",
-    iconName: "FileCheck"
+    iconName: "Receipt"
   },
   {
-    id: "finance-stage-2",
-    name: "Invoice Generated",
+    id: "stage-003",
+    name: "Payment Processing",
     status: "not-started",
     category: "Finance",
     owner: {
@@ -206,26 +188,11 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Khalid Al-Farsi",
       role: "Finance Manager"
     },
-    notes: "Initial invoice sent to customer.",
-    iconName: "DollarSign"
+    iconName: "CreditCard"
   },
   {
-    id: "finance-stage-3",
-    name: "Payment Processed",
-    status: "not-started",
-    category: "Finance",
-    owner: {
-      id: "00000000-0000-0000-0000-000000000003",
-      name: "Khalid Al-Farsi",
-      role: "Finance Manager"
-    },
-    notes: "First payment successfully received.",
-    iconName: "DollarSign"
-  },
-  
-  {
-    id: "onboarding-stage-1",
-    name: "Kickoff Meeting",
+    id: "stage-004",
+    name: "Kick-off Meeting",
     status: "not-started",
     category: "Onboarding",
     owner: {
@@ -233,11 +200,10 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Fatima Hassan",
       role: "Customer Success Manager"
     },
-    notes: "Initial project kickoff with key stakeholders.",
-    iconName: "Calendar"
+    iconName: "CalendarClock"
   },
   {
-    id: "onboarding-stage-2",
+    id: "stage-005",
     name: "Requirements Gathering",
     status: "not-started",
     category: "Onboarding",
@@ -246,11 +212,10 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Fatima Hassan",
       role: "Customer Success Manager"
     },
-    notes: "Document detailed customer requirements and configuration needs.",
-    iconName: "CheckSquare"
+    iconName: "ClipboardList"
   },
   {
-    id: "onboarding-stage-3",
+    id: "stage-006",
     name: "Account Setup",
     status: "not-started",
     category: "Onboarding",
@@ -259,13 +224,11 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Fatima Hassan",
       role: "Customer Success Manager"
     },
-    notes: "Set up customer account with initial configuration.",
-    iconName: "Users"
+    iconName: "Settings"
   },
-  
   {
-    id: "integration-stage-1",
-    name: "Chat Integration",
+    id: "stage-007",
+    name: "Data Migration",
     status: "not-started",
     category: "Integration",
     owner: {
@@ -273,12 +236,11 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Mohammed Rahman",
       role: "Integration Engineer"
     },
-    notes: "Implement customer chat integration for real-time support.",
-    iconName: "MessageSquare"
+    iconName: "Database"
   },
   {
-    id: "integration-stage-2",
-    name: "Social Media Connect",
+    id: "stage-008",
+    name: "Mobile App Integration",
     status: "not-started",
     category: "Integration",
     owner: {
@@ -286,12 +248,11 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Mohammed Rahman",
       role: "Integration Engineer"
     },
-    notes: "Set up Instagram business account connection for the customer.",
-    iconName: "Instagram"
+    iconName: "Smartphone"
   },
   {
-    id: "integration-stage-3",
-    name: "Website API Setup",
+    id: "stage-009",
+    name: "Email Integration",
     status: "not-started",
     category: "Integration",
     owner: {
@@ -299,25 +260,11 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Mohammed Rahman",
       role: "Integration Engineer"
     },
-    notes: "Configure API endpoints for the customer's website integration.",
-    iconName: "Globe"
-  },
-  {
-    id: "integration-stage-4",
-    name: "Email Campaign Integration",
-    status: "not-started",
-    category: "Integration",
-    owner: {
-      id: "00000000-0000-0000-0000-000000000002",
-      name: "Fatima Hassan",
-      role: "Customer Success Manager"
-    },
-    notes: "Set up email marketing integration with customer's CRM.",
     iconName: "Mail"
   },
   {
-    id: "integration-stage-5",
-    name: "Mobile App Configuration",
+    id: "stage-010",
+    name: "WhatsApp Integration",
     status: "not-started",
     category: "Integration",
     owner: {
@@ -325,12 +272,22 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Mohammed Rahman",
       role: "Integration Engineer"
     },
-    notes: "Configure mobile app settings and push notification services.",
-    iconName: "Smartphone"
+    iconName: "MessageSquare"
   },
-  
   {
-    id: "training-stage-1",
+    id: "stage-011",
+    name: "Instagram Integration",
+    status: "not-started",
+    category: "Integration",
+    owner: {
+      id: "00000000-0000-0000-0000-000000000004",
+      name: "Mohammed Rahman",
+      role: "Integration Engineer"
+    },
+    iconName: "Instagram"
+  },
+  {
+    id: "stage-012",
     name: "Admin Training",
     status: "not-started",
     category: "Training",
@@ -339,12 +296,11 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Fatima Hassan",
       role: "Customer Success Manager"
     },
-    notes: "Train customer administrators on platform management.",
-    iconName: "BookOpen"
+    iconName: "GraduationCap"
   },
   {
-    id: "training-stage-2",
-    name: "End User Training",
+    id: "stage-013",
+    name: "User Training",
     status: "not-started",
     category: "Training",
     owner: {
@@ -352,12 +308,10 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Fatima Hassan",
       role: "Customer Success Manager"
     },
-    notes: "Train end users on daily operations and features.",
     iconName: "Users"
   },
-  
   {
-    id: "success-stage-1",
+    id: "stage-014",
     name: "Go-Live",
     status: "not-started",
     category: "Success",
@@ -366,12 +320,11 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Fatima Hassan",
       role: "Customer Success Manager"
     },
-    notes: "Official launch of the solution for customer use.",
-    iconName: "Zap"
+    iconName: "Rocket"
   },
   {
-    id: "success-stage-2",
-    name: "30-Day Review",
+    id: "stage-015",
+    name: "Post-Launch Review",
     status: "not-started",
     category: "Success",
     owner: {
@@ -379,12 +332,11 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Fatima Hassan",
       role: "Customer Success Manager"
     },
-    notes: "Post-implementation review after 30 days of live usage.",
-    iconName: "HeartHandshake"
+    iconName: "ClipboardCheck"
   },
   {
-    id: "success-stage-3",
-    name: "Success Metrics Achieved",
+    id: "stage-016",
+    name: "Pilot Program",
     status: "not-started",
     category: "Success",
     owner: {
@@ -392,8 +344,8 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
       name: "Fatima Hassan",
       role: "Customer Success Manager"
     },
-    notes: "Key performance indicators and success metrics have been met.",
-    iconName: "Medal"
+    notes: "Limited deployment with key users to validate solution",
+    iconName: "Flask"
   }
 ];
 
