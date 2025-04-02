@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { defaultCustomerLifecycleStages, icons } from "@/data/realCustomers";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LifecycleProgress } from "./LifecycleProgress";
+import { createNotification } from "@/utils/notificationHelpers";
+import { checkForDuplicateStages } from "@/utils/customerDataSync";
 
 interface LifecycleTrackerProps {
   customerId: string;
@@ -386,7 +388,9 @@ export function LifecycleTracker({
   
   useEffect(() => {
     if (customerId) {
-      fetchLifecycleStages();
+      checkForDuplicateStages(customerId).then(() => {
+        fetchLifecycleStages();
+      });
     }
   }, [customerId]);
   

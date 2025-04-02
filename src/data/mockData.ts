@@ -1,10 +1,9 @@
-
 import { LifecycleStageProps } from "@/components/lifecycle/LifecycleStage";
 import { 
   MessageSquare, Instagram, Globe, Mail, Smartphone, 
   FileCheck, Users, Briefcase, DollarSign, Calendar, 
   BookOpen, HeartHandshake, Medal, Zap, CheckSquare,
-  LucideIcon
+  Facebook, LucideIcon
 } from "lucide-react";
 
 // Mock customers
@@ -347,6 +346,90 @@ export const defaultLifecycleStages: DefaultLifecycleStage[] = [
     },
     notes: "Limited deployment with key users to validate solution",
     iconName: "Users"
+  },
+  {
+    id: "stage-whatsapp",
+    name: "WhatsApp Integration",
+    status: "not-started",
+    category: "Integration",
+    owner: {
+      id: "00000000-0000-0000-0000-000000000004",
+      name: "Mohammed Rahman",
+      role: "Integration Engineer"
+    },
+    iconName: "MessageSquare"
+  },
+  {
+    id: "stage-instagram", 
+    name: "Instagram Integration",
+    status: "not-started",
+    category: "Integration",
+    owner: {
+      id: "00000000-0000-0000-0000-000000000004",
+      name: "Mohammed Rahman",
+      role: "Integration Engineer"
+    },
+    iconName: "Instagram"
+  },
+  {
+    id: "stage-facebook",
+    name: "Facebook Integration",
+    status: "not-started",
+    category: "Integration",
+    owner: {
+      id: "00000000-0000-0000-0000-000000000004",
+      name: "Mohammed Rahman",
+      role: "Integration Engineer"
+    },
+    iconName: "Facebook"
+  },
+  {
+    id: "stage-website",
+    name: "Website Integration",
+    status: "not-started",
+    category: "Integration",
+    owner: {
+      id: "00000000-0000-0000-0000-000000000004",
+      name: "Mohammed Rahman",
+      role: "Integration Engineer"
+    },
+    iconName: "Globe"
+  },
+  {
+    id: "stage-agent",
+    name: "Agent Setup",
+    status: "not-started",
+    category: "Onboarding",
+    owner: {
+      id: "00000000-0000-0000-0000-000000000002",
+      name: "Fatima Hassan",
+      role: "Customer Success Manager"
+    },
+    iconName: "Users"
+  },
+  {
+    id: "stage-account",
+    name: "Account Setup",
+    status: "not-started",
+    category: "Onboarding",
+    owner: {
+      id: "00000000-0000-0000-0000-000000000002",
+      name: "Fatima Hassan",
+      role: "Customer Success Manager"
+    },
+    iconName: "Users"
+  },
+  {
+    id: "stage-training",
+    name: "Training Completed",
+    status: "not-started",
+    category: "Training",
+    owner: {
+      id: "00000000-0000-0000-0000-000000000002",
+      name: "Fatima Hassan",
+      role: "Customer Success Manager"
+    },
+    iconName: "CheckSquare"
   }
 ];
 
@@ -366,7 +449,8 @@ export const icons = {
   HeartHandshake, 
   Medal, 
   Zap, 
-  CheckSquare
+  CheckSquare,
+  Facebook
 };
 
 // Legacy lifecycle stages - keep for backward compatibility

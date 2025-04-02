@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { customers as realCustomers } from "@/data/realCustomers";
 import { CustomerData } from "@/components/customers/CustomerCard";
@@ -171,14 +170,15 @@ export const formatCurrency = (amount: number): string => {
 };
 
 /**
- * Gets customer ARR data including all customers that are live, paid, signed, or with invoices sent
+ * Gets customer ARR data including all customers that are live, paid, or with invoices sent
+ * Signed customers are now in pipeline, not in ARR
  */
 export const getCustomerARRData = (customers: CustomerData[]): { 
   totalARR: number, 
   liveCustomers: CustomerData[], 
   growthRate: number 
 } => {
-  const arrStages = ["Live", "Production", "Launched", "Active", "Paid", "Signed", "Invoice Sent"];
+  const arrStages = ["Live", "Production", "Launched", "Active", "Paid", "Invoice Sent"];
   
   const relevantCustomers = customers.filter(customer => {
     if (customer.status === "done") return true;
@@ -207,12 +207,13 @@ export const getCustomerARRData = (customers: CustomerData[]): {
 /**
  * Gets deals pipeline information
  * Deals in pipeline are those not in ARR-counted stages
+ * Signed customers are now included in the pipeline
  */
 export const getDealsPipeline = (customers: CustomerData[]): { 
   value: number, 
   count: number 
 } => {
-  const arrStages = ["Live", "Production", "Launched", "Active", "Paid", "Signed", "Invoice Sent"];
+  const arrStages = ["Live", "Production", "Launched", "Active", "Paid", "Invoice Sent"];
   
   const pipelineCustomers = customers.filter(customer => {
     if (customer.status === "done") return false;

@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { customers as realCustomers } from "@/data/realCustomers";
 
@@ -126,6 +125,86 @@ export const ensureCustomerExists = async (customerId: string): Promise<boolean>
     return true;
   } catch (error) {
     console.error("Error in ensureCustomerExists:", error);
+    return false;
+  }
+};
+
+/**
+ * Check for duplicate lifecycle stages and remove them
+ */
+export const checkForDuplicateStages = async (customerId: string): Promise<boolean> => {
+  try {
+    const dbCustomerId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(customerId) 
+      ? customerId 
+      : `00000000-0000-0000-0000-${customerId.replace(/\D/g, '').padStart(12, '0')}`;
+      
+    // Get all stages for this customer
+    const { data: stages, error } = await supabase
+      .from('lifecycle_stages')
+      .select('*')
+      .eq('customer_id', dbCustomerId);
+      
+    if (error) {
+      console.error("Error checking for duplicate stages:", error);
+      return false;
+    }
+    
+    if (!stages || stages.length === 0) {
+      return true; // No stages to check
+    }
+    
+    // Group stages by name to find duplicates
+    const stagesByName: Record<string, any[]> = {};
+    stages.forEach(stage => {
+      const key = `${stage.name.toLowerCase()}-${stage.category || ''}`;
+      if (!stagesByName[key]) {
+        stagesByName[key] = [];
+      }
+      stagesByName[key].push(stage);
+    });
+    
+    // Find duplicate sets
+    const duplicateSets = Object.values(stagesByName).filter(set => set.length > 1);
+    
+    if (duplicateSets.length === 0) {
+      console.log("No duplicate stages found");
+      return true;
+    }
+    
+    console.log(`Found ${duplicateSets.length} sets of duplicate stages`);
+    
+    // For each set of duplicates, keep the most complete one and delete the rest
+    for (const duplicateSet of duplicateSets) {
+      // Sort by completeness (done > in-progress > others)
+      duplicateSet.sort((a, b) => {
+        if (a.status === 'done' && b.status !== 'done') return -1;
+        if (a.status !== 'done' && b.status === 'done') return 1;
+        if (a.status === 'in-progress' && b.status !== 'in-progress') return -1;
+        if (a.status !== 'in-progress' && b.status === 'in-progress') return 1;
+        return 0;
+      });
+      
+      // Keep first stage (most complete), delete the rest
+      const toKeep = duplicateSet[0];
+      const toDelete = duplicateSet.slice(1).map(stage => stage.id);
+      
+      if (toDelete.length > 0) {
+        console.log(`Removing ${toDelete.length} duplicate stages for "${toKeep.name}"`);
+        
+        const { error: deleteError } = await supabase
+          .from('lifecycle_stages')
+          .delete()
+          .in('id', toDelete);
+          
+        if (deleteError) {
+          console.error("Error deleting duplicate stages:", deleteError);
+        }
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error in checkForDuplicateStages:", error);
     return false;
   }
 };
