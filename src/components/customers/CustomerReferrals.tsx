@@ -60,8 +60,8 @@ export function CustomerReferrals({ customerId }: CustomerReferralsProps) {
         return [];
       }
       
-      // Explicitly cast the data to Referral[] to solve the type issue
-      return (data || []) as Referral[];
+      // Fix: First cast to unknown, then to Referral[] to satisfy TypeScript
+      return (data || []) as unknown as Referral[];
     },
     enabled: !!customerId
   });
