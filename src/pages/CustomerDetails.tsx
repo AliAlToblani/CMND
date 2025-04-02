@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -81,6 +80,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
+import { findCustomerById } from "@/utils/customerUtils";
 
 type CustomerAgent = {
   id: string;
@@ -140,7 +140,6 @@ const CustomerDetails = () => {
   const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
-  // Sample customer agents and renewal activities
   const [agents, setAgents] = useState<CustomerAgent[]>([
     { id: "agent-1", name: "Sarah Johnson", role: "Technical Account Manager", email: "sarah.j@example.com", instructions: "Weekly check-ins, prioritize API integration issues" },
     { id: "agent-2", name: "Mohammed Al-Farsi", role: "Customer Success Specialist", email: "m.alfarsi@example.com" }
@@ -221,18 +220,14 @@ const CustomerDetails = () => {
     toast.success(`Payment status updated to ${status.replace('-', ' ')}`);
   };
 
-  // Convert ID to UUID format if needed
   const getDbCustomerId = (customerId: string) => {
-    // If it's already a UUID, return it
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(customerId)) {
       return customerId;
     }
     
-    // For our mock customers with format like "cust-001", we'll create a deterministic UUID
     return `00000000-0000-0000-0000-${customerId.replace(/\D/g, '').padStart(12, '0')}`;
   };
 
-  // Fetch customer data
   useEffect(() => {
     const fetchCustomer = async () => {
       if (!id) return;
@@ -241,102 +236,13 @@ const CustomerDetails = () => {
         setLoading(true);
         console.log("Fetching customer with ID:", id);
         
-        // Try to fetch from database first
-        const dbId = getDbCustomerId(id);
-        console.log("Normalized DB ID:", dbId);
+        const customerData = await findCustomerById(id);
         
-        const { data, error } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('id', dbId);
-        
-        console.log("Database lookup result:", data);
-        
-        if (data && data.length > 0) {
-          // Transform database customer to match UI expectations
-          const customerData = {
-            id: data[0].id,
-            name: data[0].name,
-            logo: data[0].logo,
-            segment: data[0].segment || "Unknown Segment",
-            region: data[0].region || "Unknown Region",
-            stage: data[0].stage || "Unknown Stage",
-            status: data[0].status || "not-started",
-            contractSize: data[0].contract_size || 0,
-            owner: {
-              id: data[0].owner_id || "unknown",
-              name: "Account Manager",
-              role: "Sales"
-            }
-          };
-          setCustomer(customerData);
-          setLoading(false);
-          return;
-        }
-        
-        // Fallback to imported customer data
-        console.log("Customer not found in database, checking real customer data");
-        const foundCustomer = realCustomers.find(c => 
-          c.id === id || 
-          c.name.toLowerCase() === id.toLowerCase() ||
-          (id && c.name && id.includes(c.name.toLowerCase().replace(/\s+/g, '')))
-        );
-        
-        if (foundCustomer) {
-          console.log("Found matching customer in real customer data:", foundCustomer);
-          const customerData = {
-            id: foundCustomer.id || crypto.randomUUID(),
-            name: foundCustomer.name,
-            logo: undefined,
-            segment: foundCustomer.segment || "Unknown Segment",
-            region: foundCustomer.region || "Unknown Region",
-            stage: foundCustomer.stage || "New",
-            status: "not-started" as "not-started" | "in-progress" | "done" | "blocked",
-            contractSize: foundCustomer.contractSize || 0,
-            owner: foundCustomer.owner ? {
-              id: "unknown",
-              name: foundCustomer.owner.name || "Account Manager",
-              role: foundCustomer.owner.role || "Sales"
-            } : {
-              id: "unknown",
-              name: "Account Manager",
-              role: "Sales"
-            }
-          };
+        if (customerData) {
           setCustomer(customerData);
         } else {
-          // Perform a looser search as a last resort
-          console.log("Performing loose search on all customers");
-          const looseMatch = realCustomers.find(c => 
-            c.id && c.id.includes(id || '') || 
-            (c.name && id && c.name.toLowerCase().includes(id.toLowerCase()))
-          );
-          
-          if (looseMatch) {
-            console.log("Found loose match:", looseMatch);
-            setCustomer({
-              id: looseMatch.id || crypto.randomUUID(),
-              name: looseMatch.name,
-              logo: undefined,
-              segment: looseMatch.segment || "Unknown Segment",
-              region: looseMatch.region || "Unknown Region",
-              stage: looseMatch.stage || "New",
-              status: "not-started" as "not-started" | "in-progress" | "done" | "blocked",
-              contractSize: looseMatch.contractSize || 0,
-              owner: looseMatch.owner ? {
-                id: "unknown",
-                name: looseMatch.owner.name || "Account Manager",
-                role: looseMatch.owner.role || "Sales"
-              } : {
-                id: "unknown",
-                name: "Account Manager",
-                role: "Sales"
-              }
-            });
-          } else {
-            console.log("No customer found with ID:", id);
-            toast.error("Customer not found");
-          }
+          console.log("No customer found with ID:", id);
+          toast.error("Customer not found");
         }
       } catch (error) {
         console.error("Error fetching customer:", error);

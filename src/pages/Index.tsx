@@ -5,12 +5,14 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { CustomerCard } from "@/components/customers/CustomerCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Calendar, FileText, Link, BarChart3, TrendingUp, Activity, Clock, Briefcase } from "lucide-react";
+import { Plus, Users, Calendar, FileText, Link, BarChart3, TrendingUp, Activity, Clock, Briefcase, LifeBuoy } from "lucide-react";
 import { customers as mockCustomers } from "@/data/mockData";
 import { customers as realCustomers } from "@/data/realCustomers";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomerData } from "@/components/customers/CustomerCard";
+import { syncCustomersToDatabase } from "@/utils/customerDataSync";
+import { toast } from "sonner";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -100,6 +102,18 @@ const Index = () => {
     fetchCustomers();
   }, []);
 
+  const handleSyncData = async () => {
+    toast.loading("Syncing customer data to database...");
+    const success = await syncCustomersToDatabase();
+    if (success) {
+      toast.success("Customer data synced successfully!");
+      // Reload the page to fetch the updated data
+      window.location.reload();
+    } else {
+      toast.error("Failed to sync customer data. Please try again.");
+    }
+  };
+
   const calculateTotalARR = () => {
     const total = customers.reduce((sum, customer) => sum + (customer.contractSize || 0), 0);
     return total > 0 ? `$${(total / 1000).toFixed(0)}k` : "$0";
@@ -109,8 +123,8 @@ const Index = () => {
     return realCustomers.length;
   };
   
-  const getActiveCustomersCount = () => {
-    return customers.filter(c => c.status === "in-progress" || c.status === "done").length;
+  const getLiveCustomersCount = () => {
+    return customers.filter(c => c.status === "done").length;
   };
   
   const calculateDealsPipeline = () => {
@@ -129,6 +143,20 @@ const Index = () => {
     };
   };
   
+  const calculateChurnRate = () => {
+    // For demo purposes, calculate a dummy churn rate
+    // In a real app, this would be based on actual customer data
+    const totalCustomers = realCustomers.length;
+    const churnedCustomers = Math.floor(totalCustomers * 0.05); // Assume 5% churn
+    return (churnedCustomers / totalCustomers * 100).toFixed(1) + "%";
+  };
+  
+  const calculateAverageGoLiveTime = () => {
+    // For demo purposes, return a fixed value
+    // In a real app, this would be calculated based on the time from contract to "done" status
+    return "37 days";
+  };
+  
   const dealsPipeline = calculateDealsPipeline();
 
   const dashboardStats = [
@@ -139,10 +167,10 @@ const Index = () => {
       icon: <BarChart3 className="h-6 w-6" />
     },
     {
-      title: "Active Customers",
-      value: `${getActiveCustomersCount()}`,
+      title: "Live Customers",
+      value: `${getLiveCustomersCount()}`,
       change: { value: 5, type: "increase" as const },
-      icon: <Users className="h-6 w-6" />
+      icon: <LifeBuoy className="h-6 w-6" />
     },
     {
       title: "Total Customers",
@@ -156,17 +184,16 @@ const Index = () => {
       icon: <TrendingUp className="h-6 w-6" />
     },
     {
-      title: "Growth Rate",
-      value: "23%",
-      change: { value: 7, type: "increase" as const },
-      description: "Year-over-year",
-      icon: <Activity className="h-6 w-6" />
+      title: "Avg. Go Live Time",
+      value: calculateAverageGoLiveTime(),
+      description: "From contract to live",
+      icon: <Clock className="h-6 w-6" />
     },
     {
-      title: "Avg. Sales Cycle",
-      value: "45 days",
-      description: "From lead to close",
-      icon: <Clock className="h-6 w-6" />
+      title: "Churn Rate",
+      value: calculateChurnRate(),
+      description: "Last 12 months",
+      icon: <Activity className="h-6 w-6" />
     }
   ];
   
@@ -175,9 +202,14 @@ const Index = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <Button onClick={() => navigate("/customers/new")}>
-            <Plus className="mr-2 h-4 w-4" /> Add Customer
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleSyncData}>
+              Sync Data
+            </Button>
+            <Button onClick={() => navigate("/customers/new")}>
+              <Plus className="mr-2 h-4 w-4" /> Add Customer
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
