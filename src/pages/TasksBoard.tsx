@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useQuery } from "@tanstack/react-query";
@@ -30,19 +29,7 @@ import { Kanban, Plus, Calendar, User, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { createNotification } from "@/utils/notificationHelpers";
-
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  status: "todo" | "in-progress" | "done" | "blocked";
-  due_date: string | null;
-  customer_id: string | null;
-  customer_name?: string;
-  assigned_to: string | null;
-  assigned_to_name?: string;
-  created_at: string;
-}
+import { Task } from "@/types/tasks";
 
 const TasksBoard = () => {
   const [isAddingTask, setIsAddingTask] = useState(false);
@@ -77,7 +64,7 @@ const TasksBoard = () => {
         ...task,
         customer_name: task.customers?.name,
         assigned_to_name: task.staff?.name
-      })) as Task[];
+      })) as unknown as Task[];
     }
   });
 

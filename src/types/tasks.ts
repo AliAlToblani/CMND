@@ -16,6 +16,8 @@ export interface Feedback {
   customer_id: string;
   content: string;
   created_by: string;
+  created_by_name?: string;
+  created_by_avatar?: string;
   created_at: string;
   updated_at: string;
 }

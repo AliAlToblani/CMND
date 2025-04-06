@@ -6,19 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageSquare, Plus, Send } from "lucide-react";
+import { MessageSquare, Send } from "lucide-react";
 import { toast } from "sonner";
 import { createNotification } from "@/utils/notificationHelpers";
+import { Feedback } from "@/types/tasks";
 
-interface FeedbackComment {
-  id: string;
-  customer_id: string;
-  content: string;
-  created_by: string;
-  created_at: string;
-  created_by_name?: string;
-  created_by_avatar?: string;
-}
+interface FeedbackComment extends Feedback {}
 
 interface CustomerFeedbackProps {
   customerId: string | null;
