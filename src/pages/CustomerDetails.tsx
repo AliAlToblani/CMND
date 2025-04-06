@@ -7,10 +7,9 @@ import { LifecycleTracker } from "@/components/lifecycle/LifecycleTracker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, FileText, Plus, MessageSquare } from "lucide-react";
+import { Pencil, FileText, Plus, MessageSquare, Clock, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatCustomerId, findCustomerById } from "@/utils/customerUtils";
-import { CustomerTeamMembers } from "@/components/customers/CustomerTeamMembers";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -19,6 +18,8 @@ import { CustomerReferrals } from "@/components/customers/CustomerReferrals";
 import { AddContractDialog } from "@/components/contracts/AddContractDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CustomerFeedback } from "@/components/customers/CustomerFeedback";
+import { CustomerTimeline } from "@/components/customers/CustomerTimeline";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const CustomerDetails = () => {
   const { id } = useParams();
@@ -60,6 +61,28 @@ const CustomerDetails = () => {
     enabled: !!id
   });
 
+  // Fetch account manager details if owner_id exists
+  const { data: accountManager } = useQuery({
+    queryKey: ['customer-account-manager', customer?.owner_id],
+    queryFn: async () => {
+      if (!customer?.owner_id) return null;
+      
+      const { data, error } = await supabase
+        .from('staff')
+        .select('*')
+        .eq('id', customer.owner_id)
+        .single();
+        
+      if (error) {
+        console.error("Error fetching account manager:", error);
+        return null;
+      }
+      
+      return data;
+    },
+    enabled: !!customer?.owner_id
+  });
+
   const { data: contracts = [], isLoading: contractsLoading, refetch: refetchContracts } = useQuery({
     queryKey: ['customer-contracts', getDbCustomerId()],
     queryFn: async () => {
@@ -93,14 +116,15 @@ const CustomerDetails = () => {
       stage: customer.stage || "New",
       status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
       contractSize: (customer as Customer).contract_size || 0,
+      description: customer.description || undefined,
       owner: {
         id: (customer as Customer).owner_id || "unknown",
-        name: "Account Manager",
-        role: "Sales"
+        name: accountManager?.name || "Account Manager",
+        role: accountManager?.role || "Sales"
       },
       lifecyclePercentage: 65 // Example percentage, will be calculated dynamically
     };
-  }, [customer]);
+  }, [customer, accountManager]);
 
   const handleContractSuccess = () => {
     refetchContracts();
@@ -144,19 +168,52 @@ const CustomerDetails = () => {
           </Button>
         </div>
         
-        <CustomerCard customer={customerCardData} isDetailed={true} />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2">
+            <CustomerCard customer={customerCardData} isDetailed={true} />
+          </div>
+          
+          {accountManager && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center text-lg font-semibold">
+                  <User className="h-5 w-5 mr-2" />
+                  Account Manager
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage 
+                      src={accountManager.avatar || `https://avatar.vercel.sh/${accountManager.name}.png`} 
+                      alt={accountManager.name} 
+                    />
+                    <AvatarFallback className="bg-primary/10">{accountManager.name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="font-medium">{accountManager.name}</div>
+                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Badge variant="outline" className="bg-secondary/10">{accountManager.role}</Badge>
+                      {accountManager.email && <span>{accountManager.email}</span>}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
         
-        <Tabs defaultValue="team" className="w-full">
+        <Tabs defaultValue="timeline" className="w-full">
           <TabsList className="mb-4 w-full justify-start">
-            <TabsTrigger value="team">Team Members</TabsTrigger>
+            <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>
             <TabsTrigger value="referrals">Referrals</TabsTrigger>
             <TabsTrigger value="contracts">Contracts</TabsTrigger>
             <TabsTrigger value="feedback">Feedback</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="team" className="space-y-4">
-            <CustomerTeamMembers customerId={getDbCustomerId()} />
+          <TabsContent value="timeline" className="space-y-4">
+            <CustomerTimeline customerId={getDbCustomerId()} />
           </TabsContent>
           
           <TabsContent value="lifecycle" className="space-y-4">

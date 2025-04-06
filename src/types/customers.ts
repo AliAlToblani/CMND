@@ -12,6 +12,7 @@ export interface Customer {
   status?: string | null;
   contract_size?: number | null;
   owner_id?: string | null;
+  description?: string | null;
   created_at: string;
   updated_at: string;
 }

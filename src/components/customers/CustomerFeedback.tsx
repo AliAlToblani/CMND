@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageSquare, Send } from "lucide-react";
+import { MessageSquare, Send, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { createNotification } from "@/utils/notificationHelpers";
 import { Feedback } from "@/types/tasks";
@@ -70,11 +70,61 @@ export function CustomerFeedback({ customerId }: CustomerFeedbackProps) {
       toast.success("Feedback added successfully");
       refetch();
       
+      // Also create a timeline event for this feedback
+      await supabase
+        .from('customer_timeline')
+        .insert({
+          customer_id: customerId,
+          event_type: 'feedback',
+          event_description: `New feedback added by ${data?.[0]?.created_by_name || 'Current User'}`,
+          created_by: data?.[0]?.created_by || 'current-user-id',
+          created_by_name: data?.[0]?.created_by_name || 'Current User',
+          related_id: data?.[0]?.id,
+          related_type: 'feedback'
+        });
+      
     } catch (error) {
       console.error("Error adding feedback:", error);
       toast.error("Failed to add feedback");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const convertToTask = async (feedback: Feedback) => {
+    if (!customerId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert({
+          title: `Follow up on customer feedback`,
+          description: feedback.content,
+          status: "todo",
+          customer_id: customerId,
+          due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 1 week due date
+        })
+        .select();
+        
+      if (error) throw error;
+      
+      toast.success("Task created from feedback");
+      
+      // Create a timeline event for this action
+      await supabase
+        .from('customer_timeline')
+        .insert({
+          customer_id: customerId,
+          event_type: 'task',
+          event_description: `Task created from feedback`,
+          created_by: 'current-user-id',
+          created_by_name: 'Current User',
+          related_id: data?.[0]?.id,
+          related_type: 'task'
+        });
+    } catch (error) {
+      console.error("Error creating task:", error);
+      toast.error("Failed to create task from feedback");
     }
   };
 
@@ -138,6 +188,17 @@ export function CustomerFeedback({ customerId }: CustomerFeedbackProps) {
                         <span className="text-xs text-muted-foreground">{formatDate(item.created_at)}</span>
                       </div>
                       <p className="text-sm whitespace-pre-wrap">{item.content}</p>
+                      <div className="flex justify-end mt-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-xs"
+                          onClick={() => convertToTask(item)}
+                        >
+                          <Plus className="mr-1 h-3 w-3" />
+                          Create Task
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>

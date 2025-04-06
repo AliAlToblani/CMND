@@ -29,6 +29,7 @@ export interface CustomerData {
   status: "not-started" | "in-progress" | "done" | "blocked";
   contractSize: number;
   owner: CustomerOwner;
+  description?: string;
   lifecyclePercentage?: number;
 }
 
@@ -96,6 +97,12 @@ export function CustomerCard({ customer, showEditOptions = false, isDetailed = f
             </div>
           </div>
           
+          {customer.description && (
+            <div className="mt-3">
+              <p className="text-sm text-muted-foreground">{customer.description}</p>
+            </div>
+          )}
+          
           <div className="mt-4 grid grid-cols-2 gap-2">
             <div>
               <p className="text-sm text-muted-foreground">Current Stage</p>
@@ -117,11 +124,13 @@ export function CustomerCard({ customer, showEditOptions = false, isDetailed = f
             </div>
           </div>
         </div>
-        <div className="border-t p-3 bg-muted/50 flex justify-end">
-          <Button variant="ghost" size="sm" className="text-sm" onClick={handleViewDetails}>
-            View Details <ArrowRight className="ml-1 h-4 w-4" />
-          </Button>
-        </div>
+        {!isDetailed && (
+          <div className="border-t p-3 bg-muted/50 flex justify-end">
+            <Button variant="ghost" size="sm" className="text-sm" onClick={handleViewDetails}>
+              View Details <ArrowRight className="ml-1 h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
