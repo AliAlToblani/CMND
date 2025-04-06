@@ -60,11 +60,16 @@ const TasksBoard = () => {
         return [];
       }
       
-      return data.map(task => ({
-        ...task,
-        customer_name: task.customers?.name,
-        assigned_to_name: task.staff?.name
-      })) as unknown as Task[];
+      return data.map(task => {
+        const customerName = task.customers?.name || null;
+        const staffName = task.staff?.name || null;
+        
+        return {
+          ...task,
+          customer_name: customerName,
+          assigned_to_name: staffName
+        };
+      }) as Task[];
     }
   });
 

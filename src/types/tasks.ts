@@ -9,6 +9,9 @@ export interface Task {
   assigned_to: string | null;
   created_at: string;
   updated_at: string;
+  // Additional properties for UI display
+  customer_name?: string;
+  assigned_to_name?: string;
 }
 
 export interface Feedback {

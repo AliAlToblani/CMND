@@ -11,8 +11,6 @@ import { toast } from "sonner";
 import { createNotification } from "@/utils/notificationHelpers";
 import { Feedback } from "@/types/tasks";
 
-interface FeedbackComment extends Feedback {}
-
 interface CustomerFeedbackProps {
   customerId: string | null;
 }
@@ -37,7 +35,7 @@ export function CustomerFeedback({ customerId }: CustomerFeedbackProps) {
         return [];
       }
 
-      return data as FeedbackComment[];
+      return data as Feedback[];
     },
     enabled: !!customerId
   });
