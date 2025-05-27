@@ -102,7 +102,7 @@ const CustomerDetails = () => {
     region: customer.region || "Unknown Region", 
     stage: customer.stage || "New",
     status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
-    contractSize: customer.contract_size || customer.contractSize || 0,
+    contractSize: customer.contract_size || 0,
     description: customer.description || undefined,
     owner: {
       id: customer.owner_id || "unknown",
@@ -110,7 +110,7 @@ const CustomerDetails = () => {
       role: "Sales"
     },
     owner_id: customer.owner_id || undefined,
-    contract_size: customer.contract_size || customer.contractSize || undefined
+    contract_size: customer.contract_size || undefined
   };
 
   const getStatusColor = (status: string) => {
@@ -176,7 +176,7 @@ const CustomerDetails = () => {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">Contract Size</p>
-                  <p className="font-medium">${(customer.contract_size || customer.contractSize || 0).toLocaleString()}</p>
+                  <p className="font-medium">${(customer.contract_size || 0).toLocaleString()}</p>
                 </div>
               </div>
             </CardContent>
@@ -228,7 +228,11 @@ const CustomerDetails = () => {
           </TabsList>
 
           <TabsContent value="lifecycle" className="space-y-4">
-            <LifecycleTracker customerId={id || null} />
+            <LifecycleTracker 
+              customerId={id || ""} 
+              customerName={customer.name}
+              stages={[]}
+            />
           </TabsContent>
 
           <TabsContent value="timeline" className="space-y-4">
