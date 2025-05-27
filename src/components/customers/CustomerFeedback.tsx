@@ -8,10 +8,20 @@ import { MessageSquare, Plus, PlusCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Feedback } from "@/types/customers";
 
 interface CustomerFeedbackProps {
   customerId: string | null;
+}
+
+interface FeedbackData {
+  id: string;
+  customer_id: string;
+  content: string;
+  created_by: string;
+  created_by_name?: string | null;
+  created_by_avatar?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export function CustomerFeedback({ customerId }: CustomerFeedbackProps) {
@@ -20,7 +30,7 @@ export function CustomerFeedback({ customerId }: CustomerFeedbackProps) {
 
   const { data: feedback = [], isLoading, refetch } = useQuery({
     queryKey: ['customer-feedback', customerId],
-    queryFn: async () => {
+    queryFn: async (): Promise<FeedbackData[]> => {
       if (!customerId) return [];
       
       const { data, error } = await supabase
@@ -34,7 +44,7 @@ export function CustomerFeedback({ customerId }: CustomerFeedbackProps) {
         return [];
       }
       
-      return data as Feedback[];
+      return data || [];
     },
     enabled: !!customerId
   });
@@ -53,26 +63,24 @@ export function CustomerFeedback({ customerId }: CustomerFeedbackProps) {
         .insert({
           customer_id: customerId,
           content: newComment,
-          created_by: "current-user", // In a real app, this would be the current user's ID
-          created_by_name: "Demo User", // In a real app, this would be the current user's name
-          created_by_avatar: `https://avatar.vercel.sh/${Math.random()}.png` // Example avatar
+          created_by: "current-user",
+          created_by_name: "Demo User",
+          created_by_avatar: `https://avatar.vercel.sh/${Math.random()}.png`
         });
       
       if (error) throw error;
       
       // Add timeline entry for the feedback
-      const timelineEntry = {
-        customer_id: customerId,
-        event_type: 'feedback',
-        event_description: `New feedback added: "${newComment.substring(0, 50)}${newComment.length > 50 ? '...' : ''}"`,
-        created_by: "current-user", // In a real app, this would be the current user's ID
-        created_by_name: "Demo User", // In a real app, this would be the current user's name
-        created_by_avatar: `https://avatar.vercel.sh/${Math.random()}.png` // Example avatar
-      };
-      
       await supabase
         .from('customer_timeline')
-        .insert(timelineEntry);
+        .insert({
+          customer_id: customerId,
+          event_type: 'feedback',
+          event_description: `New feedback added: "${newComment.substring(0, 50)}${newComment.length > 50 ? '...' : ''}"`,
+          created_by: "current-user",
+          created_by_name: "Demo User",
+          created_by_avatar: `https://avatar.vercel.sh/${Math.random()}.png`
+        });
       
       setNewComment("");
       toast.success("Feedback added successfully");
@@ -85,7 +93,7 @@ export function CustomerFeedback({ customerId }: CustomerFeedbackProps) {
     }
   };
 
-  const convertToTask = async (feedback: Feedback) => {
+  const convertToTask = async (feedback: FeedbackData) => {
     try {
       const { data, error } = await supabase
         .from('tasks')
@@ -94,24 +102,22 @@ export function CustomerFeedback({ customerId }: CustomerFeedbackProps) {
           description: feedback.content,
           status: "todo",
           customer_id: feedback.customer_id,
-          due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 1 week due date
+          due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         })
         .select();
         
       if (error) throw error;
       
       // Add timeline entry for the task creation
-      const timelineEntry = {
-        customer_id: feedback.customer_id,
-        event_type: 'task',
-        event_description: 'Task created from customer feedback',
-        related_id: data[0].id,
-        related_type: 'task'
-      };
-      
       await supabase
         .from('customer_timeline')
-        .insert(timelineEntry);
+        .insert({
+          customer_id: feedback.customer_id,
+          event_type: 'task',
+          event_description: 'Task created from customer feedback',
+          related_id: data[0].id,
+          related_type: 'task'
+        });
       
       toast.success("Task created successfully");
     } catch (error) {

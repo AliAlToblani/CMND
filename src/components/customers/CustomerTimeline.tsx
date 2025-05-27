@@ -5,17 +5,30 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { TimelineEvent } from "@/types/customers";
 import { toast } from "sonner";
 
 interface CustomerTimelineProps {
   customerId: string | null;
 }
 
+interface TimelineEventData {
+  id: string;
+  customer_id: string;
+  event_type: string;
+  event_description: string;
+  created_at: string;
+  created_by?: string | null;
+  created_by_name?: string | null;
+  created_by_avatar?: string | null;
+  related_id?: string | null;
+  related_type?: string | null;
+  updated_at: string;
+}
+
 export function CustomerTimeline({ customerId }: CustomerTimelineProps) {
   const { data: timelineEvents = [], isLoading } = useQuery({
     queryKey: ['customer-timeline', customerId],
-    queryFn: async () => {
+    queryFn: async (): Promise<TimelineEventData[]> => {
       if (!customerId) return [];
 
       try {
@@ -31,7 +44,7 @@ export function CustomerTimeline({ customerId }: CustomerTimelineProps) {
           return [];
         }
 
-        // Combine with customer_feedback events
+        // Get customer_feedback events
         const { data: feedbackEvents, error: feedbackError } = await supabase
           .from('customer_feedback')
           .select('id, customer_id, content, created_at, created_by, created_by_name, created_by_avatar')
@@ -40,8 +53,17 @@ export function CustomerTimeline({ customerId }: CustomerTimelineProps) {
           
         if (feedbackError) {
           console.error("Error fetching feedback events:", feedbackError);
-        } else if (feedbackEvents) {
-          // Convert feedback to timeline format
+        }
+
+        const allEvents: TimelineEventData[] = [];
+        
+        // Add timeline events
+        if (events) {
+          allEvents.push(...events);
+        }
+        
+        // Add feedback events as timeline events
+        if (feedbackEvents) {
           const formattedFeedback = feedbackEvents.map(feedback => ({
             id: `feedback-${feedback.id}`,
             customer_id: feedback.customer_id,
@@ -56,13 +78,13 @@ export function CustomerTimeline({ customerId }: CustomerTimelineProps) {
             updated_at: feedback.created_at
           }));
           
-          // Combine and sort all events
-          return [...(events || []), ...formattedFeedback].sort(
-            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
+          allEvents.push(...formattedFeedback);
         }
-
-        return events || [];
+        
+        // Sort all events by creation date
+        return allEvents.sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
       } catch (err) {
         console.error("Error in timeline query:", err);
         return [];
@@ -81,8 +103,7 @@ export function CustomerTimeline({ customerId }: CustomerTimelineProps) {
     });
   };
 
-  const convertToTask = async (event: TimelineEvent) => {
-    // Create a task from this timeline event
+  const convertToTask = async (event: TimelineEventData) => {
     try {
       const { data, error } = await supabase
         .from('tasks')
@@ -91,7 +112,7 @@ export function CustomerTimeline({ customerId }: CustomerTimelineProps) {
           description: `Task created from customer timeline event: ${event.event_type}`,
           status: "todo",
           customer_id: event.customer_id,
-          due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 1 week due date
+          due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         })
         .select();
         
