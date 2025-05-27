@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
 
 export interface CustomerOwner {
   id: string;
@@ -34,6 +35,8 @@ interface CustomerCardProps {
 }
 
 export function CustomerCard({ customer, showEditOptions = false, isDetailed = false }: CustomerCardProps) {
+  const navigate = useNavigate();
+  
   const getStatusClass = (status: string) => {
     switch (status) {
       case "not-started":
@@ -57,8 +60,15 @@ export function CustomerCard({ customer, showEditOptions = false, isDetailed = f
       .toUpperCase();
   };
 
+  const handleCardClick = () => {
+    navigate(`/customers/${customer.id}`);
+  };
+
   return (
-    <Card className="overflow-hidden hover:shadow-md transition-shadow duration-200 bg-card relative">
+    <Card 
+      className="overflow-hidden hover:shadow-md transition-shadow duration-200 bg-card relative cursor-pointer hover:shadow-lg" 
+      onClick={handleCardClick}
+    >
       {customer.lifecyclePercentage !== undefined && (
         <div className="absolute top-0 right-0 m-3">
           <Badge variant="outline" className="bg-doo-purple-100 text-doo-purple-800 dark:bg-doo-purple-900/30 dark:text-doo-purple-300 border-doo-purple-200">
