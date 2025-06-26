@@ -58,6 +58,7 @@ const formSchema = z.object({
   status: z.enum(["not-started", "in-progress", "done", "blocked"]),
   contractSize: z.coerce.number().min(0),
   ownerId: z.string(),
+  industry: z.string().optional(),
   logo: z.any().optional(),
   teamMembers: z.array(z.string()).optional(),
 });
@@ -185,6 +186,7 @@ const AddEditCustomer = () => {
         status: customer.status || "not-started",
         contractSize: customer.contractSize || customer.contract_size || 0,
         ownerId: customer.owner?.id || customer.owner_id || "user-001",
+        industry: customer.industry || "",
         teamMembers: selectedTeamMembers,
       });
       
@@ -231,6 +233,7 @@ const AddEditCustomer = () => {
         status: values.status,
         contract_size: values.contractSize,
         owner_id: values.ownerId,
+        industry: values.industry || null,
         logo: values.logo || null
       };
       
@@ -412,6 +415,40 @@ const AddEditCustomer = () => {
                   
                   <FormField
                     control={form.control}
+                    name="industry"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Industry</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select industry" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Technology">Technology</SelectItem>
+                            <SelectItem value="Healthcare">Healthcare</SelectItem>
+                            <SelectItem value="Finance">Finance</SelectItem>
+                            <SelectItem value="Retail">Retail</SelectItem>
+                            <SelectItem value="Manufacturing">Manufacturing</SelectItem>
+                            <SelectItem value="Education">Education</SelectItem>
+                            <SelectItem value="Government">Government</SelectItem>
+                            <SelectItem value="Non-Profit">Non-Profit</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
                     name="stage"
                     render={({ field }) => (
                       <FormItem>
@@ -435,9 +472,7 @@ const AddEditCustomer = () => {
                       </FormItem>
                     )}
                   />
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  
                   <FormField
                     control={form.control}
                     name="status"
@@ -464,7 +499,9 @@ const AddEditCustomer = () => {
                       </FormItem>
                     )}
                   />
-                  
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="contractSize"
@@ -482,34 +519,34 @@ const AddEditCustomer = () => {
                       </FormItem>
                     )}
                   />
+                  
+                  <FormField
+                    control={form.control}
+                    name="ownerId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Owner</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select owner" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="user-001">Ahmed Abdullah (Account Executive)</SelectItem>
+                            <SelectItem value="user-002">Fatima Hassan (Customer Success Manager)</SelectItem>
+                            <SelectItem value="user-003">Khalid Al-Farsi (Finance Manager)</SelectItem>
+                            <SelectItem value="user-004">Mohammed Rahman (Integration Engineer)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
-                
-                <FormField
-                  control={form.control}
-                  name="ownerId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Owner</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select owner" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="user-001">Ahmed Abdullah (Account Executive)</SelectItem>
-                          <SelectItem value="user-002">Fatima Hassan (Customer Success Manager)</SelectItem>
-                          <SelectItem value="user-003">Khalid Al-Farsi (Finance Manager)</SelectItem>
-                          <SelectItem value="user-004">Mohammed Rahman (Integration Engineer)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
                 
                 <div className="space-y-4">
                   <FormLabel>Team Members</FormLabel>

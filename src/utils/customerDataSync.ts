@@ -11,7 +11,7 @@ export const syncCustomersToDatabase = async (): Promise<boolean> => {
     
     const { data: existingCustomers, error: fetchError } = await supabase
       .from('customers')
-      .select('name');
+      .select('name, industry');
       
     if (fetchError) {
       console.error("Error checking existing customers:", fetchError);
@@ -33,30 +33,33 @@ export const syncCustomersToDatabase = async (): Promise<boolean> => {
         stage: customer.stage || null,
         status: "not-started",
         contract_size: customer.contractSize || 0,
-        owner_id: "00000000-0000-0000-0000-000000000001" // Default owner
+        owner_id: "00000000-0000-0000-0000-000000000001", // Default owner
+        industry: customer.industry || null
       };
     });
     
     if (customersToInsert.length === 0) {
       console.log("No new customers to sync to database");
-      return true;
-    }
-    
-    console.log(`Found ${customersToInsert.length} new customers to sync to database`);
-    
-    // Insert new customers in batches to avoid too large requests
-    for (let i = 0; i < customersToInsert.length; i += 50) {
-      const batch = customersToInsert.slice(i, i + 50);
-      const { error: insertError } = await supabase
-        .from('customers')
-        .insert(batch);
+    } else {
+      console.log(`Found ${customersToInsert.length} new customers to sync to database`);
       
-      if (insertError) {
-        console.error(`Error inserting batch ${i}-${i+batch.length}:`, insertError);
+      // Insert new customers in batches to avoid too large requests
+      for (let i = 0; i < customersToInsert.length; i += 50) {
+        const batch = customersToInsert.slice(i, i + 50);
+        const { error: insertError } = await supabase
+          .from('customers')
+          .insert(batch);
+        
+        if (insertError) {
+          console.error(`Error inserting batch ${i}-${i+batch.length}:`, insertError);
+        }
       }
+      
+      console.log(`Successfully synced new customers to the database`);
     }
     
-    console.log(`Successfully synced new customers to the database`);
+    // Update existing customers with missing industry data
+    await updateExistingCustomersWithIndustry();
     
     // After sync, remove any duplicates in the database
     await removeDuplicateCustomers();
@@ -64,6 +67,59 @@ export const syncCustomersToDatabase = async (): Promise<boolean> => {
     return true;
   } catch (error) {
     console.error("Error in syncCustomersToDatabase:", error);
+    return false;
+  }
+};
+
+/**
+ * Update existing customers with industry data if they don't have it
+ */
+export const updateExistingCustomersWithIndustry = async (): Promise<boolean> => {
+  try {
+    console.log("Updating existing customers with industry data...");
+    
+    // Get all customers that don't have industry set
+    const { data: customersWithoutIndustry, error: fetchError } = await supabase
+      .from('customers')
+      .select('id, name, industry')
+      .is('industry', null);
+      
+    if (fetchError) {
+      console.error("Error fetching customers without industry:", fetchError);
+      return false;
+    }
+
+    if (!customersWithoutIndustry || customersWithoutIndustry.length === 0) {
+      console.log("All customers already have industry data");
+      return true;
+    }
+    
+    console.log(`Found ${customersWithoutIndustry.length} customers without industry data`);
+    
+    // Update each customer with industry data from realCustomers
+    for (const customer of customersWithoutIndustry) {
+      const realCustomer = realCustomers.find(rc => 
+        rc.name.toLowerCase() === customer.name.toLowerCase()
+      );
+      
+      if (realCustomer && realCustomer.industry) {
+        const { error: updateError } = await supabase
+          .from('customers')
+          .update({ industry: realCustomer.industry })
+          .eq('id', customer.id);
+          
+        if (updateError) {
+          console.error(`Error updating industry for ${customer.name}:`, updateError);
+        } else {
+          console.log(`Updated industry for ${customer.name}: ${realCustomer.industry}`);
+        }
+      }
+    }
+    
+    console.log("Finished updating customers with industry data");
+    return true;
+  } catch (error) {
+    console.error("Error in updateExistingCustomersWithIndustry:", error);
     return false;
   }
 };
