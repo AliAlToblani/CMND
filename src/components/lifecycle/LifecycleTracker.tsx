@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LifecycleStageComponent, LifecycleStageProps } from "./LifecycleStage";
@@ -89,6 +88,60 @@ export function LifecycleTracker({
     } catch (error) {
       console.error("Error in fetchValidStaffIds:", error);
       return [];
+    }
+  };
+
+  const addMissingPreSalesStages = async () => {
+    try {
+      const dbCustomerId = getDbCustomerId();
+      
+      // Check which pre-sales stages are missing
+      const preSalesStages = ["Prospect", "Qualified Lead", "Meeting Set"];
+      const { data: existingStages, error: fetchError } = await supabase
+        .from('lifecycle_stages')
+        .select('name')
+        .eq('customer_id', dbCustomerId)
+        .in('name', preSalesStages);
+        
+      if (fetchError) {
+        console.error("Error checking existing pre-sales stages:", fetchError);
+        return;
+      }
+      
+      const existingNames = existingStages?.map(s => s.name) || [];
+      const missingStages = preSalesStages.filter(name => !existingNames.includes(name));
+      
+      if (missingStages.length === 0) {
+        console.log("All pre-sales stages already exist");
+        return;
+      }
+      
+      console.log("Adding missing pre-sales stages:", missingStages);
+      
+      const defaultStaffId = validStaffIds.length > 0 ? 
+        validStaffIds[0] : "00000000-0000-0000-0000-000000000001";
+        
+      const stagesToAdd = missingStages.map(stageName => ({
+        customer_id: dbCustomerId,
+        name: stageName,
+        status: "not-started",
+        owner_id: defaultStaffId,
+        category: "Pre-Sales", // Use the database category format
+        notes: null
+      }));
+      
+      const { error: insertError } = await supabase
+        .from('lifecycle_stages')
+        .insert(stagesToAdd);
+        
+      if (insertError) {
+        console.error("Error inserting missing pre-sales stages:", insertError);
+      } else {
+        console.log("Successfully added missing pre-sales stages");
+        toast.success(`Added ${missingStages.length} pre-sales stages`);
+      }
+    } catch (error) {
+      console.error("Error in addMissingPreSalesStages:", error);
     }
   };
 
@@ -421,31 +474,39 @@ export function LifecycleTracker({
     }
   }, [initialFetchComplete, stages.length, isAddingDefaultStages]);
 
-  // Fix the category filtering logic
-  const getCategoryKey = (tabCategory: string): string => {
+  // Add missing pre-sales stages when component loads
+  useEffect(() => {
+    if (initialFetchComplete && stages.length > 0 && validStaffIds.length > 0) {
+      addMissingPreSalesStages();
+    }
+  }, [initialFetchComplete, stages.length, validStaffIds]);
+
+  // Enhanced category filtering logic that maps UI tabs to actual database categories
+  const getCategoryKey = (tabCategory: string): string[] => {
     switch (tabCategory) {
       case "Pre-Sales":
-        return "pre-sales";
+        return ["Pre-Sales", "pre-sales"]; // Handle both formats
       case "Sales":
-        return "sales";
+        return ["Sales", "sales"];
       case "Implementation":
-        return "implementation";
+        // Map Implementation tab to all implementation-related categories in the database
+        return ["Implementation", "implementation", "Integration", "Training", "Success", "Onboarding"];
       case "Finance":
-        return "finance";
+        return ["Finance", "finance"];
       default:
-        return "";
+        return [];
     }
   };
 
   const filteredStages = activeCategory === 'All' 
     ? stages 
     : stages.filter(stage => {
-        const categoryKey = getCategoryKey(activeCategory);
-        return stage.category === categoryKey;
+        const categoryKeys = getCategoryKey(activeCategory);
+        return categoryKeys.includes(stage.category || "");
       });
 
   console.log("Active category:", activeCategory);
-  console.log("Category key:", getCategoryKey(activeCategory));
+  console.log("Category keys:", getCategoryKey(activeCategory));
   console.log("All stages:", stages.map(s => ({ name: s.name, category: s.category })));
   console.log("Filtered stages:", filteredStages.map(s => ({ name: s.name, category: s.category })));
 
