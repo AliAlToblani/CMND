@@ -91,6 +91,12 @@ export function CustomerCard({ customer, showEditOptions = false, isDetailed = f
                 <span>{customer.segment}</span>
                 <span>•</span>
                 <span>{customer.region}</span>
+                {customer.industry && (
+                  <>
+                    <span>•</span>
+                    <span>{customer.industry}</span>
+                  </>
+                )}
               </div>
             </div>
           </div>

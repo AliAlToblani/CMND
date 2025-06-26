@@ -1,4 +1,3 @@
-
 // Define basic types without relying on Supabase generated types
 // These types match our database schema but don't depend on the generated types
 
@@ -14,6 +13,7 @@ export interface Customer {
   contract_size?: number | null;
   owner_id?: string | null;
   description?: string | null;
+  industry?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -173,7 +173,7 @@ export interface LifecycleStageWithOwner extends LifecycleStage {
   };
 }
 
-// Update the CustomerData interface to include owner_id and description
+// Update the CustomerData interface to include industry
 export interface CustomerData {
   id: string;
   name: string;
@@ -192,4 +192,5 @@ export interface CustomerData {
   description?: string;
   contract_size?: number;
   lifecyclePercentage?: number;
+  industry?: string;
 }
