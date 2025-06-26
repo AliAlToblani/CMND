@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LifecycleStageComponent, LifecycleStageProps } from "./LifecycleStage";
@@ -267,10 +268,36 @@ export function LifecycleTracker({
     }
   };
 
+  const clearExistingStages = async () => {
+    try {
+      const dbCustomerId = getDbCustomerId();
+      console.log("Clearing existing stages for customer:", dbCustomerId);
+      
+      const { error } = await supabase
+        .from('lifecycle_stages')
+        .delete()
+        .eq('customer_id', dbCustomerId);
+        
+      if (error) {
+        console.error("Error clearing existing stages:", error);
+        throw error;
+      }
+      
+      console.log("Successfully cleared existing stages");
+      setStages([]);
+    } catch (error) {
+      console.error("Error in clearExistingStages:", error);
+      toast.error("Failed to clear existing stages");
+    }
+  };
+
   const handleAddDefaultStages = async () => {
     try {
       console.log("Adding default lifecycle stages for customer:", customerId);
       setIsAddingDefaultStages(true);
+      
+      // First clear existing stages to start fresh
+      await clearExistingStages();
       
       if (validStaffIds.length === 0) {
         const ids = await fetchValidStaffIds();
@@ -298,34 +325,21 @@ export function LifecycleTracker({
         category: stage.category || null
       }));
       
-      const { data: existingStages, error: fetchError } = await supabase
-        .from('lifecycle_stages')
-        .select('id')
-        .eq('customer_id', dbCustomerId);
+      console.log("Inserting stages:", stagesToInsert);
+      
+      for (let i = 0; i < stagesToInsert.length; i += 10) {
+        const batch = stagesToInsert.slice(i, i + 10);
+        const { error } = await supabase
+          .from('lifecycle_stages')
+          .insert(batch);
         
-      if (fetchError) {
-        console.error("Error checking existing stages:", fetchError);
+        if (error) {
+          console.error(`Error inserting batch ${i}-${i+batch.length}:`, error);
+        }
       }
       
-      if (!existingStages || existingStages.length === 0) {
-        console.log("No existing stages found, adding defaults");
-        
-        for (let i = 0; i < stagesToInsert.length; i += 10) {
-          const batch = stagesToInsert.slice(i, i + 10);
-          const { error } = await supabase
-            .from('lifecycle_stages')
-            .insert(batch);
-          
-          if (error) {
-            console.error(`Error inserting batch ${i}-${i+batch.length}:`, error);
-          }
-        }
-        
-        await fetchLifecycleStages();
-        toast.success("Default lifecycle stages added");
-      } else {
-        console.log(`Found ${existingStages.length} existing stages, not adding defaults`);
-      }
+      await fetchLifecycleStages();
+      toast.success("Default lifecycle stages added");
     } catch (error) {
       console.error("Error adding default stages:", error);
       toast.error("Failed to add default stages");
@@ -407,9 +421,33 @@ export function LifecycleTracker({
     }
   }, [initialFetchComplete, stages.length, isAddingDefaultStages]);
 
+  // Fix the category filtering logic
+  const getCategoryKey = (tabCategory: string): string => {
+    switch (tabCategory) {
+      case "Pre-Sales":
+        return "pre-sales";
+      case "Sales":
+        return "sales";
+      case "Implementation":
+        return "implementation";
+      case "Finance":
+        return "finance";
+      default:
+        return "";
+    }
+  };
+
   const filteredStages = activeCategory === 'All' 
     ? stages 
-    : stages.filter(stage => stage.category === activeCategory.toLowerCase().replace('-', ''));
+    : stages.filter(stage => {
+        const categoryKey = getCategoryKey(activeCategory);
+        return stage.category === categoryKey;
+      });
+
+  console.log("Active category:", activeCategory);
+  console.log("Category key:", getCategoryKey(activeCategory));
+  console.log("All stages:", stages.map(s => ({ name: s.name, category: s.category })));
+  console.log("Filtered stages:", filteredStages.map(s => ({ name: s.name, category: s.category })));
 
   return (
     <Card className="w-full glass-card">
