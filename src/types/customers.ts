@@ -1,3 +1,4 @@
+
 // Define basic types without relying on Supabase generated types
 // These types match our database schema but don't depend on the generated types
 
@@ -176,7 +177,7 @@ export interface LifecycleStageWithOwner extends LifecycleStage {
   };
 }
 
-// Update the CustomerData interface to include contact fields and change region to country
+// Updated CustomerData interface to match our database schema changes
 export interface CustomerData {
   id: string;
   name: string;
