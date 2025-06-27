@@ -70,3 +70,21 @@ export const defaultLifecycleStages = [
     category: "Finance"
   }
 ];
+
+export const industryOptions = [
+  "Technology",
+  "Healthcare",
+  "Finance",
+  "Manufacturing",
+  "Retail",
+  "Education",
+  "Real Estate",
+  "Professional Services",
+  "Media & Entertainment",
+  "Non-Profit",
+  "Government",
+  "Energy",
+  "Transportation",
+  "Hospitality",
+  "Other"
+];
