@@ -201,7 +201,11 @@ export type Database = {
       }
       customers: {
         Row: {
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
           contract_size: number | null
+          country: string | null
           created_at: string
           description: string | null
           id: string
@@ -209,14 +213,17 @@ export type Database = {
           logo: string | null
           name: string
           owner_id: string | null
-          region: string | null
           segment: string | null
           stage: string | null
           status: string | null
           updated_at: string
         }
         Insert: {
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
           contract_size?: number | null
+          country?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -224,14 +231,17 @@ export type Database = {
           logo?: string | null
           name: string
           owner_id?: string | null
-          region?: string | null
           segment?: string | null
           stage?: string | null
           status?: string | null
           updated_at?: string
         }
         Update: {
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
           contract_size?: number | null
+          country?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -239,7 +249,6 @@ export type Database = {
           logo?: string | null
           name?: string
           owner_id?: string | null
-          region?: string | null
           segment?: string | null
           stage?: string | null
           status?: string | null

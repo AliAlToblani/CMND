@@ -15,16 +15,19 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { industryOptions } from "@/data/defaultLifecycleStages";
+import { industryOptions, countryOptions } from "@/data/defaultLifecycleStages";
 
 const customerFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   segment: z.string().min(1, "Segment is required"),
-  region: z.string().min(1, "Region is required"),
+  country: z.string().min(1, "Country is required"),
   industry: z.string().optional(),
   contract_size: z.number().min(0, "Contract size must be positive").optional(),
   description: z.string().optional(),
   logo: z.string().optional(),
+  contact_name: z.string().optional(),
+  contact_email: z.string().email("Invalid email format").optional().or(z.literal("")),
+  contact_phone: z.string().optional(),
 });
 
 export type CustomerFormData = z.infer<typeof customerFormSchema>;
@@ -47,11 +50,14 @@ export function CustomerForm({
     defaultValues: {
       name: initialData?.name || "",
       segment: initialData?.segment || "",
-      region: initialData?.region || "",
+      country: initialData?.country || "",
       industry: initialData?.industry || "",
       contract_size: initialData?.contract_size || 0,
       description: initialData?.description || "",
       logo: initialData?.logo || "",
+      contact_name: initialData?.contact_name || "",
+      contact_email: initialData?.contact_email || "",
+      contact_phone: initialData?.contact_phone || "",
     },
   });
 
@@ -60,14 +66,6 @@ export function CustomerForm({
     "Mid-Market", 
     "Small Business",
     "Startup"
-  ];
-
-  const regionOptions = [
-    "North America",
-    "Europe",
-    "Asia Pacific",
-    "Latin America",
-    "Middle East & Africa"
   ];
 
   return (
@@ -115,20 +113,20 @@ export function CustomerForm({
 
           <FormField
             control={form.control}
-            name="region"
+            name="country"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Region</FormLabel>
+                <FormLabel>Country</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select region" />
+                      <SelectValue placeholder="Select country" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {regionOptions.map((region) => (
-                      <SelectItem key={region} value={region}>
-                        {region}
+                    {countryOptions.map((country) => (
+                      <SelectItem key={country} value={country}>
+                        {country}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -195,6 +193,54 @@ export function CustomerForm({
               </FormItem>
             )}
           />
+        </div>
+
+        {/* Contact Information Section */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Contact Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <FormField
+              control={form.control}
+              name="contact_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contact Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter contact name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="contact_email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contact Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="Enter contact email" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="contact_phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contact Phone</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter contact phone" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
 
         <FormField

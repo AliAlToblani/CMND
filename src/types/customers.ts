@@ -7,13 +7,16 @@ export interface Customer {
   name: string;
   logo?: string | null;
   segment?: string | null;
-  region?: string | null;
+  country?: string | null;
   stage?: string | null;
   status?: string | null;
   contract_size?: number | null;
   owner_id?: string | null;
   description?: string | null;
   industry?: string | null;
+  contact_name?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -173,13 +176,13 @@ export interface LifecycleStageWithOwner extends LifecycleStage {
   };
 }
 
-// Update the CustomerData interface to include industry
+// Update the CustomerData interface to include contact fields and change region to country
 export interface CustomerData {
   id: string;
   name: string;
   logo?: string;
   segment: string;
-  region: string;
+  country: string;
   stage: string;
   status: "not-started" | "in-progress" | "done" | "blocked";
   contractSize: number;
@@ -193,4 +196,7 @@ export interface CustomerData {
   contract_size?: number;
   lifecyclePercentage?: number;
   industry?: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
 }

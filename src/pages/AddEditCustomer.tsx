@@ -29,6 +29,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomerInsert } from "@/types/customers";
 import { useQuery } from "@tanstack/react-query";
+import { countryOptions } from "@/data/defaultLifecycleStages";
 
 const STAGE_OPTIONS = [
   "New",
@@ -53,7 +54,7 @@ const formSchema = z.object({
     message: "Customer name must be at least 2 characters.",
   }),
   segment: z.string(),
-  region: z.string(),
+  country: z.string(),
   stage: z.string(),
   status: z.enum(["not-started", "in-progress", "done", "blocked"]),
   contractSize: z.coerce.number().min(0),
@@ -61,6 +62,9 @@ const formSchema = z.object({
   industry: z.string().optional(),
   logo: z.any().optional(),
   teamMembers: z.array(z.string()).optional(),
+  contact_name: z.string().optional(),
+  contact_email: z.string().email("Invalid email format").optional().or(z.literal("")),
+  contact_phone: z.string().optional(),
 });
 
 const AddEditCustomer = () => {
@@ -167,12 +171,15 @@ const AddEditCustomer = () => {
     defaultValues: {
       name: customer?.name || "",
       segment: customer?.segment || "Enterprise",
-      region: customer?.region || "",
+      country: customer?.country || "",
       stage: customer?.stage || "Onboarding",
       status: customer?.status || "not-started",
       contractSize: customer?.contractSize || 0,
       ownerId: customer?.owner?.id || "user-001",
       teamMembers: [],
+      contact_name: customer?.contact_name || "",
+      contact_email: customer?.contact_email || "",
+      contact_phone: customer?.contact_phone || "",
     },
   });
   
@@ -181,13 +188,16 @@ const AddEditCustomer = () => {
       form.reset({
         name: customer.name || "",
         segment: customer.segment || "Enterprise",
-        region: customer.region || "",
+        country: customer.country || "",
         stage: customer.stage || "Onboarding",
         status: customer.status || "not-started",
         contractSize: customer.contractSize || customer.contract_size || 0,
         ownerId: customer.owner?.id || customer.owner_id || "user-001",
         industry: customer.industry || "",
         teamMembers: selectedTeamMembers,
+        contact_name: customer.contact_name || "",
+        contact_email: customer.contact_email || "",
+        contact_phone: customer.contact_phone || "",
       });
       
       if (customer.logo) {
@@ -228,13 +238,16 @@ const AddEditCustomer = () => {
       const customerData: CustomerInsert = {
         name: values.name,
         segment: values.segment,
-        region: values.region,
+        country: values.country,
         stage: values.stage,
         status: values.status,
         contract_size: values.contractSize,
         owner_id: values.ownerId,
         industry: values.industry || null,
-        logo: values.logo || null
+        logo: values.logo || null,
+        contact_name: values.contact_name || null,
+        contact_email: values.contact_email || null,
+        contact_phone: values.contact_phone || null,
       };
       
       let customerId = id;
@@ -401,13 +414,25 @@ const AddEditCustomer = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="region"
+                    name="country"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Region</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Region" {...field} />
-                        </FormControl>
+                        <FormLabel>Country</FormLabel>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select country" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {countryOptions.map(country => (
+                              <SelectItem key={country} value={country}>{country}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -444,6 +469,53 @@ const AddEditCustomer = () => {
                       </FormItem>
                     )}
                   />
+                </div>
+                
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Contact Information</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="contact_name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contact Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Contact name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="contact_email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contact Email</FormLabel>
+                          <FormControl>
+                            <Input type="email" placeholder="Contact email" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="contact_phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contact Phone</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Contact phone" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
