@@ -126,7 +126,7 @@ export function LifecycleTracker({
         name: stageName,
         status: "not-started",
         owner_id: defaultStaffId,
-        category: "Pre-Sales", // Use the database category format
+        category: "Pre-Sales",
         notes: null
       }));
       
@@ -139,6 +139,8 @@ export function LifecycleTracker({
       } else {
         console.log("Successfully added missing pre-sales stages");
         toast.success(`Added ${missingStages.length} pre-sales stages`);
+        // Refresh stages after adding
+        await fetchLifecycleStages();
       }
     } catch (error) {
       console.error("Error in addMissingPreSalesStages:", error);
@@ -481,15 +483,15 @@ export function LifecycleTracker({
     }
   }, [initialFetchComplete, stages.length, validStaffIds]);
 
-  // Enhanced category filtering logic that maps UI tabs to actual database categories
+  // Fixed category filtering logic to properly map UI tabs to database categories
   const getCategoryKey = (tabCategory: string): string[] => {
     switch (tabCategory) {
       case "Pre-Sales":
-        return ["Pre-Sales", "pre-sales"]; // Handle both formats
+        return ["Pre-Sales", "pre-sales"];
       case "Sales":
-        return ["Sales", "sales"];
+        return ["Sales", "sales", "Contract Approval"];
       case "Implementation":
-        // Map Implementation tab to all implementation-related categories in the database
+        // Map Implementation tab to all implementation-related categories
         return ["Implementation", "implementation", "Integration", "Training", "Success", "Onboarding"];
       case "Finance":
         return ["Finance", "finance"];
@@ -502,7 +504,9 @@ export function LifecycleTracker({
     ? stages 
     : stages.filter(stage => {
         const categoryKeys = getCategoryKey(activeCategory);
-        return categoryKeys.includes(stage.category || "");
+        const stageCategory = stage.category || "";
+        console.log(`Filtering stage "${stage.name}" with category "${stageCategory}" against keys:`, categoryKeys);
+        return categoryKeys.includes(stageCategory);
       });
 
   console.log("Active category:", activeCategory);
