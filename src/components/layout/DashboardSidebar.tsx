@@ -1,7 +1,6 @@
-
 import React from "react";
 import { Link } from "react-router-dom";
-import { Home, Users, Bell, Kanban } from "lucide-react";
+import { Home, Users, Bell, Kanban, GitBranch } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 
 const mainNavItems = [
@@ -14,6 +13,11 @@ const mainNavItems = [
     title: "Customers",
     icon: Users,
     path: "/customers"
+  },
+  {
+    title: "Pipeline Map",
+    icon: GitBranch,
+    path: "/pipeline"
   },
   {
     title: "Tasks",

@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Customers from "./pages/Customers";
 import CustomerDetails from "./pages/CustomerDetails";
 import AddEditCustomer from "./pages/AddEditCustomer";
+import PipelineMap from "./pages/PipelineMap";
 import Notifications from "./pages/Notifications";
 import TeamManagement from "./pages/TeamManagement";
 import TasksBoard from "./pages/TasksBoard";
@@ -32,6 +33,7 @@ const App = () => {
               <Route path="/customers/:id/edit" element={<AddEditCustomer />} />
               <Route path="/customers/edit/:id" element={<AddEditCustomer />} />
               <Route path="/customers/:id" element={<CustomerDetails />} />
+              <Route path="/pipeline" element={<PipelineMap />} />
               <Route path="/tasks" element={<TasksBoard />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/team" element={<TeamManagement />} />
