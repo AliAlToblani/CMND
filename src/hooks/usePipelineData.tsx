@@ -11,16 +11,31 @@ export interface PipelineStageData {
 }
 
 const PIPELINE_STAGES = [
-  "Interest Captured",
-  "Demo Booked", 
-  "Demo Stage",
-  "Proposal Sent",
-  "Contract Sent",
-  "Contract Signed",
-  "Integration",
-  "Pilot Stage",
-  "Went Live"
+  "Lead",
+  "Qualified", 
+  "Demo",
+  "Proposal",
+  "Contract",
+  "Implementation",
+  "Live"
 ];
+
+// Map existing customer stages to new streamlined stages
+const STAGE_MAPPING: Record<string, string> = {
+  "Interest Captured": "Lead",
+  "High Potential": "Qualified",
+  "Demo Booked": "Demo",
+  "Demo Stage": "Demo",
+  "Proposal Sent": "Proposal",
+  "Contract Sent": "Contract",
+  "Contract Signed": "Contract",
+  "Integration": "Implementation",
+  "Pilot Stage": "Implementation",
+  "Went Live": "Live",
+  // Add fallback mappings for any other stages
+  "Unknown": "Lead",
+  "": "Lead"
+};
 
 export const usePipelineData = () => {
   const [pipelineData, setPipelineData] = useState<PipelineStageData[]>([]);
@@ -62,7 +77,7 @@ export const usePipelineData = () => {
         }
       }));
 
-      // Group customers by stage
+      // Group customers by mapped stage
       const stageGroups: Record<string, CustomerData[]> = {};
       
       // Initialize all pipeline stages
@@ -70,13 +85,15 @@ export const usePipelineData = () => {
         stageGroups[stage] = [];
       });
 
-      // Group customers by their stage
+      // Group customers by their mapped stage
       transformedCustomers.forEach(customer => {
-        const stage = customer.stage || "Unknown";
-        if (!stageGroups[stage]) {
-          stageGroups[stage] = [];
+        const originalStage = customer.stage || "Unknown";
+        const mappedStage = STAGE_MAPPING[originalStage] || "Lead"; // Default to Lead if no mapping found
+        
+        if (!stageGroups[mappedStage]) {
+          stageGroups[mappedStage] = [];
         }
-        stageGroups[stage].push(customer);
+        stageGroups[mappedStage].push(customer);
       });
 
       // Create pipeline data in order
@@ -90,21 +107,6 @@ export const usePipelineData = () => {
           customerCount: customers.length,
           customers
         };
-      });
-
-      // Add any additional stages not in our predefined list
-      Object.keys(stageGroups).forEach(stageName => {
-        if (!PIPELINE_STAGES.includes(stageName) && stageGroups[stageName].length > 0) {
-          const customers = stageGroups[stageName];
-          const totalValue = customers.reduce((sum, customer) => sum + customer.contractSize, 0);
-          
-          pipelineStages.push({
-            stageName,
-            totalValue,
-            customerCount: customers.length,
-            customers
-          });
-        }
       });
 
       setPipelineData(pipelineStages);
