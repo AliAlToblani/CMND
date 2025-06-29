@@ -12,6 +12,7 @@ import AddEditCustomer from "./pages/AddEditCustomer";
 import Partnerships from "./pages/Partnerships";
 import PartnershipDetails from "./pages/PartnershipDetails";
 import AddEditPartnership from "./pages/AddEditPartnership";
+import SubscriptionTracker from "./pages/SubscriptionTracker";
 import PipelineMap from "./pages/PipelineMap";
 import Notifications from "./pages/Notifications";
 import TeamManagement from "./pages/TeamManagement";
@@ -40,6 +41,7 @@ const App = () => {
               <Route path="/partnerships/new" element={<AddEditPartnership />} />
               <Route path="/partnerships/:id" element={<PartnershipDetails />} />
               <Route path="/partnerships/:id/edit" element={<AddEditPartnership />} />
+              <Route path="/subscription-tracker" element={<SubscriptionTracker />} />
               <Route path="/pipeline" element={<PipelineMap />} />
               <Route path="/tasks" element={<TasksBoard />} />
               <Route path="/notifications" element={<Notifications />} />

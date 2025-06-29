@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Link } from "react-router-dom";
-import { Home, Users, Bell, Kanban, GitBranch, HandHeart } from "lucide-react";
+import { Home, Users, Bell, Kanban, GitBranch, HandHeart, Clock } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 
 const mainNavItems = [
@@ -19,6 +19,11 @@ const mainNavItems = [
     title: "Partnerships",
     icon: HandHeart,
     path: "/partnerships"
+  },
+  {
+    title: "Subscription Tracker",
+    icon: Clock,
+    path: "/subscription-tracker"
   },
   {
     title: "Pipeline Map",
