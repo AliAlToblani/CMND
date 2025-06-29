@@ -21,6 +21,7 @@ export function CustomerAvatarUpload({
 }: CustomerAvatarUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
+  const [pendingRemoval, setPendingRemoval] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getInitials = (name: string) => {
@@ -79,7 +80,8 @@ export function CustomerAvatarUpload({
       
       // Store the uploaded URL temporarily instead of immediately updating the form
       setPendingUrl(publicUrl);
-      toast.success("Profile image uploaded successfully! Click 'Update Customer' to save changes.");
+      setPendingRemoval(false); // Clear any pending removal
+      toast.success("Profile image uploaded successfully! Click 'Apply Changes' to save.");
       
     } catch (error) {
       console.error("Error uploading file:", error);
@@ -108,9 +110,10 @@ export function CustomerAvatarUpload({
       }
     }
     
+    // Set pending removal state instead of immediately calling onChange
     setPendingUrl(null);
-    onChange("");
-    toast.success("Profile image removed");
+    setPendingRemoval(true);
+    toast.success("Profile image will be removed. Click 'Apply Changes' to save.");
   };
 
   const handleClick = () => {
@@ -121,12 +124,18 @@ export function CustomerAvatarUpload({
     if (pendingUrl) {
       onChange(pendingUrl);
       setPendingUrl(null);
+      setPendingRemoval(false);
       toast.success("Profile image updated!");
+    } else if (pendingRemoval) {
+      onChange("");
+      setPendingRemoval(false);
+      toast.success("Profile image removed!");
     }
   };
 
-  // Use pending URL if available, otherwise use the current value
-  const currentImage = pendingUrl || value;
+  // Determine what image to show
+  const currentImage = pendingRemoval ? null : (pendingUrl || value);
+  const hasPendingChanges = pendingUrl || pendingRemoval;
 
   return (
     <div className={`flex flex-col items-center space-y-3 ${className}`}>
@@ -168,7 +177,7 @@ export function CustomerAvatarUpload({
           <span>{currentImage ? "Change Image" : "Upload Image"}</span>
         </Button>
         
-        {pendingUrl && (
+        {hasPendingChanges && (
           <Button
             variant="default"
             size="sm"
