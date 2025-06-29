@@ -25,7 +25,6 @@ const AddEditPartnership = () => {
     name: "",
     partnership_type: "reseller" as PartnershipType,
     country: "",
-    region: "",
     start_date: "",
     renewal_date: "",
     expiry_date: "",
@@ -80,7 +79,6 @@ const AddEditPartnership = () => {
         name: partnership.name || "",
         partnership_type: partnership.partnership_type || "reseller",
         country: partnership.country || "",
-        region: partnership.region || "",
         start_date: partnership.start_date || "",
         renewal_date: partnership.renewal_date || "",
         expiry_date: partnership.expiry_date || "",
@@ -115,7 +113,6 @@ const AddEditPartnership = () => {
         name: data.name,
         partnership_type: data.partnership_type,
         country: data.country || null,
-        region: data.region || null,
         start_date: data.start_date || null,
         renewal_date: data.renewal_date || null,
         expiry_date: data.expiry_date || null,
@@ -263,9 +260,9 @@ const AddEditPartnership = () => {
                     <SelectContent>
                       <SelectItem value="reseller">Reseller</SelectItem>
                       <SelectItem value="consultant">Consultant</SelectItem>
-                      <SelectItem value="platform_partner">Platform Partner</SelectItem>
+                      <SelectItem value="platform_partner">Technology Partner</SelectItem>
                       <SelectItem value="education_partner">Education Partner</SelectItem>
-                      <SelectItem value="mou_partner">MoU Partner</SelectItem>
+                      <SelectItem value="mou_partner">MOU Partner</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -280,17 +277,6 @@ const AddEditPartnership = () => {
                     onChange={(e) => handleInputChange('country', e.target.value)}
                   />
                 </div>
-                <div>
-                  <Label htmlFor="region">Region</Label>
-                  <Input
-                    id="region"
-                    value={formData.region}
-                    onChange={(e) => handleInputChange('region', e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="status">Status</Label>
                   <Select
@@ -309,15 +295,16 @@ const AddEditPartnership = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label htmlFor="expected_value">Expected Value ($)</Label>
-                  <Input
-                    id="expected_value"
-                    type="number"
-                    value={formData.expected_value}
-                    onChange={(e) => handleInputChange('expected_value', e.target.value)}
-                  />
-                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="expected_value">Expected Value ($)</Label>
+                <Input
+                  id="expected_value"
+                  type="number"
+                  value={formData.expected_value}
+                  onChange={(e) => handleInputChange('expected_value', e.target.value)}
+                />
               </div>
             </CardContent>
           </Card>

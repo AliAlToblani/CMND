@@ -1,4 +1,3 @@
-
 export type PartnershipType = 'reseller' | 'consultant' | 'platform_partner' | 'education_partner' | 'mou_partner';
 
 export type PartnershipStatus = 'in_discussion' | 'signed' | 'active' | 'inactive' | 'expired';
@@ -8,7 +7,6 @@ export interface Partnership {
   name: string;
   partnership_type: PartnershipType;
   country?: string;
-  region?: string;
   start_date?: string;
   renewal_date?: string;
   expiry_date?: string;
@@ -62,9 +60,9 @@ export interface PartnershipTimeline {
 export const PARTNERSHIP_TYPE_LABELS: Record<PartnershipType, string> = {
   reseller: 'Reseller',
   consultant: 'Consultant',
-  platform_partner: 'Platform Partner',
+  platform_partner: 'Technology Partner',
   education_partner: 'Education Partner',
-  mou_partner: 'MoU Partner'
+  mou_partner: 'MOU Partner'
 };
 
 export const PARTNERSHIP_STATUS_LABELS: Record<PartnershipStatus, string> = {

@@ -158,14 +158,14 @@ const PartnershipDetails = () => {
 
         {/* Quick Info Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {partnership.region && (
+          {partnership.country && (
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-gray-500" />
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Region</p>
-                    <p className="font-medium">{partnership.region}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Country</p>
+                    <p className="font-medium">{partnership.country}</p>
                   </div>
                 </div>
               </CardContent>

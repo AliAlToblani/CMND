@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,8 +33,7 @@ const Partnerships = () => {
   const filteredPartnerships = partnerships
     .filter(partnership => {
       const matchesSearch = partnership.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           partnership.country?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           partnership.region?.toLowerCase().includes(searchTerm.toLowerCase());
+                           partnership.country?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesType = typeFilter === "all" || partnership.partnership_type === typeFilter;
       const matchesStatus = statusFilter === "all" || partnership.status === statusFilter;
       
@@ -116,9 +114,9 @@ const Partnerships = () => {
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="reseller">Reseller</SelectItem>
                   <SelectItem value="consultant">Consultant</SelectItem>
-                  <SelectItem value="platform_partner">Platform Partner</SelectItem>
+                  <SelectItem value="platform_partner">Technology Partner</SelectItem>
                   <SelectItem value="education_partner">Education Partner</SelectItem>
-                  <SelectItem value="mou_partner">MoU Partner</SelectItem>
+                  <SelectItem value="mou_partner">MOU Partner</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -198,7 +196,7 @@ const Partnerships = () => {
                           {partnership.name}
                         </CardTitle>
                         <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                          <span>{partnership.region || partnership.country || 'Global'}</span>
+                          <span>{partnership.country || 'Global'}</span>
                         </div>
                       </div>
                       <Badge className={getStatusBadgeColor(partnership.status)}>
