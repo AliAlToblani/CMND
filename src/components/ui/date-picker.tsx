@@ -14,6 +14,7 @@ interface DatePickerProps {
   disabled?: (date: Date) => boolean;
   className?: string;
   required?: boolean;
+  compact?: boolean;
 }
 
 export function DatePicker({
@@ -22,7 +23,8 @@ export function DatePicker({
   placeholder = "Pick a date",
   disabled,
   className,
-  required = false
+  required = false,
+  compact = true
 }: DatePickerProps) {
   return (
     <Popover>
@@ -39,13 +41,14 @@ export function DatePicker({
           {date ? format(date, "PPP") : <span>{placeholder}</span>}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent className="w-auto p-0" align="start" sideOffset={4}>
         <Calendar
           mode="single"
           selected={date}
           onSelect={onDateChange}
           disabled={disabled}
           initialFocus
+          compact={compact}
         />
       </PopoverContent>
     </Popover>

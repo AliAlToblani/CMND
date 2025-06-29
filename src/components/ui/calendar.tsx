@@ -1,6 +1,6 @@
 
 import * as React from "react";
-import { ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,15 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 
-export type CalendarProps = React.ComponentProps<typeof DayPicker>;
+export type CalendarProps = React.ComponentProps<typeof DayPicker> & {
+  compact?: boolean;
+};
 
 function Calendar({
   className,
   classNames,
   showOutsideDays = true,
+  compact = false,
   ...props
 }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = React.useState<Date>(
@@ -57,26 +60,34 @@ function Calendar({
     }
   };
 
+  const containerPadding = compact ? "p-2" : "p-3";
+  const headerSpacing = compact ? "mb-2" : "mb-4";
+  const quickButtonsSpacing = compact ? "mb-2" : "mb-3";
+  const selectSize = compact ? "w-[90px] h-7 text-xs" : "w-[110px] h-8";
+  const yearSelectSize = compact ? "w-[70px] h-7 text-xs" : "w-[80px] h-8";
+  const navButtonSize = compact ? "h-7 w-7 p-0" : "h-8 w-8 p-0";
+  const quickButtonSize = compact ? "h-6 text-xs px-2" : "h-7 text-xs";
+
   return (
-    <div className="p-3 pointer-events-auto">
+    <div className={cn(containerPadding, "pointer-events-auto")}>
       {/* Enhanced Header with Month/Year Selectors */}
-      <div className="flex items-center justify-between mb-4 space-x-2">
-        <div className="flex items-center space-x-2 flex-1">
+      <div className={cn("flex items-center justify-between space-x-2", headerSpacing)}>
+        <div className="flex items-center space-x-1 flex-1">
           <Select value={currentMonth.getMonth().toString()} onValueChange={handleMonthChange}>
-            <SelectTrigger className="w-[110px] h-8">
+            <SelectTrigger className={selectSize}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="max-h-[200px]">
               {monthOptions.map((month, index) => (
                 <SelectItem key={index} value={index.toString()}>
-                  {month}
+                  {compact ? month.slice(0, 3) : month}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           
           <Select value={currentMonth.getFullYear().toString()} onValueChange={handleYearChange}>
-            <SelectTrigger className="w-[80px] h-8">
+            <SelectTrigger className={yearSelectSize}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="max-h-[200px]">
@@ -93,36 +104,36 @@ function Calendar({
           <Button
             variant="outline"
             size="sm"
-            className="h-8 w-8 p-0"
+            className={navButtonSize}
             onClick={() => {
               const newDate = new Date(currentMonth);
               newDate.setMonth(newDate.getMonth() - 1);
               setCurrentMonth(newDate);
             }}
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-3 w-3" />
           </Button>
           <Button
             variant="outline"
             size="sm"
-            className="h-8 w-8 p-0"
+            className={navButtonSize}
             onClick={() => {
               const newDate = new Date(currentMonth);
               newDate.setMonth(newDate.getMonth() + 1);
               setCurrentMonth(newDate);
             }}
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-3 w-3" />
           </Button>
         </div>
       </div>
 
       {/* Quick Action Buttons */}
-      <div className="flex items-center justify-between mb-3">
+      <div className={cn("flex items-center justify-between", quickButtonsSpacing)}>
         <Button
           variant="outline"
           size="sm"
-          className="h-7 text-xs"
+          className={quickButtonSize}
           onClick={handleToday}
         >
           Today
@@ -131,7 +142,7 @@ function Calendar({
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 text-xs text-muted-foreground"
+            className={cn(quickButtonSize, "text-muted-foreground")}
             onClick={handleClear}
           >
             Clear
@@ -159,13 +170,19 @@ function Calendar({
           nav_button_next: "absolute right-1",
           table: "w-full border-collapse space-y-1",
           head_row: "flex",
-          head_cell:
-            "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+          head_cell: cn(
+            "text-muted-foreground rounded-md font-normal text-[0.8rem]",
+            compact ? "w-8" : "w-9"
+          ),
           row: "flex w-full mt-2",
-          cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+          cell: cn(
+            "text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+            compact ? "h-8 w-8" : "h-9 w-9"
+          ),
           day: cn(
             buttonVariants({ variant: "ghost" }),
-            "h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+            "p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+            compact ? "h-8 w-8 text-xs" : "h-9 w-9"
           ),
           day_range_end: "day-range-end",
           day_selected:
