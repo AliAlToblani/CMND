@@ -69,7 +69,7 @@ function Calendar({
 
   return (
     <div className={cn(containerPadding, "pointer-events-auto")}>
-      {/* Simplified Header with Only Month/Year Selectors */}
+      {/* Header with Month/Year Selectors */}
       <div className={cn("flex items-center justify-center space-x-2", headerSpacing)}>
         <Select value={currentMonth.getMonth().toString()} onValueChange={handleMonthChange}>
           <SelectTrigger className={selectSize}>
@@ -167,8 +167,8 @@ function Calendar({
           ...classNames,
         }}
         components={{
-          IconLeft: ({ ..._props }) => null, // Hide default nav buttons since we have our own
-          IconRight: ({ ..._props }) => null,
+          IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" {...props} />,
+          IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" {...props} />,
         }}
         {...props}
       />
