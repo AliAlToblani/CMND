@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useImperativeHandle, forwardRef } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Upload, X, Loader2 } from "lucide-react";
@@ -13,16 +13,45 @@ interface CustomerAvatarUploadProps {
   className?: string;
 }
 
-export function CustomerAvatarUpload({ 
+export interface CustomerAvatarUploadRef {
+  getPendingValue: () => string;
+  hasPendingChanges: () => boolean;
+  applyPendingChanges: () => void;
+}
+
+export const CustomerAvatarUpload = forwardRef<CustomerAvatarUploadRef, CustomerAvatarUploadProps>(({ 
   value, 
   onChange, 
   customerName, 
   className = "" 
-}: CustomerAvatarUploadProps) {
+}, ref) => {
   const [isUploading, setIsUploading] = useState(false);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    getPendingValue: () => {
+      if (pendingRemoval) return "";
+      if (pendingUrl) return pendingUrl;
+      return value || "";
+    },
+    hasPendingChanges: () => {
+      return !!(pendingUrl || pendingRemoval);
+    },
+    applyPendingChanges: () => {
+      if (pendingUrl) {
+        onChange(pendingUrl);
+        setPendingUrl(null);
+        setPendingRemoval(false);
+      } else if (pendingRemoval) {
+        onChange("");
+        setPendingUrl(null);
+        setPendingRemoval(false);
+      }
+    }
+  }));
 
   const getInitials = (name: string) => {
     return name
@@ -78,10 +107,10 @@ export function CustomerAvatarUpload({
 
       const publicUrl = data.publicUrl;
       
-      // Store the uploaded URL temporarily instead of immediately updating the form
+      // Store the uploaded URL temporarily - DO NOT call onChange
       setPendingUrl(publicUrl);
-      setPendingRemoval(false); // Clear any pending removal
-      toast.success("Profile image uploaded successfully! Click 'Apply Changes' to save.");
+      setPendingRemoval(false);
+      toast.success("Profile image uploaded successfully! Changes will be saved when you submit the form.");
       
     } catch (error) {
       console.error("Error uploading file:", error);
@@ -110,27 +139,14 @@ export function CustomerAvatarUpload({
       }
     }
     
-    // Set pending removal state instead of immediately calling onChange
+    // Set pending removal state - DO NOT call onChange
     setPendingUrl(null);
     setPendingRemoval(true);
-    toast.success("Profile image will be removed. Click 'Apply Changes' to save.");
+    toast.success("Profile image will be removed when you submit the form.");
   };
 
   const handleClick = () => {
     fileInputRef.current?.click();
-  };
-
-  const handleSave = () => {
-    if (pendingUrl) {
-      onChange(pendingUrl);
-      setPendingUrl(null);
-      setPendingRemoval(false);
-      toast.success("Profile image updated!");
-    } else if (pendingRemoval) {
-      onChange("");
-      setPendingRemoval(false);
-      toast.success("Profile image removed!");
-    }
   };
 
   // Determine what image to show
@@ -178,14 +194,12 @@ export function CustomerAvatarUpload({
         </Button>
         
         {hasPendingChanges && (
-          <Button
-            variant="default"
-            size="sm"
-            onClick={handleSave}
-            className="flex items-center space-x-2"
-          >
-            <span>Apply Changes</span>
-          </Button>
+          <div className="text-xs text-orange-600 dark:text-orange-400 text-center font-medium">
+            {pendingUrl && "New image ready"}
+            {pendingRemoval && "Image will be removed"}
+            <br />
+            Submit form to apply changes
+          </div>
         )}
         
         <p className="text-xs text-muted-foreground text-center">
@@ -203,4 +217,6 @@ export function CustomerAvatarUpload({
       />
     </div>
   );
-}
+});
+
+CustomerAvatarUpload.displayName = "CustomerAvatarUpload";

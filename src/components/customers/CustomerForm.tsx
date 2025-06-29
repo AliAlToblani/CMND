@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -22,7 +22,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { industryOptions, countryOptions } from "@/data/defaultLifecycleStages";
-import { CustomerAvatarUpload } from "./CustomerAvatarUpload";
+import { CustomerAvatarUpload, CustomerAvatarUploadRef } from "./CustomerAvatarUpload";
 
 const customerFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -56,6 +56,8 @@ export function CustomerForm({
   isSubmitting = false, 
   submitLabel = "Save Customer" 
 }: CustomerFormProps) {
+  const avatarUploadRef = useRef<CustomerAvatarUploadRef>(null);
+  
   const form = useForm<CustomerFormData>({
     resolver: zodResolver(customerFormSchema),
     defaultValues: {
@@ -75,6 +77,18 @@ export function CustomerForm({
       contact_phone: initialData?.contact_phone || "",
     },
   });
+
+  const handleFormSubmit = (data: CustomerFormData) => {
+    // Apply pending avatar changes before submitting
+    if (avatarUploadRef.current) {
+      avatarUploadRef.current.applyPendingChanges();
+      // Get the updated logo value
+      const finalLogoValue = avatarUploadRef.current.getPendingValue();
+      data.logo = finalLogoValue;
+    }
+    
+    onSubmit(data);
+  };
 
   const segmentOptions = [
     "Enterprise",
@@ -107,7 +121,7 @@ export function CustomerForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
         {/* Customer Profile Section */}
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-start gap-6">
@@ -121,6 +135,7 @@ export function CustomerForm({
                     <FormLabel>Customer Profile Image</FormLabel>
                     <FormControl>
                       <CustomerAvatarUpload
+                        ref={avatarUploadRef}
                         value={field.value}
                         onChange={field.onChange}
                         customerName={customerName || "New Customer"}
