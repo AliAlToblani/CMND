@@ -65,67 +65,37 @@ function Calendar({
   const quickButtonsSpacing = compact ? "mb-2" : "mb-3";
   const selectSize = compact ? "w-[90px] h-7 text-xs" : "w-[110px] h-8";
   const yearSelectSize = compact ? "w-[70px] h-7 text-xs" : "w-[80px] h-8";
-  const navButtonSize = compact ? "h-7 w-7 p-0" : "h-8 w-8 p-0";
   const quickButtonSize = compact ? "h-6 text-xs px-2" : "h-7 text-xs";
 
   return (
     <div className={cn(containerPadding, "pointer-events-auto")}>
-      {/* Enhanced Header with Month/Year Selectors */}
-      <div className={cn("flex items-center justify-between space-x-2", headerSpacing)}>
-        <div className="flex items-center space-x-1 flex-1">
-          <Select value={currentMonth.getMonth().toString()} onValueChange={handleMonthChange}>
-            <SelectTrigger className={selectSize}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="max-h-[200px]">
-              {monthOptions.map((month, index) => (
-                <SelectItem key={index} value={index.toString()}>
-                  {compact ? month.slice(0, 3) : month}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          <Select value={currentMonth.getFullYear().toString()} onValueChange={handleYearChange}>
-            <SelectTrigger className={yearSelectSize}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="max-h-[200px]">
-              {yearOptions.map((year) => (
-                <SelectItem key={year} value={year.toString()}>
-                  {year}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Simplified Header with Only Month/Year Selectors */}
+      <div className={cn("flex items-center justify-center space-x-2", headerSpacing)}>
+        <Select value={currentMonth.getMonth().toString()} onValueChange={handleMonthChange}>
+          <SelectTrigger className={selectSize}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="max-h-[200px]">
+            {monthOptions.map((month, index) => (
+              <SelectItem key={index} value={index.toString()}>
+                {compact ? month.slice(0, 3) : month}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         
-        <div className="flex items-center space-x-1">
-          <Button
-            variant="outline"
-            size="sm"
-            className={navButtonSize}
-            onClick={() => {
-              const newDate = new Date(currentMonth);
-              newDate.setMonth(newDate.getMonth() - 1);
-              setCurrentMonth(newDate);
-            }}
-          >
-            <ChevronLeft className="h-3 w-3" />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className={navButtonSize}
-            onClick={() => {
-              const newDate = new Date(currentMonth);
-              newDate.setMonth(newDate.getMonth() + 1);
-              setCurrentMonth(newDate);
-            }}
-          >
-            <ChevronRight className="h-3 w-3" />
-          </Button>
-        </div>
+        <Select value={currentMonth.getFullYear().toString()} onValueChange={handleYearChange}>
+          <SelectTrigger className={yearSelectSize}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="max-h-[200px]">
+            {yearOptions.map((year) => (
+              <SelectItem key={year} value={year.toString()}>
+                {year}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Quick Action Buttons */}
