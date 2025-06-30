@@ -31,7 +31,7 @@ export function useDocumentManager(entityId?: string, entityType: "customer" | "
         }
 
         if (data) {
-          const mappedDocuments: Document[] = data.map(doc => ({
+          const mappedDocuments: Document[] = data.map((doc: any) => ({
             id: doc.id,
             name: doc.name,
             file_path: doc.file_path,
@@ -74,7 +74,7 @@ export function useDocumentManager(entityId?: string, entityType: "customer" | "
             name: doc.name,
             file_path: doc.file_path,
             document_type: doc.document_type,
-            file_size: doc.file_size
+            file_size: doc.file_size || 0
           }));
 
           const { error } = await supabase
@@ -95,7 +95,7 @@ export function useDocumentManager(entityId?: string, entityType: "customer" | "
             name: doc.name,
             file_path: doc.file_path,
             document_type: doc.document_type,
-            file_size: doc.file_size
+            file_size: doc.file_size || 0
           }));
 
           const { error } = await supabase
