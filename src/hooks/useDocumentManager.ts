@@ -32,14 +32,26 @@ export function useDocumentManager(entityId?: string, entityType: "customer" | "
     const loadDocuments = async () => {
       setIsLoading(true);
       try {
-        const tableName = entityType === "customer" ? "documents" : "partnership_documents";
-        const columnName = entityType === "customer" ? "customer_id" : "partnership_id";
+        let data: any[] | null = null;
+        let error: any = null;
 
-        const { data, error } = await supabase
-          .from(tableName)
-          .select('*')
-          .eq(columnName, entityId)
-          .order('created_at', { ascending: false });
+        if (entityType === "customer") {
+          const result = await supabase
+            .from('documents')
+            .select('*')
+            .eq('customer_id', entityId)
+            .order('created_at', { ascending: false });
+          data = result.data;
+          error = result.error;
+        } else {
+          const result = await supabase
+            .from('partnership_documents')
+            .select('*')
+            .eq('partnership_id', entityId)
+            .order('created_at', { ascending: false });
+          data = result.data;
+          error = result.error;
+        }
 
         if (error) {
           console.error('Error loading documents:', error);
@@ -70,14 +82,22 @@ export function useDocumentManager(entityId?: string, entityType: "customer" | "
   // Save documents to database
   const saveDocuments = async (entityId: string, documentsToSave: Document[]) => {
     try {
-      const tableName = entityType === "customer" ? "documents" : "partnership_documents";
-      const columnName = entityType === "customer" ? "customer_id" : "partnership_id";
-
       // Get existing documents in database
-      const { data: existingDocs } = await supabase
-        .from(tableName)
-        .select('id, file_path')
-        .eq(columnName, entityId);
+      let existingDocs: any[] | null = null;
+
+      if (entityType === "customer") {
+        const result = await supabase
+          .from('documents')
+          .select('id, file_path')
+          .eq('customer_id', entityId);
+        existingDocs = result.data;
+      } else {
+        const result = await supabase
+          .from('partnership_documents')
+          .select('id, file_path')
+          .eq('partnership_id', entityId);
+        existingDocs = result.data;
+      }
 
       const existingFilePaths = new Set(existingDocs?.map(doc => doc.file_path) || []);
       const newDocuments = documentsToSave.filter(doc => !doc.id && !existingFilePaths.has(doc.file_path));
@@ -132,6 +152,8 @@ export function useDocumentManager(entityId?: string, entityType: "customer" | "
       // Update existing documents (for document type changes)
       const existingDocsToUpdate = documentsToSave.filter(doc => doc.id);
       for (const doc of existingDocsToUpdate) {
+        const tableName = entityType === "customer" ? "documents" : "partnership_documents";
+        
         const { error } = await supabase
           .from(tableName)
           .update({
