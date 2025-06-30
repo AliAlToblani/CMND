@@ -9,12 +9,16 @@ interface RenewalsViewProps {
   customers: ProcessedCustomer[];
   isLoading: boolean;
   onRemind: (customerId: string, customerName: string) => void;
+  onUpdateDate: (customerId: string, newDate: string, customerName: string) => void;
+  onMarkAsPaid: (customerId: string, customerName: string) => void;
 }
 
 export const RenewalsView: React.FC<RenewalsViewProps> = ({ 
   customers, 
   isLoading, 
-  onRemind 
+  onRemind,
+  onUpdateDate,
+  onMarkAsPaid
 }) => {
   if (isLoading) {
     return (
@@ -53,7 +57,7 @@ export const RenewalsView: React.FC<RenewalsViewProps> = ({
             No subscription renewals found
           </h3>
           <p className="text-gray-500 dark:text-gray-400">
-            No customers with subscription data match your current filters.
+            No customers have completed their "Go Live" stage or match your current filters.
           </p>
         </CardContent>
       </Card>
@@ -91,6 +95,8 @@ export const RenewalsView: React.FC<RenewalsViewProps> = ({
                 key={customer.id}
                 customer={customer}
                 onRemind={onRemind}
+                onUpdateDate={onUpdateDate}
+                onMarkAsPaid={onMarkAsPaid}
               />
             ))}
           </div>

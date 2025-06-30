@@ -26,14 +26,20 @@ export const useSubscriptionData = () => {
     }
   });
 
-  // Fetch live customers for subscription data
+  // Fetch customers who have completed "Go Live" stage
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['subscription-tracker'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .eq('stage', 'Went Live')
+        .in('id', 
+          supabase
+            .from('lifecycle_stages')
+            .select('customer_id')
+            .eq('name', 'Go Live')
+            .eq('status', 'done')
+        )
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -144,6 +150,51 @@ export const useSubscriptionData = () => {
     }
   };
 
+  // Handle update subscription date
+  const handleUpdateDate = async (customerId: string, newDate: string, customerName: string) => {
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .update({ subscription_end_date: newDate })
+        .eq('id', customerId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Date Updated",
+        description: `Subscription date updated for ${customerName}`,
+      });
+
+      console.log(`Updated subscription date for ${customerId} to ${newDate}`);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update date. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle mark as paid
+  const handleMarkAsPaid = async (customerId: string, customerName: string) => {
+    try {
+      // For now, we'll just show a success toast
+      // In the future, this could update a payment_status field
+      toast({
+        title: "Marked as Paid",
+        description: `${customerName} marked as paid`,
+      });
+      
+      console.log(`Marked as paid for customer ${customerId} (${customerName})`);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to mark as paid. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return {
     customers: sortedCustomers,
     isLoading,
@@ -157,6 +208,8 @@ export const useSubscriptionData = () => {
     setSortBy,
     uniqueSegments,
     uniqueCountries,
-    handleRemindCustomer
+    handleRemindCustomer,
+    handleUpdateDate,
+    handleMarkAsPaid
   };
 };

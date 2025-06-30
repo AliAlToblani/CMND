@@ -25,7 +25,9 @@ const SubscriptionTracker = () => {
     setSortBy,
     uniqueSegments,
     uniqueCountries,
-    handleRemindCustomer
+    handleRemindCustomer,
+    handleUpdateDate,
+    handleMarkAsPaid
   } = useSubscriptionData();
 
   return (
@@ -39,7 +41,7 @@ const SubscriptionTracker = () => {
               Subscription Tracker
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              Monitor live customers' subscription renewals and payments
+              Monitor customers who have completed their Go Live stage
             </p>
           </div>
         </div>
@@ -81,6 +83,8 @@ const SubscriptionTracker = () => {
               customers={customers} 
               isLoading={isLoading}
               onRemind={handleRemindCustomer}
+              onUpdateDate={handleUpdateDate}
+              onMarkAsPaid={handleMarkAsPaid}
             />
           </TabsContent>
         </Tabs>
