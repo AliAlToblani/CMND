@@ -1,5 +1,3 @@
-// This component has been replaced by EditRenewalDialog.tsx
-// Keeping this file for backward compatibility temporarily
 
 import React, { useState } from "react";
 import {
@@ -12,16 +10,18 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Calendar } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Calendar, Edit } from "lucide-react";
 
-interface UpdateDateDialogProps {
+interface EditRenewalDialogProps {
   customerId: string;
   customerName: string;
   currentDate?: string | null;
   onUpdateDate: (customerId: string, newDate: string, customerName: string) => void;
 }
 
-export const UpdateDateDialog: React.FC<UpdateDateDialogProps> = ({
+export const EditRenewalDialog: React.FC<EditRenewalDialogProps> = ({
   customerId,
   customerName,
   currentDate,
@@ -40,28 +40,46 @@ export const UpdateDateDialog: React.FC<UpdateDateDialogProps> = ({
     }
   };
 
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "Not set";
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="secondary" className="flex items-center gap-2 w-full">
-          <Calendar className="h-4 w-4" />
-          Update Date
+        <Button size="sm" variant="outline" className="flex items-center gap-1">
+          <Edit className="h-3 w-3" />
+          Edit Renewal
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Update Subscription Date</DialogTitle>
+          <DialogTitle>Edit Renewal Date</DialogTitle>
           <DialogDescription>
-            Update the subscription end date for {customerName}
+            Update the renewal date for {customerName}. The original date will be saved for historical tracking.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">New Subscription End Date</label>
+            <Label htmlFor="current-date">Current Renewal Date (Read-only)</Label>
+            <Input
+              id="current-date"
+              value={formatDate(currentDate)}
+              disabled
+              className="bg-gray-50"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">New Renewal Date</Label>
             <DatePicker
               date={selectedDate}
               onDateChange={setSelectedDate}
-              placeholder="Select new date"
+              placeholder="Select new renewal date"
             />
           </div>
         </div>
@@ -70,7 +88,7 @@ export const UpdateDateDialog: React.FC<UpdateDateDialogProps> = ({
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={!selectedDate}>
-            Update Date
+            Save New Date
           </Button>
         </div>
       </DialogContent>

@@ -2,22 +2,20 @@
 import React from "react";
 import { ProcessedCustomer } from "../types";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Mail, DollarSign, CheckCircle } from "lucide-react";
-import { UpdateDateDialog } from "./UpdateDateDialog";
+import { DollarSign, CheckCircle } from "lucide-react";
+import { EditRenewalDialog } from "./EditRenewalDialog";
+import { ViewContractsDialog } from "./ViewContractsDialog";
 
 interface CustomerRenewalCardProps {
   customer: ProcessedCustomer;
-  onRemind: (customerId: string, customerName: string) => void;
   onUpdateDate: (customerId: string, newDate: string, customerName: string) => void;
   onMarkAsPaid: (customerId: string, customerName: string) => void;
 }
 
 export const CustomerRenewalCard: React.FC<CustomerRenewalCardProps> = ({ 
   customer, 
-  onRemind,
   onUpdateDate,
   onMarkAsPaid
 }) => {
@@ -109,32 +107,27 @@ export const CustomerRenewalCard: React.FC<CustomerRenewalCardProps> = ({
         )}
 
         <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => onRemind(customer.id, customer.name)}
-            className="flex items-center gap-2 flex-1 min-w-0"
-          >
-            <Mail className="h-4 w-4" />
-            Send Reminder
-          </Button>
           <div className="flex-1 min-w-0">
-            <UpdateDateDialog
+            <EditRenewalDialog
               customerId={customer.id}
               customerName={customer.name}
               currentDate={customer.subscription_end_date}
               onUpdateDate={onUpdateDate}
             />
           </div>
-          <Button 
-            size="sm" 
-            variant="secondary"
+          <div className="flex-1 min-w-0">
+            <ViewContractsDialog
+              customerId={customer.id}
+              customerName={customer.name}
+            />
+          </div>
+          <button 
             onClick={() => onMarkAsPaid(customer.id, customer.name)}
-            className="flex items-center gap-2 flex-1 min-w-0"
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 transition-colors flex-1 min-w-0 justify-center"
           >
             <CheckCircle className="h-4 w-4" />
             Mark as Paid
-          </Button>
+          </button>
         </div>
       </CardContent>
     </Card>

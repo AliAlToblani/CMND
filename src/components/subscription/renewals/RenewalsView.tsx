@@ -1,9 +1,11 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { ProcessedCustomer } from "../types";
 import { CustomerRenewalCard } from "./CustomerRenewalCard";
+import { MonthlyRenewalsView } from "./MonthlyRenewalsView";
 import { Card, CardContent } from "@/components/ui/card";
-import { CalendarIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CalendarIcon, Grid3X3, Calendar } from "lucide-react";
 
 interface RenewalsViewProps {
   customers: ProcessedCustomer[];
@@ -20,8 +22,16 @@ export const RenewalsView: React.FC<RenewalsViewProps> = ({
   onUpdateDate,
   onMarkAsPaid
 }) => {
+  const [viewMode, setViewMode] = useState<'monthly' | 'cards'>('monthly');
+
   if (isLoading) {
-    return (
+    return viewMode === 'monthly' ? (
+      <MonthlyRenewalsView 
+        customers={[]} 
+        isLoading={true} 
+        onUpdateDate={onUpdateDate}
+      />
+    ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[...Array(6)].map((_, i) => (
           <Card key={i} className="animate-pulse">
@@ -64,44 +74,82 @@ export const RenewalsView: React.FC<RenewalsViewProps> = ({
     );
   }
 
-  // Group customers by urgency for better organization
-  const urgentCustomers = customers.filter(c => c.delta < 30 && c.delta >= 0);
-  const expiringSoonCustomers = customers.filter(c => c.delta >= 30 && c.delta <= 60);
-  const activeCustomers = customers.filter(c => c.delta > 60);
-  const expiredCustomers = customers.filter(c => c.delta < 0);
-
-  const sections = [
-    { title: "Urgent (< 30 days)", customers: urgentCustomers, color: "text-red-600" },
-    { title: "Expiring Soon (30-60 days)", customers: expiringSoonCustomers, color: "text-orange-600" },
-    { title: "Overdue", customers: expiredCustomers, color: "text-red-800" },
-    { title: "Active (> 60 days)", customers: activeCustomers, color: "text-green-600" }
-  ].filter(section => section.customers.length > 0);
-
   return (
-    <div className="space-y-8">
-      {sections.map((section) => (
-        <div key={section.title}>
-          <div className="flex items-center gap-2 mb-4">
-            <h2 className={`text-lg font-semibold ${section.color}`}>
-              {section.title}
-            </h2>
-            <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
-              {section.customers.length} customer{section.customers.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {section.customers.map((customer) => (
-              <CustomerRenewalCard
-                key={customer.id}
-                customer={customer}
-                onRemind={onRemind}
-                onUpdateDate={onUpdateDate}
-                onMarkAsPaid={onMarkAsPaid}
-              />
-            ))}
-          </div>
+    <div className="space-y-6">
+      {/* View Mode Toggle */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant={viewMode === 'monthly' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setViewMode('monthly')}
+          className="flex items-center gap-2"
+        >
+          <Calendar className="h-4 w-4" />
+          Monthly View
+        </Button>
+        <Button
+          variant={viewMode === 'cards' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setViewMode('cards')}
+          className="flex items-center gap-2"
+        >
+          <Grid3X3 className="h-4 w-4" />
+          Card View
+        </Button>
+      </div>
+
+      {/* Content based on view mode */}
+      {viewMode === 'monthly' ? (
+        <MonthlyRenewalsView 
+          customers={customers} 
+          isLoading={isLoading} 
+          onUpdateDate={onUpdateDate}
+        />
+      ) : (
+        <div>
+          {/* Group customers by urgency for card view */}
+          {(() => {
+            const urgentCustomers = customers.filter(c => c.delta < 30 && c.delta >= 0);
+            const expiringSoonCustomers = customers.filter(c => c.delta >= 30 && c.delta <= 60);
+            const activeCustomers = customers.filter(c => c.delta > 60);
+            const expiredCustomers = customers.filter(c => c.delta < 0);
+
+            const sections = [
+              { title: "Urgent (< 30 days)", customers: urgentCustomers, color: "text-red-600" },
+              { title: "Expiring Soon (30-60 days)", customers: expiringSoonCustomers, color: "text-orange-600" },
+              { title: "Overdue", customers: expiredCustomers, color: "text-red-800" },
+              { title: "Active (> 60 days)", customers: activeCustomers, color: "text-green-600" }
+            ].filter(section => section.customers.length > 0);
+
+            return (
+              <div className="space-y-8">
+                {sections.map((section) => (
+                  <div key={section.title}>
+                    <div className="flex items-center gap-2 mb-4">
+                      <h2 className={`text-lg font-semibold ${section.color}`}>
+                        {section.title}
+                      </h2>
+                      <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                        {section.customers.length} customer{section.customers.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {section.customers.map((customer) => (
+                        <CustomerRenewalCard
+                          key={customer.id}
+                          customer={customer}
+                          onUpdateDate={onUpdateDate}
+                          onMarkAsPaid={onMarkAsPaid}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
-      ))}
+      )}
     </div>
   );
 };
