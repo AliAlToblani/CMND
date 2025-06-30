@@ -4,24 +4,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { Document } from "@/components/documents/DocumentUpload";
 import { useToast } from "@/hooks/use-toast";
 
-type DbDocument = {
-  id: string;
-  name: string;
-  file_path: string;
-  document_type: string;
-  file_size: number | null;
-  created_at: string;
-  customer_id?: string;
-  partnership_id?: string;
-};
-
-type DocumentInsert = {
+type CustomerDocumentInsert = {
   name: string;
   file_path: string;
   document_type: string;
   file_size: number;
-  customer_id?: string;
-  partnership_id?: string;
+  customer_id: string;
+};
+
+type PartnershipDocumentInsert = {
+  name: string;
+  file_path: string;
+  document_type: string;
+  file_size: number;
+  partnership_id: string;
 };
 
 export function useDocumentManager(entityId?: string, entityType: "customer" | "partnership" = "customer") {
@@ -39,13 +35,11 @@ export function useDocumentManager(entityId?: string, entityType: "customer" | "
         const tableName = entityType === "customer" ? "documents" : "partnership_documents";
         const columnName = entityType === "customer" ? "customer_id" : "partnership_id";
 
-        const query = supabase
+        const { data, error } = await supabase
           .from(tableName)
           .select('*')
           .eq(columnName, entityId)
           .order('created_at', { ascending: false });
-
-        const { data, error } = await query;
 
         if (error) {
           console.error('Error loading documents:', error);
@@ -53,7 +47,7 @@ export function useDocumentManager(entityId?: string, entityType: "customer" | "
         }
 
         if (data) {
-          const mappedDocuments: Document[] = (data as DbDocument[]).map((doc) => ({
+          const mappedDocuments: Document[] = data.map((doc: any) => ({
             id: doc.id,
             name: doc.name,
             file_path: doc.file_path,
@@ -80,12 +74,10 @@ export function useDocumentManager(entityId?: string, entityType: "customer" | "
       const columnName = entityType === "customer" ? "customer_id" : "partnership_id";
 
       // Get existing documents in database
-      const existingQuery = supabase
+      const { data: existingDocs } = await supabase
         .from(tableName)
         .select('id, file_path')
         .eq(columnName, entityId);
-
-      const { data: existingDocs } = await existingQuery;
 
       const existingFilePaths = new Set(existingDocs?.map(doc => doc.file_path) || []);
       const newDocuments = documentsToSave.filter(doc => !doc.id && !existingFilePaths.has(doc.file_path));
@@ -93,7 +85,7 @@ export function useDocumentManager(entityId?: string, entityType: "customer" | "
       // Insert new documents
       if (newDocuments.length > 0) {
         if (entityType === "customer") {
-          const documentsToInsert: DocumentInsert[] = newDocuments.map(doc => ({
+          const documentsToInsert: CustomerDocumentInsert[] = newDocuments.map(doc => ({
             customer_id: entityId,
             name: doc.name,
             file_path: doc.file_path,
@@ -101,11 +93,9 @@ export function useDocumentManager(entityId?: string, entityType: "customer" | "
             file_size: doc.file_size || 0
           }));
 
-          const insertQuery = supabase
+          const { error } = await supabase
             .from('documents')
             .insert(documentsToInsert);
-
-          const { error } = await insertQuery;
 
           if (error) {
             console.error('Error saving documents:', error);
@@ -116,7 +106,7 @@ export function useDocumentManager(entityId?: string, entityType: "customer" | "
             });
           }
         } else {
-          const documentsToInsert: DocumentInsert[] = newDocuments.map(doc => ({
+          const documentsToInsert: PartnershipDocumentInsert[] = newDocuments.map(doc => ({
             partnership_id: entityId,
             name: doc.name,
             file_path: doc.file_path,
@@ -124,11 +114,9 @@ export function useDocumentManager(entityId?: string, entityType: "customer" | "
             file_size: doc.file_size || 0
           }));
 
-          const insertQuery = supabase
+          const { error } = await supabase
             .from('partnership_documents')
             .insert(documentsToInsert);
-
-          const { error } = await insertQuery;
 
           if (error) {
             console.error('Error saving documents:', error);
@@ -144,15 +132,13 @@ export function useDocumentManager(entityId?: string, entityType: "customer" | "
       // Update existing documents (for document type changes)
       const existingDocsToUpdate = documentsToSave.filter(doc => doc.id);
       for (const doc of existingDocsToUpdate) {
-        const updateQuery = supabase
+        const { error } = await supabase
           .from(tableName)
           .update({
             document_type: doc.document_type,
             name: doc.name
           })
           .eq('id', doc.id);
-
-        const { error } = await updateQuery;
 
         if (error) {
           console.error('Error updating document:', error);
