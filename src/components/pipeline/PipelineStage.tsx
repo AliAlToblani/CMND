@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { PipelineStageData } from "@/hooks/usePipelineData";
 import { CustomerDot } from "./CustomerDot";
@@ -21,7 +22,8 @@ export const PipelineStage: React.FC<PipelineStageProps> = ({
   totalStages 
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const INITIAL_DISPLAY_COUNT = 12;
+  // Grid layout: 8 columns × 3 rows = 24 customers to fill the card optimally
+  const INITIAL_DISPLAY_COUNT = 24;
 
   const getStageColor = (index: number, total: number) => {
     const ratio = index / (total - 1);
@@ -53,7 +55,7 @@ export const PipelineStage: React.FC<PipelineStageProps> = ({
     <Card className={`
       relative w-96 p-6 transition-all duration-300 hover:shadow-lg overflow-visible
       ${isEmpty ? 'bg-gray-50 dark:bg-gray-800 border-dashed' : ''}
-      ${isExpanded ? 'min-h-[600px]' : 'min-h-[220px]'}
+      ${isExpanded ? 'min-h-[600px]' : 'min-h-[320px]'}
     `}>
       {/* Stage Header */}
       <div className="mb-6">
@@ -82,12 +84,18 @@ export const PipelineStage: React.FC<PipelineStageProps> = ({
           </div>
         ) : (
           <div className="space-y-6 overflow-visible">
-            {/* Initial Customer Dots */}
+            {/* Customer Grid - Fills the card space */}
             <div className="overflow-visible">
-              <div className="flex flex-wrap gap-3 p-2 overflow-visible">
+              <div className="grid grid-cols-8 gap-2 p-2 overflow-visible">
                 {stage.customers.slice(0, INITIAL_DISPLAY_COUNT).map((customer) => (
                   <CustomerDot key={customer.id} customer={customer} />
                 ))}
+                {/* Fill empty grid cells if we have fewer customers than grid capacity */}
+                {stage.customers.length < INITIAL_DISPLAY_COUNT && 
+                  Array.from({ length: INITIAL_DISPLAY_COUNT - stage.customers.length }).map((_, index) => (
+                    <div key={`empty-${index}`} className="w-8 h-8" />
+                  ))
+                }
               </div>
               
               {hasOverflow && !isExpanded && (
