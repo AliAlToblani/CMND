@@ -1,214 +1,203 @@
 
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigate, useParams } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save, HandHeart } from "lucide-react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Combobox } from "@/components/ui/combobox";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon, ArrowLeft } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { DocumentUpload } from "@/components/documents/DocumentUpload";
+import { useDocumentManager } from "@/hooks/useDocumentManager";
+import { countryOptions } from "@/data/defaultLifecycleStages";
 import { supabase } from "@/integrations/supabase/client";
-import { Partnership, PartnershipType, PartnershipStatus } from "@/types/partnerships";
 import { useToast } from "@/hooks/use-toast";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 
-const AddEditPartnership = () => {
-  const { id } = useParams<{ id: string }>();
+const partnershipSchema = z.object({
+  name: z.string().min(1, "Partnership name is required"),
+  partnership_type: z.enum(["reseller", "consultant", "platform_partner", "education_partner", "mou_partner"]),
+  status: z.enum(["in_discussion", "signed", "active", "inactive", "expired"]).optional(),
+  country: z.string().optional(),
+  region: z.string().optional(),
+  start_date: z.date().optional(),
+  expiry_date: z.date().optional(),
+  renewal_date: z.date().optional(),
+  expected_value: z.number().optional(),
+  description: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+type PartnershipFormData = z.infer<typeof partnershipSchema>;
+
+export default function AddEditPartnership() {
+  const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const isEditing = Boolean(id);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Document management
+  const { documents, setDocuments, saveDocuments } = useDocumentManager(id, "partnership");
 
-  const [formData, setFormData] = useState({
-    name: "",
-    partnership_type: "reseller" as PartnershipType,
-    country: "",
-    start_date: "",
-    renewal_date: "",
-    expiry_date: "",
-    status: "in_discussion" as PartnershipStatus,
-    expected_value: "",
-    owner_id: "",
-    description: "",
-    notes: "",
-    // Contact fields
-    contact_name: "",
-    contact_email: "",
-    contact_phone: "",
-    contact_role: ""
-  });
-
-  const { data: partnership, isLoading } = useQuery({
-    queryKey: ['partnership', id],
-    queryFn: async () => {
-      if (!id) return null;
-      const { data, error } = await supabase
-        .from('partnerships')
-        .select('*')
-        .eq('id', id)
-        .single();
-      
-      if (error) throw error;
-      return data as Partnership;
+  const form = useForm<PartnershipFormData>({
+    resolver: zodResolver(partnershipSchema),
+    defaultValues: {
+      name: "",
+      partnership_type: "reseller",
+      status: "in_discussion",
+      country: "",
+      region: "",
+      expected_value: 0,
+      description: "",
+      notes: "",
     },
-    enabled: isEditing
   });
 
-  const { data: primaryContact } = useQuery({
-    queryKey: ['partnership-primary-contact', id],
-    queryFn: async () => {
-      if (!id) return null;
-      const { data, error } = await supabase
-        .from('partnership_contacts')
-        .select('*')
-        .eq('partnership_id', id)
-        .eq('is_primary', true)
-        .maybeSingle();
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: isEditing
-  });
-
+  // Load existing partnership data
   useEffect(() => {
-    if (partnership) {
-      setFormData({
-        name: partnership.name || "",
-        partnership_type: partnership.partnership_type || "reseller",
-        country: partnership.country || "",
-        start_date: partnership.start_date || "",
-        renewal_date: partnership.renewal_date || "",
-        expiry_date: partnership.expiry_date || "",
-        status: partnership.status || "in_discussion",
-        expected_value: partnership.expected_value?.toString() || "",
-        owner_id: partnership.owner_id || "",
-        description: partnership.description || "",
-        notes: partnership.notes || "",
-        contact_name: "",
-        contact_email: "",
-        contact_phone: "",
-        contact_role: ""
-      });
-    }
-  }, [partnership]);
+    if (!id) return;
 
-  useEffect(() => {
-    if (primaryContact) {
-      setFormData(prev => ({
-        ...prev,
-        contact_name: primaryContact.name || "",
-        contact_email: primaryContact.email || "",
-        contact_phone: primaryContact.phone || "",
-        contact_role: primaryContact.role || ""
-      }));
-    }
-  }, [primaryContact]);
+    const loadPartnership = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('partnerships')
+          .select('*')
+          .eq('id', id)
+          .single();
 
-  const saveMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
+        if (error) {
+          console.error('Error loading partnership:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load partnership data.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        if (data) {
+          form.reset({
+            name: data.name,
+            partnership_type: data.partnership_type,
+            status: data.status,
+            country: data.country || "",
+            region: data.region || "",
+            start_date: data.start_date ? new Date(data.start_date) : undefined,
+            expiry_date: data.expiry_date ? new Date(data.expiry_date) : undefined,
+            renewal_date: data.renewal_date ? new Date(data.renewal_date) : undefined,
+            expected_value: data.expected_value || 0,
+            description: data.description || "",
+            notes: data.notes || "",
+          });
+        }
+      } catch (error) {
+        console.error('Error loading partnership:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadPartnership();
+  }, [id, form, toast]);
+
+  const onSubmit = async (data: PartnershipFormData) => {
+    setIsSubmitting(true);
+    try {
       const partnershipData = {
-        name: data.name,
-        partnership_type: data.partnership_type,
-        country: data.country || null,
-        start_date: data.start_date || null,
-        renewal_date: data.renewal_date || null,
-        expiry_date: data.expiry_date || null,
-        status: data.status,
-        expected_value: data.expected_value ? parseInt(data.expected_value) : null,
-        owner_id: data.owner_id || null,
-        description: data.description || null,
-        notes: data.notes || null
+        ...data,
+        start_date: data.start_date ? format(data.start_date, "yyyy-MM-dd") : null,
+        expiry_date: data.expiry_date ? format(data.expiry_date, "yyyy-MM-dd") : null,
+        renewal_date: data.renewal_date ? format(data.renewal_date, "yyyy-MM-dd") : null,
       };
 
-      let partnershipId: string;
+      let partnershipId = id;
 
-      if (isEditing && id) {
+      if (id) {
+        // Update existing partnership
         const { error } = await supabase
           .from('partnerships')
           .update(partnershipData)
           .eq('id', id);
-        
+
         if (error) throw error;
-        partnershipId = id;
       } else {
+        // Create new partnership
         const { data: newPartnership, error } = await supabase
           .from('partnerships')
           .insert([partnershipData])
           .select()
           .single();
-        
+
         if (error) throw error;
         partnershipId = newPartnership.id;
       }
 
-      // Handle contact data
-      if (data.contact_name) {
-        const contactData = {
-          partnership_id: partnershipId,
-          name: data.contact_name,
-          email: data.contact_email || null,
-          phone: data.contact_phone || null,
-          role: data.contact_role || null,
-          is_primary: true
-        };
-
-        if (isEditing && primaryContact) {
-          const { error } = await supabase
-            .from('partnership_contacts')
-            .update(contactData)
-            .eq('id', primaryContact.id);
-          
-          if (error) throw error;
-        } else {
-          const { error } = await supabase
-            .from('partnership_contacts')
-            .insert([contactData]);
-          
-          if (error) throw error;
-        }
+      // Save documents
+      if (partnershipId && documents.length > 0) {
+        await saveDocuments(partnershipId, documents);
       }
 
-      return partnershipId;
-    },
-    onSuccess: (partnershipId) => {
       toast({
-        title: isEditing ? "Partnership updated" : "Partnership created",
-        description: `Partnership has been ${isEditing ? "updated" : "created"} successfully.`,
+        title: "Success",
+        description: `Partnership ${id ? 'updated' : 'created'} successfully!`,
       });
-      
-      queryClient.invalidateQueries({ queryKey: ['partnerships'] });
-      queryClient.invalidateQueries({ queryKey: ['partnership', partnershipId] });
-      
-      navigate(`/partnerships/${partnershipId}`);
-    },
-    onError: (error) => {
+
+      navigate('/partnerships');
+    } catch (error) {
+      console.error('Error saving partnership:', error);
       toast({
         title: "Error",
-        description: `Failed to ${isEditing ? "update" : "create"} partnership. Please try again.`,
-        variant: "destructive",
+        description: `Failed to ${id ? 'update' : 'create'} partnership.`,
+        variant: "destructive"
       });
-      console.error("Partnership save error:", error);
+    } finally {
+      setIsSubmitting(false);
     }
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    saveMutation.mutate(formData);
   };
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  const partnershipTypes = [
+    { value: "reseller", label: "Reseller" },
+    { value: "consultant", label: "Consultant" },
+    { value: "platform_partner", label: "Platform Partner" },
+    { value: "education_partner", label: "Education Partner" },
+    { value: "mou_partner", label: "MOU Partner" },
+  ];
 
-  if (isEditing && isLoading) {
+  const statusOptions = [
+    { value: "in_discussion", label: "In Discussion" },
+    { value: "signed", label: "Signed" },
+    { value: "active", label: "Active" },
+    { value: "inactive", label: "Inactive" },
+    { value: "expired", label: "Expired" },
+  ];
+
+  const countryComboboxOptions = countryOptions.map(country => ({
+    value: country,
+    label: country
+  }));
+
+  if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-96 bg-gray-200 rounded"></div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
       </DashboardLayout>
     );
@@ -216,239 +205,342 @@ const AddEditPartnership = () => {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Link to={isEditing ? `/partnerships/${id}` : "/partnerships"}>
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-          </Link>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <HandHeart className="h-6 w-6 text-doo-purple-600" />
-            {isEditing ? "Edit Partnership" : "Add Partnership"}
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="flex items-center gap-4 mb-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/partnerships')}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Partnerships
+          </Button>
+          <h1 className="text-2xl font-bold">
+            {id ? 'Edit Partnership' : 'Add New Partnership'}
           </h1>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Partner Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => handleInputChange('name', e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="partnership_type">Partnership Type *</Label>
-                  <Select
-                    value={formData.partnership_type}
-                    onValueChange={(value) => handleInputChange('partnership_type', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="reseller">Reseller</SelectItem>
-                      <SelectItem value="consultant">Consultant</SelectItem>
-                      <SelectItem value="platform_partner">Technology Partner</SelectItem>
-                      <SelectItem value="education_partner">Education Partner</SelectItem>
-                      <SelectItem value="mou_partner">MOU Partner</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Basic Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Partnership Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter partnership name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="country">Country</Label>
-                  <Input
-                    id="country"
-                    value={formData.country}
-                    onChange={(e) => handleInputChange('country', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="status">Status</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) => handleInputChange('status', value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="in_discussion">In Discussion</SelectItem>
-                      <SelectItem value="signed">Signed</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                      <SelectItem value="expired">Expired</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+                <FormField
+                  control={form.control}
+                  name="partnership_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Partnership Type</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {partnershipTypes.map((type) => (
+                            <SelectItem key={type.value} value={type.value}>
+                              {type.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <div>
-                <Label htmlFor="expected_value">Expected Value ($)</Label>
-                <Input
-                  id="expected_value"
-                  type="number"
-                  value={formData.expected_value}
-                  onChange={(e) => handleInputChange('expected_value', e.target.value)}
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {statusOptions.map((status) => (
+                            <SelectItem key={status.value} value={status.value}>
+                              {status.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="expected_value"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Expected Value ($)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="0" 
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Dates */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Important Dates</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="start_date">Start Date</Label>
-                  <Input
-                    id="start_date"
-                    type="date"
-                    value={formData.start_date}
-                    onChange={(e) => handleInputChange('start_date', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="renewal_date">Renewal Date</Label>
-                  <Input
-                    id="renewal_date"
-                    type="date"
-                    value={formData.renewal_date}
-                    onChange={(e) => handleInputChange('renewal_date', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="expiry_date">Expiry Date</Label>
-                  <Input
-                    id="expiry_date"
-                    type="date"
-                    value={formData.expiry_date}
-                    onChange={(e) => handleInputChange('expiry_date', e.target.value)}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Location */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Location</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="country"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Country</FormLabel>
+                      <FormControl>
+                        <Combobox
+                          options={countryComboboxOptions}
+                          value={field.value || ""}
+                          onValueChange={field.onChange}
+                          placeholder="Select country"
+                          searchPlaceholder="Search countries..."
+                          emptyMessage="No country found."
+                          className="w-full"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-          {/* Primary Contact */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Primary Contact</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="contact_name">Contact Name</Label>
-                  <Input
-                    id="contact_name"
-                    value={formData.contact_name}
-                    onChange={(e) => handleInputChange('contact_name', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="contact_email">Contact Email</Label>
-                  <Input
-                    id="contact_email"
-                    type="email"
-                    value={formData.contact_email}
-                    onChange={(e) => handleInputChange('contact_email', e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="contact_phone">Contact Phone</Label>
-                  <Input
-                    id="contact_phone"
-                    value={formData.contact_phone}
-                    onChange={(e) => handleInputChange('contact_phone', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="contact_role">Contact Role</Label>
-                  <Input
-                    id="contact_role"
-                    value={formData.contact_role}
-                    onChange={(e) => handleInputChange('contact_role', e.target.value)}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Additional Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Additional Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="owner_id">Account Owner</Label>
-                <Input
-                  id="owner_id"
-                  value={formData.owner_id}
-                  onChange={(e) => handleInputChange('owner_id', e.target.value)}
-                  placeholder="Team member name"
+                <FormField
+                  control={form.control}
+                  name="region"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Region</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter region" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
               </div>
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  rows={3}
-                  placeholder="Describe this partnership..."
-                />
-              </div>
-              <div>
-                <Label htmlFor="notes">Notes</Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) => handleInputChange('notes', e.target.value)}
-                  rows={3}
-                  placeholder="Internal notes..."
-                />
-              </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Submit Button */}
-          <div className="flex justify-end">
-            <Button 
-              type="submit" 
-              disabled={saveMutation.isPending}
-              className="bg-doo-purple-600 hover:bg-doo-purple-700"
-            >
-              <Save className="mr-2 h-4 w-4" />
-              {saveMutation.isPending 
-                ? (isEditing ? "Updating..." : "Creating...") 
-                : (isEditing ? "Update Partnership" : "Create Partnership")
-              }
-            </Button>
-          </div>
-        </form>
+            {/* Documents Section */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Documents</h3>
+              <DocumentUpload
+                documents={documents}
+                onDocumentsChange={setDocuments}
+                entityType="partnership"
+                entityId={id}
+              />
+            </div>
+
+            {/* Dates */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Important Dates</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <FormField
+                  control={form.control}
+                  name="start_date"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Start Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="expiry_date"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Expiry Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="renewal_date"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Renewal Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* Description and Notes */}
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Enter partnership description" 
+                        className="min-h-[100px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Enter additional notes" 
+                        className="min-h-[100px]"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate('/partnerships')}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Saving..." : (id ? "Update Partnership" : "Create Partnership")}
+              </Button>
+            </div>
+          </form>
+        </Form>
       </div>
     </DashboardLayout>
   );
-};
-
-export default AddEditPartnership;
+}

@@ -23,6 +23,8 @@ import {
 import { industryOptions, countryOptions } from "@/data/defaultLifecycleStages";
 import { CustomerAvatarUpload, CustomerAvatarUploadRef } from "./CustomerAvatarUpload";
 import { ContractsList, Contract } from "./ContractsList";
+import { DocumentUpload } from "@/components/documents/DocumentUpload";
+import { useDocumentManager } from "@/hooks/useDocumentManager";
 import { supabase } from "@/integrations/supabase/client";
 
 const customerFormSchema = z.object({
@@ -59,6 +61,9 @@ export function CustomerForm({
   const avatarUploadRef = useRef<CustomerAvatarUploadRef>(null);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loadingContracts, setLoadingContracts] = useState(false);
+  
+  // Document management
+  const { documents, setDocuments, saveDocuments } = useDocumentManager(customerId, "customer");
   
   const form = useForm<CustomerFormData>({
     resolver: zodResolver(customerFormSchema),
@@ -141,14 +146,20 @@ export function CustomerForm({
     }
   }, [initialData, customerId, contracts.length]);
 
-  const handleFormSubmit = (data: CustomerFormData) => {
+  const handleFormSubmit = async (data: CustomerFormData) => {
     // Get the final logo value from the avatar component
     if (avatarUploadRef.current) {
       const finalLogoValue = avatarUploadRef.current.getPendingValue();
       data.logo = finalLogoValue;
     }
     
-    onSubmit(data, contracts);
+    // Call the original onSubmit
+    await onSubmit(data, contracts);
+    
+    // Save documents if we have a customer ID
+    if (customerId && documents.length > 0) {
+      await saveDocuments(customerId, documents);
+    }
   };
 
   const segmentOptions = [
@@ -295,6 +306,19 @@ export function CustomerForm({
               customerName={customerName || "Customer"}
             />
           )}
+        </div>
+
+        {/* Documents Section */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            Documents
+          </h3>
+          <DocumentUpload
+            documents={documents}
+            onDocumentsChange={setDocuments}
+            entityType="customer"
+            entityId={customerId}
+          />
         </div>
 
         {/* Timeline / Dates Section */}

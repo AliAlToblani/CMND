@@ -1,292 +1,193 @@
-import React from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
+
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { CustomerForm, type CustomerFormData } from "@/components/customers/CustomerForm";
+import { Contract } from "@/components/customers/ContractsList";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { toast } from "sonner";
-import { customers } from "@/data/mockData";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { supabase } from "@/integrations/supabase/client";
-import { CustomerInsert } from "@/types/customers";
-import { CustomerForm, CustomerFormData } from "@/components/customers/CustomerForm";
-import { Contract } from "@/components/customers/ContractsList";
 
-const AddEditCustomer = () => {
+export default function AddEditCustomer() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const isEditing = !!id;
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(isEditing);
-  const [customer, setCustomer] = React.useState<any>(null);
-  const [error, setError] = React.useState<string | null>(null);
-  
-  const getDbCustomerId = () => {
-    if (id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-      return id;
-    }
-    return id ? `00000000-0000-0000-0000-${id.replace(/\D/g, '').padStart(12, '0')}` : null;
-  };
-  
-  React.useEffect(() => {
-    const fetchCustomer = async () => {
-      if (!isEditing) {
-        setIsLoading(false);
-        return;
-      }
+  const { toast } = useToast();
+  const [initialData, setInitialData] = useState<Partial<CustomerFormData> | undefined>(undefined);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    if (!id) return;
+    
+    const loadCustomer = async () => {
       setIsLoading(true);
-      setError(null);
-      
-      const dbCustomerId = getDbCustomerId();
-      
       try {
         const { data, error } = await supabase
           .from('customers')
           .select('*')
-          .eq('id', dbCustomerId)
+          .eq('id', id)
           .single();
-        
+
         if (error) {
-          console.error("Error fetching customer:", error);
-          // Fallback to mock data if database fetch fails
-          const mockCustomer = customers.find(c => c.id === id);
-          if (mockCustomer) {
-            setCustomer(mockCustomer);
-          } else {
-            setError("Customer not found");
-          }
-        } else {
-          // Convert database data to form format
-          const customerData = {
-            ...data,
+          console.error('Error loading customer:', error);
+          toast({
+            title: "Error",
+            description: "Failed to load customer data.",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        if (data) {
+          setInitialData({
+            name: data.name,
+            segment: data.segment || "",
+            country: data.country || "",
+            industry: data.industry || "",
             go_live_date: data.go_live_date ? new Date(data.go_live_date) : undefined,
             subscription_end_date: data.subscription_end_date ? new Date(data.subscription_end_date) : undefined,
-            owner: {
-              id: data.owner_id,
-              name: "Unknown",
-              role: "Unknown"
-            }
-          };
-          setCustomer(customerData);
+            description: data.description || "",
+            logo: data.logo || "",
+            contact_name: data.contact_name || "",
+            contact_email: data.contact_email || "",
+            contact_phone: data.contact_phone || "",
+          });
         }
       } catch (error) {
-        console.error("Error in fetch operation:", error);
-        setError("Failed to load customer data");
+        console.error('Error loading customer:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    
-    fetchCustomer();
-  }, [id, isEditing]);
-  
-  async function onSubmit(values: CustomerFormData, contracts: Contract[]) {
+
+    loadCustomer();
+  }, [id, toast]);
+
+  const handleSubmit = async (data: CustomerFormData, contracts: Contract[]) => {
     setIsSubmitting(true);
-    
     try {
-      const customerData: CustomerInsert = {
-        name: values.name,
-        segment: values.segment,
-        country: values.country,
-        stage: "New",
-        status: "not-started",
-        contract_size: 0,
-        setup_fee: 0,
-        annual_rate: 0,
-        go_live_date: values.go_live_date ? values.go_live_date.toISOString().split('T')[0] : null,
-        subscription_end_date: values.subscription_end_date ? values.subscription_end_date.toISOString().split('T')[0] : null,
-        owner_id: "user-001", // Default owner
-        industry: values.industry || null,
-        logo: values.logo || null,
-        contact_name: values.contact_name || null,
-        contact_email: values.contact_email || null,
-        contact_phone: values.contact_phone || null,
-        description: values.description || null,
+      const customerData = {
+        name: data.name,
+        segment: data.segment,
+        country: data.country,
+        industry: data.industry,
+        go_live_date: data.go_live_date ? data.go_live_date.toISOString().split('T')[0] : null,
+        subscription_end_date: data.subscription_end_date ? data.subscription_end_date.toISOString().split('T')[0] : null,
+        description: data.description,
+        logo: data.logo,
+        contact_name: data.contact_name,
+        contact_email: data.contact_email,
+        contact_phone: data.contact_phone,
       };
-      
-      let customerId: string;
-      
-      if (isEditing) {
-        const dbCustomerId = getDbCustomerId();
+
+      let customerId = id;
+
+      if (id) {
+        // Update existing customer
         const { error } = await supabase
           .from('customers')
           .update(customerData)
-          .eq('id', dbCustomerId);
-        
+          .eq('id', id);
+
         if (error) throw error;
-        customerId = dbCustomerId!;
-        
-        toast.success("Customer updated successfully");
       } else {
-        const { data, error } = await supabase
+        // Create new customer
+        const { data: newCustomer, error } = await supabase
           .from('customers')
-          .insert(customerData)
-          .select('id')
+          .insert([customerData])
+          .select()
           .single();
-        
+
         if (error) throw error;
-        customerId = data.id;
-        
-        toast.success("Customer added successfully");
+        customerId = newCustomer.id;
       }
-      
-      // Handle contracts - save them to the database with new structure
-      if (contracts.length > 0) {
-        // First, delete existing contracts if editing
-        if (isEditing) {
+
+      // Save contracts
+      if (customerId && contracts.length > 0) {
+        // Delete existing contracts first (for updates)
+        if (id) {
           await supabase
             .from('contracts')
             .delete()
-            .eq('customer_id', customerId);
+            .eq('customer_id', id);
         }
-        
-        // Insert new contracts with setup_fee and annual_rate
+
+        // Insert new contracts
         const contractsToInsert = contracts.map(contract => ({
           customer_id: customerId,
           name: contract.name,
-          value: (contract.setup_fee || 0) + (contract.annual_rate || 0), // Calculate total value
+          value: contract.value,
           setup_fee: contract.setup_fee || 0,
           annual_rate: contract.annual_rate || 0,
           start_date: contract.start_date,
           end_date: contract.end_date,
           status: contract.status,
-          terms: contract.terms || null,
-          owner_id: customerData.owner_id,
-          renewal_date: contract.end_date // Set renewal date to end date initially
+          terms: contract.terms,
         }));
-        
-        const { error: contractsError } = await supabase
+
+        const { error: contractError } = await supabase
           .from('contracts')
           .insert(contractsToInsert);
-        
-        if (contractsError) {
-          console.error("Error saving contracts:", contractsError);
-          toast.error("Customer saved but failed to save contracts");
-        } else {
-          console.log(`Saved ${contracts.length} contracts for customer ${customerId}`);
+
+        if (contractError) {
+          console.error('Error saving contracts:', contractError);
         }
       }
-      
-      navigate("/customers");
+
+      toast({
+        title: "Success",
+        description: `Customer ${id ? 'updated' : 'created'} successfully!`,
+      });
+
+      navigate('/customers');
     } catch (error) {
-      console.error("Error saving customer:", error);
-      toast.error(isEditing ? "Failed to update customer" : "Failed to add customer");
+      console.error('Error saving customer:', error);
+      toast({
+        title: "Error",
+        description: `Failed to ${id ? 'update' : 'create'} customer.`,
+        variant: "destructive"
+      });
     } finally {
       setIsSubmitting(false);
     }
-  }
-  
-  // Prepare initial data for the form - removed legacy contract fields
-  const initialData: Partial<CustomerFormData> = customer ? {
-    name: customer.name || "",
-    segment: customer.segment || "Enterprise",
-    country: customer.country || "",
-    industry: customer.industry || "",
-    go_live_date: customer.go_live_date,
-    subscription_end_date: customer.subscription_end_date,
-    description: customer.description || "",
-    logo: customer.logo || "",
-    contact_name: customer.contact_name || "",
-    contact_email: customer.contact_email || "",
-    contact_phone: customer.contact_phone || "",
-  } : {};
+  };
 
-  // Show loading state
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={() => navigate("/customers")}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-            <Skeleton className="h-8 w-48" />
-          </div>
-          
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-64" />
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex flex-col md:flex-row md:items-start gap-6">
-                <Skeleton className="h-20 w-20 rounded-full" />
-                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            </CardContent>
-          </Card>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
       </DashboardLayout>
     );
   }
 
-  // Show error state
-  if (error) {
-    return (
-      <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={() => navigate("/customers")}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-            <h1 className="text-2xl font-bold text-destructive">Error Loading Customer</h1>
-          </div>
-          
-          <Card>
-            <CardContent className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <p className="text-lg text-muted-foreground mb-4">{error}</p>
-                <Button onClick={() => window.location.reload()}>
-                  Try Again
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </DashboardLayout>
-    );
-  }
-  
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={() => navigate(isEditing ? `/customers/${id}` : "/customers")}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="flex items-center gap-4 mb-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/customers')}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Customers
           </Button>
-          <h1 className="text-2xl font-bold">{isEditing ? "Edit Customer" : "Add New Customer"}</h1>
+          <h1 className="text-2xl font-bold">
+            {id ? 'Edit Customer' : 'Add New Customer'}
+          </h1>
         </div>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>{isEditing ? "Edit Customer Details" : "Enter Customer Details"}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CustomerForm
-              initialData={initialData}
-              onSubmit={onSubmit}
-              isSubmitting={isSubmitting}
-              submitLabel={isEditing ? "Update Customer" : "Add Customer"}
-              customerId={isEditing ? getDbCustomerId() || undefined : undefined}
-            />
-          </CardContent>
-        </Card>
+
+        <CustomerForm
+          initialData={initialData}
+          onSubmit={handleSubmit}
+          isSubmitting={isSubmitting}
+          submitLabel={id ? "Update Customer" : "Create Customer"}
+          customerId={id}
+        />
       </div>
     </DashboardLayout>
   );
-};
-
-export default AddEditCustomer;
+}
