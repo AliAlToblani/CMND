@@ -1,9 +1,8 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Customer } from "@/types/customers";
-import { ProcessedCustomer, MonthlyRenewal } from "./types";
+import { ProcessedCustomer } from "./types";
 import { useToast } from "@/hooks/use-toast";
 
 export const useSubscriptionData = () => {
