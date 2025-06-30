@@ -128,7 +128,7 @@ export const countryOptions = [
   "Luxembourg",
   "Iceland",
   
-  // Middle East - Comprehensive list
+  // Middle East - Individual countries only
   "United Arab Emirates",
   "Saudi Arabia",
   "Qatar",
