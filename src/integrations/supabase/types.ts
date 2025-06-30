@@ -11,6 +11,7 @@ export type Database = {
     Tables: {
       contracts: {
         Row: {
+          annual_rate: number | null
           created_at: string
           customer_id: string
           end_date: string
@@ -18,6 +19,7 @@ export type Database = {
           name: string
           owner_id: string | null
           renewal_date: string | null
+          setup_fee: number | null
           start_date: string
           status: string | null
           terms: string | null
@@ -25,6 +27,7 @@ export type Database = {
           value: number
         }
         Insert: {
+          annual_rate?: number | null
           created_at?: string
           customer_id: string
           end_date: string
@@ -32,6 +35,7 @@ export type Database = {
           name: string
           owner_id?: string | null
           renewal_date?: string | null
+          setup_fee?: number | null
           start_date: string
           status?: string | null
           terms?: string | null
@@ -39,6 +43,7 @@ export type Database = {
           value: number
         }
         Update: {
+          annual_rate?: number | null
           created_at?: string
           customer_id?: string
           end_date?: string
@@ -46,6 +51,7 @@ export type Database = {
           name?: string
           owner_id?: string | null
           renewal_date?: string | null
+          setup_fee?: number | null
           start_date?: string
           status?: string | null
           terms?: string | null

@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,9 @@ import { format } from "date-fns";
 export interface Contract {
   id?: string;
   name: string;
-  value: number;
+  value: number; // Calculated field (setup_fee + annual_rate)
+  setup_fee: number;
+  annual_rate: number;
   start_date: string;
   end_date: string;
   status: "active" | "pending" | "expired" | "draft";
@@ -33,6 +36,8 @@ export const ContractsList: React.FC<ContractsListProps> = ({
     const newContract: Contract = {
       name: `Contract ${contracts.length + 1}`,
       value: 0,
+      setup_fee: 0,
+      annual_rate: 0,
       start_date: new Date().toISOString().split('T')[0],
       end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       status: "draft",
@@ -81,8 +86,13 @@ export const ContractsList: React.FC<ContractsListProps> = ({
     }
   };
 
-  const totalValue = contracts.reduce((sum, contract) => sum + contract.value, 0);
+  // Calculate total lifetime value from setup fees and annual rates
+  const totalValue = contracts.reduce((sum, contract) => 
+    sum + (contract.setup_fee || 0) + (contract.annual_rate || 0), 0
+  );
   const activeContracts = contracts.filter(c => c.status === "active").length;
+  const totalSetupFees = contracts.reduce((sum, contract) => sum + (contract.setup_fee || 0), 0);
+  const totalAnnualRates = contracts.reduce((sum, contract) => sum + (contract.annual_rate || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -107,9 +117,10 @@ export const ContractsList: React.FC<ContractsListProps> = ({
                 {formatCurrency(totalValue)}
               </div>
               {contracts.length > 0 && (
-                <p className="text-sm text-gray-500 mt-1">
-                  Avg: {formatCurrency(totalValue / contracts.length)}
-                </p>
+                <div className="text-sm text-gray-500 mt-1">
+                  <div>Setup: {formatCurrency(totalSetupFees)}</div>
+                  <div>Annual: {formatCurrency(totalAnnualRates)}</div>
+                </div>
               )}
             </div>
           </div>
@@ -166,14 +177,39 @@ export const ContractsList: React.FC<ContractsListProps> = ({
                 </div>
               </div>
               
-              {/* Contract Value - Prominent Display */}
+              {/* Contract Value Breakdown */}
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                <div className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-green-500" />
-                  <div>
-                    <div className="text-xs text-gray-600 uppercase tracking-wide">Contract Value</div>
-                    <div className="text-2xl font-bold text-green-600">
-                      {formatCurrency(contract.value)}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-blue-500" />
+                    <div>
+                      <div className="text-xs text-gray-600 uppercase tracking-wide">Setup Fee</div>
+                      <div className="text-lg font-bold text-blue-600">
+                        {formatCurrency(contract.setup_fee || 0)}
+                      </div>
+                      <div className="text-xs text-gray-500">One-time</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-purple-500" />
+                    <div>
+                      <div className="text-xs text-gray-600 uppercase tracking-wide">Annual Rate</div>
+                      <div className="text-lg font-bold text-purple-600">
+                        {formatCurrency(contract.annual_rate || 0)}
+                      </div>
+                      <div className="text-xs text-gray-500">Per year</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-green-500" />
+                    <div>
+                      <div className="text-xs text-gray-600 uppercase tracking-wide">Total Value</div>
+                      <div className="text-lg font-bold text-green-600">
+                        {formatCurrency((contract.setup_fee || 0) + (contract.annual_rate || 0))}
+                      </div>
+                      <div className="text-xs text-gray-500">Combined</div>
                     </div>
                   </div>
                 </div>
@@ -220,7 +256,7 @@ export const ContractsList: React.FC<ContractsListProps> = ({
               </div>
               <h3 className="text-xl font-medium text-gray-900 mb-2">No contracts yet</h3>
               <p className="text-gray-600 mb-6 max-w-sm mx-auto">
-                Add contracts to track values and renewal dates for {customerName}. Each contract will contribute to the total lifetime value.
+                Add contracts to track setup fees, annual rates and renewal dates for {customerName}. Each contract will contribute to the total lifetime value.
               </p>
               <Button onClick={handleAddContract} size="lg">
                 <Plus className="h-5 w-5 mr-2" />
@@ -266,17 +302,31 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
 }) => {
   const [formData, setFormData] = useState<Contract>(contract);
 
+  // Calculate total value whenever setup_fee or annual_rate changes
+  React.useEffect(() => {
+    const totalValue = (formData.setup_fee || 0) + (formData.annual_rate || 0);
+    setFormData(prev => ({ ...prev, value: totalValue }));
+  }, [formData.setup_fee, formData.annual_rate]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
     onClose();
   };
 
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+    }).format(value);
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
         <h3 className="text-lg font-semibold mb-4">
           {isNewContract ? "Add New Contract" : "Edit Contract"}
         </h3>
@@ -293,16 +343,41 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
             />
           </div>
           
-          <div>
-            <label className="block text-sm font-medium mb-1">Value ($)</label>
-            <input
-              type="number"
-              value={formData.value}
-              onChange={(e) => setFormData({...formData, value: Number(e.target.value)})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-              min="0"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Setup Fee ($)</label>
+              <input
+                type="number"
+                value={formData.setup_fee || 0}
+                onChange={(e) => setFormData({...formData, setup_fee: Number(e.target.value)})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                min="0"
+                placeholder="One-time fee"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Annual Rate ($)</label>
+              <input
+                type="number"
+                value={formData.annual_rate || 0}
+                onChange={(e) => setFormData({...formData, annual_rate: Number(e.target.value)})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                min="0"
+                placeholder="Yearly recurring"
+              />
+            </div>
+          </div>
+          
+          {/* Total Value Display */}
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <label className="block text-sm font-medium text-green-800 mb-1">Total Contract Value</label>
+            <div className="text-xl font-bold text-green-600">
+              {formatCurrency((formData.setup_fee || 0) + (formData.annual_rate || 0))}
+            </div>
+            <div className="text-xs text-green-600 mt-1">
+              Auto-calculated from setup fee + annual rate
+            </div>
           </div>
           
           <div className="grid grid-cols-2 gap-4">

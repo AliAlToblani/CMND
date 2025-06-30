@@ -131,7 +131,7 @@ const AddEditCustomer = () => {
         toast.success("Customer added successfully");
       }
       
-      // Handle contracts - save them to the database
+      // Handle contracts - save them to the database with new structure
       if (contracts.length > 0) {
         // First, delete existing contracts if editing
         if (isEditing) {
@@ -141,11 +141,13 @@ const AddEditCustomer = () => {
             .eq('customer_id', customerId);
         }
         
-        // Insert new contracts
+        // Insert new contracts with setup_fee and annual_rate
         const contractsToInsert = contracts.map(contract => ({
           customer_id: customerId,
           name: contract.name,
-          value: contract.value,
+          value: (contract.setup_fee || 0) + (contract.annual_rate || 0), // Calculate total value
+          setup_fee: contract.setup_fee || 0,
+          annual_rate: contract.annual_rate || 0,
           start_date: contract.start_date,
           end_date: contract.end_date,
           status: contract.status,

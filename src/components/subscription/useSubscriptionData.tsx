@@ -55,7 +55,7 @@ export const useSubscriptionData = () => {
       
       if (error) throw error;
       
-      // Fetch contracts for these customers
+      // Fetch contracts for these customers with new structure
       const { data: contractsData, error: contractsError } = await supabase
         .from('contracts')
         .select('*')
@@ -77,10 +77,20 @@ export const useSubscriptionData = () => {
       const customersWithContracts = customersData?.map(customer => {
         const customerContracts = contractsByCustomer[customer.id] || [];
         
-        // Calculate lifetime value: sum of all contract values + setup fees
-        const contractsValue = customerContracts.reduce((sum, contract) => sum + (contract.value || 0), 0);
-        const setupFeesValue = customerContracts.reduce((sum, contract) => sum + (contract.setup_fee || 0), 0);
-        const lifetimeValue = contractsValue + setupFeesValue + (customer.setup_fee || 0);
+        // Calculate lifetime value using new structure: sum of setup fees + annual rates
+        const contractsSetupFees = customerContracts.reduce((sum, contract) => sum + (contract.setup_fee || 0), 0);
+        const contractsAnnualRates = customerContracts.reduce((sum, contract) => sum + (contract.annual_rate || 0), 0);
+        const lifetimeValue = contractsSetupFees + contractsAnnualRates;
+        
+        // For backward compatibility, also include legacy value field if setup_fee and annual_rate are not set
+        const legacyContractValue = customerContracts.reduce((sum, contract) => {
+          if (!contract.setup_fee && !contract.annual_rate && contract.value) {
+            return sum + contract.value;
+          }
+          return sum;
+        }, 0);
+        
+        const totalLifetimeValue = lifetimeValue + legacyContractValue;
         
         // Get the latest end date for renewal tracking
         const latestEndDate = customerContracts.reduce((latest, contract) => {
@@ -90,15 +100,23 @@ export const useSubscriptionData = () => {
           return latest;
         }, null);
         
+        // Calculate effective annual rate from all contracts
+        const effectiveAnnualRate = contractsAnnualRates + customerContracts.reduce((sum, contract) => {
+          if (!contract.setup_fee && !contract.annual_rate && contract.value) {
+            return sum + contract.value; // Treat legacy values as annual rate
+          }
+          return sum;
+        }, 0);
+        
         return {
           ...customer,
           contracts: customerContracts,
           contractCount: customerContracts.length,
-          lifetimeValue: lifetimeValue,
+          lifetimeValue: totalLifetimeValue,
           // Use contract end date if available, otherwise fall back to subscription_end_date
           effective_end_date: latestEndDate || customer.subscription_end_date,
-          // Use contract value if available, otherwise fall back to annual_rate
-          effective_annual_rate: contractsValue || customer.annual_rate || 0
+          // Use calculated annual rate from contracts
+          effective_annual_rate: effectiveAnnualRate || customer.annual_rate || 0
         };
       }) || [];
       
