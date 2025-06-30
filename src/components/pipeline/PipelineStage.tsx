@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { PipelineStageData } from "@/hooks/usePipelineData";
 import { CustomerDot } from "./CustomerDot";
@@ -22,8 +21,8 @@ export const PipelineStage: React.FC<PipelineStageProps> = ({
   totalStages 
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  // Grid layout: 8 columns × 3 rows = 24 customers to fill the card optimally
-  const INITIAL_DISPLAY_COUNT = 24;
+  // Grid layout: 8 columns × 2 rows = 16 customers to fill the card optimally
+  const INITIAL_DISPLAY_COUNT = 16;
 
   const getStageColor = (index: number, total: number) => {
     const ratio = index / (total - 1);
@@ -55,7 +54,7 @@ export const PipelineStage: React.FC<PipelineStageProps> = ({
     <Card className={`
       relative w-96 p-6 transition-all duration-300 hover:shadow-lg overflow-visible
       ${isEmpty ? 'bg-gray-50 dark:bg-gray-800 border-dashed' : ''}
-      ${isExpanded ? 'min-h-[600px]' : 'min-h-[320px]'}
+      ${isExpanded ? 'min-h-[600px]' : 'min-h-[280px]'}
     `}>
       {/* Stage Header */}
       <div className="mb-6">
