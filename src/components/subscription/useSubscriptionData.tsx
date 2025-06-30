@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,9 +27,9 @@ export const useSubscriptionData = () => {
     }
   });
 
-  // Fetch customers who have completed "Go Live" stage
+  // Fetch customers who have completed "Go Live" stage along with their contracts
   const { data: customers = [], isLoading } = useQuery({
-    queryKey: ['subscription-tracker'],
+    queryKey: ['subscription-tracker-with-contracts'],
     queryFn: async () => {
       // First, get customer IDs who have completed "Go Live" stage
       const { data: goLiveCustomers, error: stageError } = await supabase
@@ -47,21 +48,69 @@ export const useSubscriptionData = () => {
       }
       
       // Now fetch customers with those IDs
-      const { data, error } = await supabase
+      const { data: customersData, error } = await supabase
         .from('customers')
         .select('*')
         .in('id', customerIds)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return data as Customer[];
+      
+      // Fetch contracts for these customers
+      const { data: contractsData, error: contractsError } = await supabase
+        .from('contracts')
+        .select('*')
+        .in('customer_id', customerIds)
+        .in('status', ['active', 'pending']); // Only include active and pending contracts
+      
+      if (contractsError) throw contractsError;
+      
+      // Group contracts by customer
+      const contractsByCustomer = contractsData?.reduce((acc, contract) => {
+        if (!acc[contract.customer_id]) {
+          acc[contract.customer_id] = [];
+        }
+        acc[contract.customer_id].push(contract);
+        return acc;
+      }, {} as Record<string, any[]>) || {};
+      
+      // Merge customer data with contract data
+      const customersWithContracts = customersData?.map(customer => {
+        const customerContracts = contractsByCustomer[customer.id] || [];
+        
+        // Calculate total contract value and get the latest end date
+        const totalContractValue = customerContracts.reduce((sum, contract) => sum + (contract.value || 0), 0);
+        const latestEndDate = customerContracts.reduce((latest, contract) => {
+          if (!latest || new Date(contract.end_date) > new Date(latest)) {
+            return contract.end_date;
+          }
+          return latest;
+        }, null);
+        
+        return {
+          ...customer,
+          contracts: customerContracts,
+          total_contract_value: totalContractValue,
+          // Use contract end date if available, otherwise fall back to subscription_end_date
+          effective_end_date: latestEndDate || customer.subscription_end_date,
+          // Use contract value if available, otherwise fall back to annual_rate
+          effective_annual_rate: totalContractValue || customer.annual_rate || 0
+        };
+      }) || [];
+      
+      return customersWithContracts as (Customer & { 
+        contracts: any[], 
+        total_contract_value: number,
+        effective_end_date: string | null,
+        effective_annual_rate: number
+      })[];
     }
   });
 
-  const processCustomers = (customers: Customer[]): ProcessedCustomer[] => {
+  const processCustomers = (customers: any[]): ProcessedCustomer[] => {
     return customers.map(customer => {
       const today = new Date();
-      const endDate = customer.subscription_end_date ? new Date(customer.subscription_end_date) : null;
+      const endDate = customer.effective_end_date ? new Date(customer.effective_end_date) : null;
       const startDate = customer.go_live_date ? new Date(customer.go_live_date) : null;
       
       let timeLeft = "";
@@ -103,6 +152,9 @@ export const useSubscriptionData = () => {
 
       return {
         ...customer,
+        // Use effective values from contracts
+        annual_rate: customer.effective_annual_rate,
+        subscription_end_date: customer.effective_end_date,
         timeLeft,
         status,
         delta,
@@ -164,12 +216,27 @@ export const useSubscriptionData = () => {
   // Handle update subscription date
   const handleUpdateDate = async (customerId: string, newDate: string, customerName: string) => {
     try {
-      const { error } = await supabase
+      // Update the customer's subscription end date
+      const { error: customerError } = await supabase
         .from('customers')
         .update({ subscription_end_date: newDate })
         .eq('id', customerId);
 
-      if (error) throw error;
+      if (customerError) throw customerError;
+
+      // Also update the end date of the customer's most recent contract
+      const { error: contractError } = await supabase
+        .from('contracts')
+        .update({ 
+          end_date: newDate,
+          renewal_date: newDate 
+        })
+        .eq('customer_id', customerId)
+        .in('status', ['active', 'pending']);
+
+      if (contractError) {
+        console.warn('Failed to update contract dates:', contractError);
+      }
 
       toast({
         title: "Date Updated",

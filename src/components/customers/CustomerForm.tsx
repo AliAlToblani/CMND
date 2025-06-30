@@ -1,4 +1,5 @@
-import React, { useRef } from "react";
+
+import React, { useRef, useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -22,6 +23,8 @@ import {
 } from "@/components/ui/form";
 import { industryOptions, countryOptions } from "@/data/defaultLifecycleStages";
 import { CustomerAvatarUpload, CustomerAvatarUploadRef } from "./CustomerAvatarUpload";
+import { ContractsList, Contract } from "./ContractsList";
+import { supabase } from "@/integrations/supabase/client";
 
 const customerFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -44,18 +47,22 @@ export type CustomerFormData = z.infer<typeof customerFormSchema>;
 
 interface CustomerFormProps {
   initialData?: Partial<CustomerFormData>;
-  onSubmit: (data: CustomerFormData) => void;
+  onSubmit: (data: CustomerFormData, contracts: Contract[]) => void;
   isSubmitting?: boolean;
   submitLabel?: string;
+  customerId?: string;
 }
 
 export function CustomerForm({ 
   initialData, 
   onSubmit, 
   isSubmitting = false, 
-  submitLabel = "Save Customer" 
+  submitLabel = "Save Customer",
+  customerId
 }: CustomerFormProps) {
   const avatarUploadRef = useRef<CustomerAvatarUploadRef>(null);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [loadingContracts, setLoadingContracts] = useState(false);
   
   const form = useForm<CustomerFormData>({
     resolver: zodResolver(customerFormSchema),
@@ -77,6 +84,64 @@ export function CustomerForm({
     },
   });
 
+  // Load existing contracts for the customer
+  useEffect(() => {
+    const loadContracts = async () => {
+      if (!customerId) return;
+      
+      setLoadingContracts(true);
+      try {
+        const { data, error } = await supabase
+          .from('contracts')
+          .select('*')
+          .eq('customer_id', customerId)
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          console.error('Error loading contracts:', error);
+          return;
+        }
+        
+        if (data) {
+          const mappedContracts: Contract[] = data.map(contract => ({
+            id: contract.id,
+            name: contract.name,
+            value: contract.value,
+            start_date: contract.start_date,
+            end_date: contract.end_date,
+            status: contract.status as Contract["status"],
+            terms: contract.terms || ""
+          }));
+          setContracts(mappedContracts);
+        }
+      } catch (error) {
+        console.error('Error loading contracts:', error);
+      } finally {
+        setLoadingContracts(false);
+      }
+    };
+    
+    loadContracts();
+  }, [customerId]);
+
+  // Create initial contract from legacy fields if customer has setup_fee or annual_rate
+  useEffect(() => {
+    if (!customerId && contracts.length === 0 && (initialData?.setup_fee || initialData?.annual_rate)) {
+      const legacyContractValue = (initialData.setup_fee || 0) + (initialData.annual_rate || 0);
+      if (legacyContractValue > 0) {
+        const legacyContract: Contract = {
+          name: "Primary Contract",
+          value: legacyContractValue,
+          start_date: initialData.go_live_date ? format(initialData.go_live_date, "yyyy-MM-dd") : new Date().toISOString().split('T')[0],
+          end_date: initialData.subscription_end_date ? format(initialData.subscription_end_date, "yyyy-MM-dd") : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          status: "active",
+          terms: ""
+        };
+        setContracts([legacyContract]);
+      }
+    }
+  }, [initialData, customerId, contracts.length]);
+
   const handleFormSubmit = (data: CustomerFormData) => {
     // Get the final logo value from the avatar component
     if (avatarUploadRef.current) {
@@ -84,7 +149,7 @@ export function CustomerForm({
       data.logo = finalLogoValue;
     }
     
-    onSubmit(data);
+    onSubmit(data, contracts);
   };
 
   const segmentOptions = [
@@ -99,10 +164,8 @@ export function CustomerForm({
     label: country
   }));
 
-  // Calculate total contract value
-  const setupFee = form.watch("setup_fee") || 0;
-  const annualRate = form.watch("annual_rate") || 0;
-  const totalContractValue = setupFee + annualRate;
+  // Calculate total contract value from contracts
+  const totalContractValue = contracts.reduce((sum, contract) => sum + contract.value, 0);
 
   // Watch customer name for avatar component
   const customerName = form.watch("name");
@@ -122,7 +185,7 @@ export function CustomerForm({
         {/* Customer Profile Section */}
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-start gap-6">
-            {/* Profile Image - NO LONGER WRAPPED IN FormField */}
+            {/* Profile Image */}
             <div className="flex-shrink-0">
               <div className="space-y-2">
                 <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -131,7 +194,7 @@ export function CustomerForm({
                 <CustomerAvatarUpload
                   ref={avatarUploadRef}
                   value={initialData?.logo || ""}
-                  onChange={() => {}} // Empty function - we don't need to update form state
+                  onChange={() => {}}
                   customerName={customerName || "New Customer"}
                 />
               </div>
@@ -228,86 +291,101 @@ export function CustomerForm({
           </div>
         </div>
 
-        {/* Contract Details Section */}
+        {/* Contracts Management Section */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold flex items-center gap-2">
-            Contract Details
+            Contract Management
           </h3>
           
-          {/* Show Total Contract Value if we have setup fee or annual rate */}
-          {totalContractValue > 0 && (
-            <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="text-sm text-blue-600 dark:text-blue-400 font-medium">
-                Total Contract Value
+          {loadingContracts ? (
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+          ) : (
+            <ContractsList
+              contracts={contracts}
+              onContractsChange={setContracts}
+              customerName={customerName || "Customer"}
+            />
+          )}
+        </div>
+
+        {/* Legacy Contract Details Section - Only show if no contracts exist yet */}
+        {contracts.length === 0 && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              Legacy Contract Details
+            </h3>
+            
+            <div className="bg-yellow-50 dark:bg-yellow-950/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
+              <div className="text-sm text-yellow-600 dark:text-yellow-400 font-medium mb-2">
+                Migration Notice
               </div>
-              <div className="text-2xl font-bold text-blue-800 dark:text-blue-300">
-                {formatCurrency(totalContractValue)}
-              </div>
-              <div className="text-xs text-blue-500 dark:text-blue-400 mt-1">
-                Setup Fee + Annual Rate
+              <div className="text-xs text-yellow-500 dark:text-yellow-400">
+                These legacy fields will be converted to a contract when you save. Use the Contract Management section above for better contract tracking.
               </div>
             </div>
-          )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <FormField
-              control={form.control}
-              name="setup_fee"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Setup Fee ($)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      placeholder="0.00" 
-                      {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <FormField
+                control={form.control}
+                name="setup_fee"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Setup Fee ($)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        placeholder="0.00" 
+                        {...field}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="annual_rate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Annual Rate ($)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      placeholder="0.00"
-                      {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="annual_rate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Annual Rate ($)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        placeholder="0.00"
+                        {...field}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="contract_size"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Legacy Contract Size ($)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      placeholder="Enter contract size" 
-                      {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="contract_size"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Legacy Contract Size ($)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        placeholder="Enter contract size" 
+                        {...field}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Timeline / Dates Section */}
         <div className="space-y-4">

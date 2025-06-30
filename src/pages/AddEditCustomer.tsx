@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomerInsert } from "@/types/customers";
 import { CustomerForm, CustomerFormData } from "@/components/customers/CustomerForm";
+import { Contract } from "@/components/customers/ContractsList";
 
 const AddEditCustomer = () => {
   const { id } = useParams();
@@ -85,7 +86,7 @@ const AddEditCustomer = () => {
     fetchCustomer();
   }, [id, isEditing]);
   
-  async function onSubmit(values: CustomerFormData) {
+  async function onSubmit(values: CustomerFormData, contracts: Contract[]) {
     setIsSubmitting(true);
     
     try {
@@ -109,6 +110,8 @@ const AddEditCustomer = () => {
         description: values.description || null,
       };
       
+      let customerId: string;
+      
       if (isEditing) {
         const dbCustomerId = getDbCustomerId();
         const { error } = await supabase
@@ -117,6 +120,7 @@ const AddEditCustomer = () => {
           .eq('id', dbCustomerId);
         
         if (error) throw error;
+        customerId = dbCustomerId!;
         
         toast.success("Customer updated successfully");
       } else {
@@ -127,8 +131,44 @@ const AddEditCustomer = () => {
           .single();
         
         if (error) throw error;
+        customerId = data.id;
         
         toast.success("Customer added successfully");
+      }
+      
+      // Handle contracts - save them to the database
+      if (contracts.length > 0) {
+        // First, delete existing contracts if editing
+        if (isEditing) {
+          await supabase
+            .from('contracts')
+            .delete()
+            .eq('customer_id', customerId);
+        }
+        
+        // Insert new contracts
+        const contractsToInsert = contracts.map(contract => ({
+          customer_id: customerId,
+          name: contract.name,
+          value: contract.value,
+          start_date: contract.start_date,
+          end_date: contract.end_date,
+          status: contract.status,
+          terms: contract.terms || null,
+          owner_id: customerData.owner_id,
+          renewal_date: contract.end_date // Set renewal date to end date initially
+        }));
+        
+        const { error: contractsError } = await supabase
+          .from('contracts')
+          .insert(contractsToInsert);
+        
+        if (contractsError) {
+          console.error("Error saving contracts:", contractsError);
+          toast.error("Customer saved but failed to save contracts");
+        } else {
+          console.log(`Saved ${contracts.length} contracts for customer ${customerId}`);
+        }
       }
       
       navigate("/customers");
@@ -246,6 +286,7 @@ const AddEditCustomer = () => {
               onSubmit={onSubmit}
               isSubmitting={isSubmitting}
               submitLabel={isEditing ? "Update Customer" : "Add Customer"}
+              customerId={isEditing ? getDbCustomerId() || undefined : undefined}
             />
           </CardContent>
         </Card>
