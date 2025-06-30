@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -61,10 +60,6 @@ const AddEditCustomer = () => {
           // Convert database data to form format
           const customerData = {
             ...data,
-            contractSize: data.contract_size,
-            contract_size: data.contract_size,
-            setup_fee: data.setup_fee || 0,
-            annual_rate: data.annual_rate || 0,
             go_live_date: data.go_live_date ? new Date(data.go_live_date) : undefined,
             subscription_end_date: data.subscription_end_date ? new Date(data.subscription_end_date) : undefined,
             owner: {
@@ -96,9 +91,9 @@ const AddEditCustomer = () => {
         country: values.country,
         stage: "New",
         status: "not-started",
-        contract_size: values.contract_size || 0,
-        setup_fee: values.setup_fee || 0,
-        annual_rate: values.annual_rate || 0,
+        contract_size: 0,
+        setup_fee: 0,
+        annual_rate: 0,
         go_live_date: values.go_live_date ? values.go_live_date.toISOString().split('T')[0] : null,
         subscription_end_date: values.subscription_end_date ? values.subscription_end_date.toISOString().split('T')[0] : null,
         owner_id: "user-001", // Default owner
@@ -180,15 +175,12 @@ const AddEditCustomer = () => {
     }
   }
   
-  // Prepare initial data for the form
+  // Prepare initial data for the form - removed legacy contract fields
   const initialData: Partial<CustomerFormData> = customer ? {
     name: customer.name || "",
     segment: customer.segment || "Enterprise",
     country: customer.country || "",
     industry: customer.industry || "",
-    contract_size: customer.contract_size || 0,
-    setup_fee: customer.setup_fee || 0,
-    annual_rate: customer.annual_rate || 0,
     go_live_date: customer.go_live_date,
     subscription_end_date: customer.subscription_end_date,
     description: customer.description || "",

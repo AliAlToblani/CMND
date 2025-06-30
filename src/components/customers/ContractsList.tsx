@@ -1,9 +1,8 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Calendar, DollarSign } from "lucide-react";
+import { Plus, Edit, Trash2, Calendar, DollarSign, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 
 export interface Contract {
@@ -83,42 +82,65 @@ export const ContractsList: React.FC<ContractsListProps> = ({
   };
 
   const totalValue = contracts.reduce((sum, contract) => sum + contract.value, 0);
+  const activeContracts = contracts.filter(c => c.status === "active").length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      {/* Enhanced Total Value Summary */}
+      <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-green-100 rounded-full">
+                <TrendingUp className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900">Total Lifetime Value</h4>
+                <p className="text-sm text-gray-600">
+                  {contracts.length} {contracts.length === 1 ? 'Contract' : 'Contracts'} 
+                  {activeContracts > 0 && ` • ${activeContracts} Active`}
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-3xl font-bold text-green-600">
+                {formatCurrency(totalValue)}
+              </div>
+              {contracts.length > 0 && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Avg: {formatCurrency(totalValue / contracts.length)}
+                </p>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Header with Add Button */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Contracts</h3>
+        <div>
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-green-600" />
+            All Contracts
+          </h3>
+          <p className="text-sm text-gray-600 mt-1">
+            Manage all contracts for {customerName}
+          </p>
+        </div>
         <Button onClick={handleAddContract} size="sm">
           <Plus className="h-4 w-4 mr-2" />
           Add Contract
         </Button>
       </div>
 
-      {/* Total Value Summary */}
-      {contracts.length > 0 && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <DollarSign className="h-5 w-5 text-green-600" />
-                <span className="text-sm font-medium text-gray-600">Total Contract Value</span>
-              </div>
-              <span className="text-2xl font-bold text-green-600">
-                {formatCurrency(totalValue)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Contracts List */}
       <div className="space-y-3">
         {contracts.map((contract, index) => (
-          <Card key={contract.id || index}>
+          <Card key={contract.id || index} className="border-l-4 border-l-blue-500">
             <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <h4 className="font-medium">{contract.name}</h4>
+                  <h4 className="font-semibold text-lg">{contract.name}</h4>
                   <Badge className={getStatusColor(contract.status)}>
                     {contract.status}
                   </Badge>
@@ -144,44 +166,64 @@ export const ContractsList: React.FC<ContractsListProps> = ({
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-600">Value:</span>
-                  <div className="font-medium">{formatCurrency(contract.value)}</div>
+              {/* Contract Value - Prominent Display */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-green-500" />
+                  <div>
+                    <div className="text-xs text-gray-600 uppercase tracking-wide">Contract Value</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      {formatCurrency(contract.value)}
+                    </div>
+                  </div>
                 </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-gray-600">Start Date:</span>
-                  <div className="font-medium flex items-center gap-1">
+                  <div className="font-medium flex items-center gap-1 mt-1">
                     <Calendar className="h-3 w-3" />
                     {format(new Date(contract.start_date), "MMM dd, yyyy")}
                   </div>
                 </div>
                 <div>
                   <span className="text-gray-600">End Date:</span>
-                  <div className="font-medium flex items-center gap-1">
+                  <div className="font-medium flex items-center gap-1 mt-1">
                     <Calendar className="h-3 w-3" />
                     {format(new Date(contract.end_date), "MMM dd, yyyy")}
                   </div>
                 </div>
               </div>
+
+              {contract.terms && (
+                <div className="mt-4 pt-4 border-t">
+                  <div className="text-sm">
+                    <div className="text-xs text-gray-600 uppercase tracking-wide mb-2">Terms</div>
+                    <div className="text-gray-800 bg-white p-3 rounded border text-sm">
+                      {contract.terms}
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
       </div>
 
       {contracts.length === 0 && (
-        <Card>
+        <Card className="border-dashed border-2 border-gray-300">
           <CardContent className="pt-6">
             <div className="text-center py-8">
-              <div className="text-gray-400 mb-2">
-                <DollarSign className="h-12 w-12 mx-auto" />
+              <div className="text-gray-400 mb-4">
+                <DollarSign className="h-16 w-16 mx-auto" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No contracts yet</h3>
-              <p className="text-gray-600 mb-4">
-                Add contracts to track values and renewal dates for {customerName}.
+              <h3 className="text-xl font-medium text-gray-900 mb-2">No contracts yet</h3>
+              <p className="text-gray-600 mb-6 max-w-sm mx-auto">
+                Add contracts to track values and renewal dates for {customerName}. Each contract will contribute to the total lifetime value.
               </p>
-              <Button onClick={handleAddContract}>
-                <Plus className="h-4 w-4 mr-2" />
+              <Button onClick={handleAddContract} size="lg">
+                <Plus className="h-5 w-5 mr-2" />
                 Add First Contract
               </Button>
             </div>

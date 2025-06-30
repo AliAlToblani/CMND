@@ -31,9 +31,6 @@ const customerFormSchema = z.object({
   segment: z.string().min(1, "Segment is required"),
   country: z.string().min(1, "Country is required"),
   industry: z.string().optional(),
-  contract_size: z.number().min(0, "Contract size must be positive").optional(),
-  setup_fee: z.number().min(0, "Setup fee must be positive").optional(),
-  annual_rate: z.number().min(0, "Annual rate must be positive").optional(),
   go_live_date: z.date().optional(),
   subscription_end_date: z.date().optional(),
   description: z.string().optional(),
@@ -71,9 +68,6 @@ export function CustomerForm({
       segment: initialData?.segment || "",
       country: initialData?.country || "",
       industry: initialData?.industry || "",
-      contract_size: initialData?.contract_size || 0,
-      setup_fee: initialData?.setup_fee || 0,
-      annual_rate: initialData?.annual_rate || 0,
       go_live_date: initialData?.go_live_date,
       subscription_end_date: initialData?.subscription_end_date,
       description: initialData?.description || "",
@@ -124,16 +118,19 @@ export function CustomerForm({
     loadContracts();
   }, [customerId]);
 
-  // Create initial contract from legacy fields if customer has setup_fee or annual_rate
+  // Create initial contract from legacy fields if customer has them and no contracts exist
   useEffect(() => {
-    if (!customerId && contracts.length === 0 && (initialData?.setup_fee || initialData?.annual_rate)) {
-      const legacyContractValue = (initialData.setup_fee || 0) + (initialData.annual_rate || 0);
+    const setupFee = (initialData as any)?.setup_fee || 0;
+    const annualRate = (initialData as any)?.annual_rate || 0;
+    
+    if (!customerId && contracts.length === 0 && (setupFee || annualRate)) {
+      const legacyContractValue = setupFee + annualRate;
       if (legacyContractValue > 0) {
         const legacyContract: Contract = {
           name: "Primary Contract",
           value: legacyContractValue,
-          start_date: initialData.go_live_date ? format(initialData.go_live_date, "yyyy-MM-dd") : new Date().toISOString().split('T')[0],
-          end_date: initialData.subscription_end_date ? format(initialData.subscription_end_date, "yyyy-MM-dd") : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          start_date: initialData?.go_live_date ? format(initialData.go_live_date, "yyyy-MM-dd") : new Date().toISOString().split('T')[0],
+          end_date: initialData?.subscription_end_date ? format(initialData.subscription_end_date, "yyyy-MM-dd") : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           status: "active",
           terms: ""
         };
@@ -164,20 +161,8 @@ export function CustomerForm({
     label: country
   }));
 
-  // Calculate total contract value from contracts
-  const totalContractValue = contracts.reduce((sum, contract) => sum + contract.value, 0);
-
   // Watch customer name for avatar component
   const customerName = form.watch("name");
-
-  // Currency formatting helper
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(value);
-  };
 
   return (
     <Form {...form}>
@@ -291,10 +276,10 @@ export function CustomerForm({
           </div>
         </div>
 
-        {/* Contracts Management Section */}
+        {/* Contract Details Section */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold flex items-center gap-2">
-            Contract Management
+            Contract Details
           </h3>
           
           {loadingContracts ? (
@@ -309,83 +294,6 @@ export function CustomerForm({
             />
           )}
         </div>
-
-        {/* Legacy Contract Details Section - Only show if no contracts exist yet */}
-        {contracts.length === 0 && (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              Legacy Contract Details
-            </h3>
-            
-            <div className="bg-yellow-50 dark:bg-yellow-950/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
-              <div className="text-sm text-yellow-600 dark:text-yellow-400 font-medium mb-2">
-                Migration Notice
-              </div>
-              <div className="text-xs text-yellow-500 dark:text-yellow-400">
-                These legacy fields will be converted to a contract when you save. Use the Contract Management section above for better contract tracking.
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <FormField
-                control={form.control}
-                name="setup_fee"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Setup Fee ($)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="0.00" 
-                        {...field}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="annual_rate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Annual Rate ($)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="0.00"
-                        {...field}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="contract_size"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Legacy Contract Size ($)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="Enter contract size" 
-                        {...field}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-        )}
 
         {/* Timeline / Dates Section */}
         <div className="space-y-4">
