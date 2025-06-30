@@ -36,7 +36,13 @@ export const CustomerTimeline: React.FC<CustomerTimelineProps> = ({ customer }) 
   };
 
   const formatValue = (value: number | null) => {
-    if (!value || value === 0) return "";
+    console.log("formatValue called with:", value, typeof value);
+    
+    // Explicitly handle null, undefined, 0, and falsy values
+    if (value === null || value === undefined || value === 0 || !value) {
+      console.log("formatValue returning empty string for:", value);
+      return null; // Return null instead of empty string to prevent rendering
+    }
     
     // Handle values that are already in correct format
     if (value >= 1000000) {
@@ -47,6 +53,12 @@ export const CustomerTimeline: React.FC<CustomerTimelineProps> = ({ customer }) 
     }
     return `$${value.toLocaleString()}`;
   };
+
+  // Add debugging for the customer data
+  console.log("CustomerTimeline rendering for:", customer.name, "Annual rate:", customer.annual_rate);
+
+  const formattedAnnualRate = formatValue(customer.annual_rate);
+  console.log("Formatted annual rate:", formattedAnnualRate);
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border p-6 hover:shadow-md transition-shadow">
@@ -103,10 +115,10 @@ export const CustomerTimeline: React.FC<CustomerTimelineProps> = ({ customer }) 
       {/* Financial Info */}
       <div className="flex items-center justify-between text-sm">
         <div className="flex items-center gap-4">
-          {customer.annual_rate && customer.annual_rate > 0 && (
+          {formattedAnnualRate && (
             <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
               <DollarSign className="h-3 w-3" />
-              <span className="font-medium">{formatValue(customer.annual_rate)}/year</span>
+              <span className="font-medium">{formattedAnnualRate}/year</span>
             </div>
           )}
         </div>
