@@ -1,9 +1,12 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { PipelineStageData } from "@/hooks/usePipelineData";
 import { CustomerDot } from "./CustomerDot";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ChevronUp, ChevronDown } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface PipelineStageProps {
   stage: PipelineStageData;
@@ -18,6 +21,9 @@ export const PipelineStage: React.FC<PipelineStageProps> = ({
   stageIndex,
   totalStages 
 }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const INITIAL_DISPLAY_COUNT = 10;
+
   const getStageColor = (index: number, total: number) => {
     const ratio = index / (total - 1);
     if (ratio <= 0.33) return "from-purple-500 to-purple-400";
@@ -37,11 +43,19 @@ export const PipelineStage: React.FC<PipelineStageProps> = ({
 
   const isEmpty = stage.customerCount === 0;
   const gradientClass = getStageColor(stageIndex, totalStages);
+  const hasOverflow = stage.customers.length > INITIAL_DISPLAY_COUNT;
+  const overflowCount = stage.customers.length - INITIAL_DISPLAY_COUNT;
+  const displayCustomers = isExpanded ? stage.customers : stage.customers.slice(0, INITIAL_DISPLAY_COUNT);
+
+  const toggleExpansion = () => {
+    setIsExpanded(!isExpanded);
+  };
 
   return (
     <Card className={`
-      relative w-64 min-h-[160px] p-4 transition-all duration-200 hover:shadow-lg
+      relative w-64 p-4 transition-all duration-300 hover:shadow-lg
       ${isEmpty ? 'bg-gray-50 dark:bg-gray-800 border-dashed' : ''}
+      ${isExpanded ? 'min-h-[300px]' : 'min-h-[160px]'}
     `}>
       {/* Stage Header */}
       <div className="mb-3">
@@ -69,21 +83,51 @@ export const PipelineStage: React.FC<PipelineStageProps> = ({
             <div className="text-xs mt-1">$0 value</div>
           </div>
         ) : (
-          <div className="space-y-2">
-            {/* Customer Dots */}
+          <div className="space-y-3">
+            {/* Initial Customer Dots Row */}
             <div className="flex flex-wrap gap-1">
-              {stage.customers.slice(0, 12).map((customer) => (
+              {stage.customers.slice(0, INITIAL_DISPLAY_COUNT).map((customer) => (
                 <CustomerDot key={customer.id} customer={customer} />
               ))}
-              {stage.customers.length > 12 && (
-                <Badge variant="secondary" className="text-xs">
-                  +{stage.customers.length - 12}
-                </Badge>
+              {hasOverflow && !isExpanded && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="h-8 w-auto px-2 text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+                  onClick={toggleExpansion}
+                >
+                  <ChevronDown className="h-3 w-3 mr-1" />
+                  +{overflowCount}
+                </Button>
               )}
             </div>
+
+            {/* Expanded Customer List */}
+            {isExpanded && hasOverflow && (
+              <div className="animate-fade-in">
+                <ScrollArea className="h-32 w-full">
+                  <div className="grid grid-cols-6 gap-1 pb-2">
+                    {stage.customers.slice(INITIAL_DISPLAY_COUNT).map((customer) => (
+                      <CustomerDot key={customer.id} customer={customer} />
+                    ))}
+                  </div>
+                </ScrollArea>
+                
+                {/* Collapse Button */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-6 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 mt-2"
+                  onClick={toggleExpansion}
+                >
+                  <ChevronUp className="h-3 w-3 mr-1" />
+                  Hide Remaining
+                </Button>
+              </div>
+            )}
             
             {/* Additional Info */}
-            <div className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+            <div className="text-xs text-gray-600 dark:text-gray-400">
               {viewMode === "value" ? (
                 <span>{stage.customerCount} customers</span>
               ) : (
