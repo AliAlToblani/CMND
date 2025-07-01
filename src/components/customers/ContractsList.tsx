@@ -32,8 +32,19 @@ export const ContractsList: React.FC<ContractsListProps> = ({
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
+  // Local state to track pending changes without triggering parent updates
+  const [localContracts, setLocalContracts] = useState<Contract[]>(contracts);
+
+  // Update local state when parent contracts change (but not during dialog operations)
+  React.useEffect(() => {
+    if (!isDialogOpen) {
+      setLocalContracts(contracts);
+    }
+  }, [contracts, isDialogOpen]);
 
   const handleAddContract = () => {
+    console.log('Adding new contract - opening dialog');
     const newContract: Contract = {
       id: `temp_${Date.now()}`, // Temporary ID for new contracts
       name: `Contract ${contracts.length + 1}`,
@@ -45,12 +56,17 @@ export const ContractsList: React.FC<ContractsListProps> = ({
       status: "draft",
       terms: ""
     };
+    
     setEditingContract(newContract);
     setShowAddForm(true);
     setIsDialogOpen(true);
+    
+    console.log('Dialog should be open now', { isDialogOpen: true, editingContract: newContract });
   };
 
   const handleSaveContract = (contract: Contract) => {
+    console.log('Saving contract:', contract);
+    
     // Create a copy of the contract with proper validation
     const validatedContract = {
       ...contract,
@@ -70,14 +86,16 @@ export const ContractsList: React.FC<ContractsListProps> = ({
           : validatedContract.id
       };
       updatedContracts = [...contracts, contractToAdd];
+      console.log('Adding new contract to parent state');
     } else {
       // Editing existing contract
       updatedContracts = contracts.map(c => 
         c.id === validatedContract.id ? validatedContract : c
       );
+      console.log('Updating existing contract in parent state');
     }
 
-    // Update the contracts state
+    // NOW update the parent state (this is the only place we should call onContractsChange)
     onContractsChange(updatedContracts);
     
     // Close dialog
@@ -86,17 +104,20 @@ export const ContractsList: React.FC<ContractsListProps> = ({
 
   const handleDeleteContract = (contractId: string | undefined) => {
     if (!contractId) return;
+    console.log('Deleting contract:', contractId);
     const updatedContracts = contracts.filter(c => c.id !== contractId);
     onContractsChange(updatedContracts);
   };
 
   const handleEditContract = (contract: Contract) => {
+    console.log('Editing contract:', contract);
     setEditingContract(contract);
     setShowAddForm(false);
     setIsDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
+    console.log('Closing dialog');
     setEditingContract(null);
     setShowAddForm(false);
     setIsDialogOpen(false);
@@ -298,8 +319,8 @@ export const ContractsList: React.FC<ContractsListProps> = ({
         </Card>
       )}
 
-      {/* Edit Contract Dialog */}
-      {editingContract && (
+      {/* Edit Contract Dialog - Only render when we have a contract to edit AND dialog is open */}
+      {editingContract && isDialogOpen && (
         <ContractEditDialog
           contract={editingContract}
           isOpen={isDialogOpen}
@@ -347,6 +368,8 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
     e.preventDefault();
     e.stopPropagation(); // Prevent event bubbling
     
+    console.log('Dialog form submitted', formData);
+    
     // Validate required fields
     if (!formData.name.trim()) {
       alert('Contract name is required');
@@ -371,6 +394,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
   const handleCancel = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    console.log('Dialog cancelled');
     onClose();
   };
 
@@ -382,7 +406,12 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
     }).format(value);
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) {
+    console.log('Dialog not open, not rendering');
+    return null;
+  }
+
+  console.log('Rendering dialog with contract:', contract);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
