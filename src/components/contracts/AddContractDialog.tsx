@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -37,6 +36,7 @@ export interface ContractDialogProps {
     value: number;
     start_date: string;
     end_date: string;
+    contract_number?: string;
   };
   isEditing?: boolean;
   onSuccess: () => void;
@@ -52,6 +52,7 @@ export function AddContractDialog({
 }: ContractDialogProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(contract?.name || "");
+  const [contractNumber, setContractNumber] = useState(contract?.contract_number || "");
   const [type, setType] = useState(contract?.type || "Service Agreement");
   const [status, setStatus] = useState(contract?.status || "draft");
   const [startDate, setStartDate] = useState<Date | undefined>(
@@ -79,6 +80,7 @@ export function AddContractDialog({
       const contractData = {
         customer_id: customerId,
         name,
+        contract_number: contractNumber || null,
         status,
         value: value ? parseInt(value, 10) : 0,
         start_date: startDate ? startDate.toISOString() : null,
@@ -101,7 +103,11 @@ export function AddContractDialog({
       
       if (result.error) {
         console.error("Error saving contract:", result.error);
-        toast.error(isEditing ? "Failed to update contract" : "Failed to create contract");
+        if (result.error.code === '23505' && result.error.message.includes('contract_number')) {
+          toast.error("Contract number already exists. Please use a unique contract number.");
+        } else {
+          toast.error(isEditing ? "Failed to update contract" : "Failed to create contract");
+        }
         return;
       }
       
@@ -118,6 +124,7 @@ export function AddContractDialog({
   const resetForm = () => {
     if (!isEditing) {
       setName("");
+      setContractNumber("");
       setType("Service Agreement");
       setStatus("draft");
       setStartDate(undefined);
@@ -162,6 +169,16 @@ export function AddContractDialog({
               value={name} 
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Annual License Agreement"
+            />
+          </div>
+          
+          <div className="grid gap-2">
+            <Label htmlFor="contract_number">Contract Number</Label>
+            <Input 
+              id="contract_number" 
+              value={contractNumber} 
+              onChange={(e) => setContractNumber(e.target.value)}
+              placeholder="e.g. CNT-2024-001"
             />
           </div>
           

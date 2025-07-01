@@ -12,6 +12,7 @@ export type Database = {
       contracts: {
         Row: {
           annual_rate: number | null
+          contract_number: string | null
           created_at: string
           customer_id: string
           end_date: string
@@ -28,6 +29,7 @@ export type Database = {
         }
         Insert: {
           annual_rate?: number | null
+          contract_number?: string | null
           created_at?: string
           customer_id: string
           end_date: string
@@ -44,6 +46,7 @@ export type Database = {
         }
         Update: {
           annual_rate?: number | null
+          contract_number?: string | null
           created_at?: string
           customer_id?: string
           end_date?: string

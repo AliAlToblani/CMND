@@ -93,6 +93,7 @@ const ContractsPage = () => {
           id: contract.id,
           customer: contract.customers?.name || "Unknown Customer",
           customerId: contract.customer_id,
+          contractNumber: contract.contract_number || "",
           status: (contract.status as "active" | "pending" | "expired" | "draft") || "draft",
           type: contract.name || "Service Agreement",
           startDate: contract.start_date ? new Date(contract.start_date).toISOString().split('T')[0] : "-",
@@ -226,9 +227,14 @@ const ContractsPage = () => {
   };
   
   const filteredContracts = contracts.filter(contract => {
-    // Filter by search term
-    if (searchTerm && !contract.customer.toLowerCase().includes(searchTerm.toLowerCase())) {
-      return false;
+    // Filter by search term (search in customer name and contract number)
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesCustomer = contract.customer.toLowerCase().includes(searchLower);
+      const matchesContractNumber = contract.contractNumber?.toLowerCase().includes(searchLower);
+      if (!matchesCustomer && !matchesContractNumber) {
+        return false;
+      }
     }
     
     // Filter by status
@@ -258,7 +264,7 @@ const ContractsPage = () => {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input 
                 type="search" 
-                placeholder="Search contracts..." 
+                placeholder="Search contracts or numbers..." 
                 className="pl-8 glass-input w-[250px]" 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -351,6 +357,7 @@ const ContractsPage = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
+                    <TableHead>Contract #</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Status</TableHead>
@@ -364,7 +371,7 @@ const ContractsPage = () => {
                   {loading ? (
                     Array(3).fill(0).map((_, index) => (
                       <TableRow key={`loading-${index}`}>
-                        <TableCell colSpan={7}>
+                        <TableCell colSpan={8}>
                           <div className="h-12 bg-gray-100 animate-pulse rounded"></div>
                         </TableCell>
                       </TableRow>
@@ -372,6 +379,9 @@ const ContractsPage = () => {
                   ) : filteredContracts.length > 0 ? (
                     filteredContracts.map((contract, index) => (
                       <TableRow key={contract.id} className="animate-slide-in" style={{ animationDelay: `${index * 0.05}s` }}>
+                        <TableCell className="font-mono text-sm">
+                          {contract.contractNumber || <span className="text-muted-foreground">-</span>}
+                        </TableCell>
                         <TableCell className="font-medium">{contract.customer}</TableCell>
                         <TableCell>
                           <div className="flex items-center">
@@ -413,7 +423,7 @@ const ContractsPage = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         No contracts found. Try adjusting your filters or create a new contract.
                       </TableCell>
                     </TableRow>
