@@ -1,5 +1,6 @@
 
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,16 +33,6 @@ export const ContractsList: React.FC<ContractsListProps> = ({
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  
-  // Local state to track pending changes without triggering parent updates
-  const [localContracts, setLocalContracts] = useState<Contract[]>(contracts);
-
-  // Update local state when parent contracts change (but not during dialog operations)
-  React.useEffect(() => {
-    if (!isDialogOpen) {
-      setLocalContracts(contracts);
-    }
-  }, [contracts, isDialogOpen]);
 
   const handleAddContract = () => {
     console.log('Adding new contract - opening dialog');
@@ -95,7 +86,7 @@ export const ContractsList: React.FC<ContractsListProps> = ({
       console.log('Updating existing contract in parent state');
     }
 
-    // NOW update the parent state (this is the only place we should call onContractsChange)
+    // Update the parent state
     onContractsChange(updatedContracts);
     
     // Close dialog
@@ -150,186 +141,189 @@ export const ContractsList: React.FC<ContractsListProps> = ({
   const totalAnnualRates = contracts.reduce((sum, contract) => sum + (contract.annual_rate || 0), 0);
 
   return (
-    <div className="space-y-6">
-      {/* Enhanced Total Value Summary */}
-      <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-green-100 rounded-full">
-                <TrendingUp className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900">Total Lifetime Value</h4>
-                <p className="text-sm text-gray-600">
-                  {contracts.length} {contracts.length === 1 ? 'Contract' : 'Contracts'} 
-                  {activeContracts > 0 && ` • ${activeContracts} Active`}
-                </p>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold text-green-600">
-                {formatCurrency(totalValue)}
-              </div>
-              {contracts.length > 0 && (
-                <div className="text-sm text-gray-500 mt-1">
-                  <div>Setup: {formatCurrency(totalSetupFees)}</div>
-                  <div>Annual: {formatCurrency(totalAnnualRates)}</div>
-                </div>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Header with Add Button */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-green-600" />
-            All Contracts
-          </h3>
-          <p className="text-sm text-gray-600 mt-1">
-            Manage all contracts for {customerName}
-          </p>
-        </div>
-        <Button onClick={handleAddContract} size="sm">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Contract
-        </Button>
-      </div>
-
-      {/* Contracts List */}
-      <div className="space-y-3">
-        {contracts.map((contract, index) => (
-          <Card key={contract.id || index} className="border-l-4 border-l-blue-500">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <h4 className="font-semibold text-lg">{contract.name}</h4>
-                  <Badge className={getStatusColor(contract.status)}>
-                    {contract.status}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEditContract(contract)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDeleteContract(contract.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              
-              {/* Contract Value Breakdown */}
-              <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-blue-500" />
-                    <div>
-                      <div className="text-xs text-gray-600 uppercase tracking-wide">Setup Fee</div>
-                      <div className="text-lg font-bold text-blue-600">
-                        {formatCurrency(contract.setup_fee || 0)}
-                      </div>
-                      <div className="text-xs text-gray-500">One-time</div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-purple-500" />
-                    <div>
-                      <div className="text-xs text-gray-600 uppercase tracking-wide">Annual Rate</div>
-                      <div className="text-lg font-bold text-purple-600">
-                        {formatCurrency(contract.annual_rate || 0)}
-                      </div>
-                      <div className="text-xs text-gray-500">Per year</div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-green-500" />
-                    <div>
-                      <div className="text-xs text-gray-600 uppercase tracking-wide">Total Value</div>
-                      <div className="text-lg font-bold text-green-600">
-                        {formatCurrency((contract.setup_fee || 0) + (contract.annual_rate || 0))}
-                      </div>
-                      <div className="text-xs text-gray-500">Combined</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-600">Start Date:</span>
-                  <div className="font-medium flex items-center gap-1 mt-1">
-                    <Calendar className="h-3 w-3" />
-                    {format(new Date(contract.start_date), "MMM dd, yyyy")}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-gray-600">End Date:</span>
-                  <div className="font-medium flex items-center gap-1 mt-1">
-                    <Calendar className="h-3 w-3" />
-                    {format(new Date(contract.end_date), "MMM dd, yyyy")}
-                  </div>
-                </div>
-              </div>
-
-              {contract.terms && (
-                <div className="mt-4 pt-4 border-t">
-                  <div className="text-sm">
-                    <div className="text-xs text-gray-600 uppercase tracking-wide mb-2">Terms</div>
-                    <div className="text-gray-800 bg-white p-3 rounded border text-sm">
-                      {contract.terms}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {contracts.length === 0 && (
-        <Card className="border-dashed border-2 border-gray-300">
+    <>
+      <div className="space-y-6">
+        {/* Enhanced Total Value Summary */}
+        <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
           <CardContent className="pt-6">
-            <div className="text-center py-8">
-              <div className="text-gray-400 mb-4">
-                <DollarSign className="h-16 w-16 mx-auto" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-green-100 rounded-full">
+                  <TrendingUp className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900">Total Lifetime Value</h4>
+                  <p className="text-sm text-gray-600">
+                    {contracts.length} {contracts.length === 1 ? 'Contract' : 'Contracts'} 
+                    {activeContracts > 0 && ` • ${activeContracts} Active`}
+                  </p>
+                </div>
               </div>
-              <h3 className="text-xl font-medium text-gray-900 mb-2">No contracts yet</h3>
-              <p className="text-gray-600 mb-6 max-w-sm mx-auto">
-                Add contracts to track setup fees, annual rates and renewal dates for {customerName}. Each contract will contribute to the total lifetime value.
-              </p>
-              <Button onClick={handleAddContract} size="lg">
-                <Plus className="h-5 w-5 mr-2" />
-                Add First Contract
-              </Button>
+              <div className="text-right">
+                <div className="text-3xl font-bold text-green-600">
+                  {formatCurrency(totalValue)}
+                </div>
+                {contracts.length > 0 && (
+                  <div className="text-sm text-gray-500 mt-1">
+                    <div>Setup: {formatCurrency(totalSetupFees)}</div>
+                    <div>Annual: {formatCurrency(totalAnnualRates)}</div>
+                  </div>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
-      )}
 
-      {/* Edit Contract Dialog - Only render when we have a contract to edit AND dialog is open */}
-      {editingContract && isDialogOpen && (
+        {/* Header with Add Button */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-green-600" />
+              All Contracts
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Manage all contracts for {customerName}
+            </p>
+          </div>
+          <Button onClick={handleAddContract} size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Contract
+          </Button>
+        </div>
+
+        {/* Contracts List */}
+        <div className="space-y-3">
+          {contracts.map((contract, index) => (
+            <Card key={contract.id || index} className="border-l-4 border-l-blue-500">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <h4 className="font-semibold text-lg">{contract.name}</h4>
+                    <Badge className={getStatusColor(contract.status)}>
+                      {contract.status}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditContract(contract)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteContract(contract.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Contract Value Breakdown */}
+                <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-blue-500" />
+                      <div>
+                        <div className="text-xs text-gray-600 uppercase tracking-wide">Setup Fee</div>
+                        <div className="text-lg font-bold text-blue-600">
+                          {formatCurrency(contract.setup_fee || 0)}
+                        </div>
+                        <div className="text-xs text-gray-500">One-time</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-purple-500" />
+                      <div>
+                        <div className="text-xs text-gray-600 uppercase tracking-wide">Annual Rate</div>
+                        <div className="text-lg font-bold text-purple-600">
+                          {formatCurrency(contract.annual_rate || 0)}
+                        </div>
+                        <div className="text-xs text-gray-500">Per year</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-green-500" />
+                      <div>
+                        <div className="text-xs text-gray-600 uppercase tracking-wide">Total Value</div>
+                        <div className="text-lg font-bold text-green-600">
+                          {formatCurrency((contract.setup_fee || 0) + (contract.annual_rate || 0))}
+                        </div>
+                        <div className="text-xs text-gray-500">Combined</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Start Date:</span>
+                    <div className="font-medium flex items-center gap-1 mt-1">
+                      <Calendar className="h-3 w-3" />
+                      {format(new Date(contract.start_date), "MMM dd, yyyy")}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">End Date:</span>
+                    <div className="font-medium flex items-center gap-1 mt-1">
+                      <Calendar className="h-3 w-3" />
+                      {format(new Date(contract.end_date), "MMM dd, yyyy")}
+                    </div>
+                  </div>
+                </div>
+
+                {contract.terms && (
+                  <div className="mt-4 pt-4 border-t">
+                    <div className="text-sm">
+                      <div className="text-xs text-gray-600 uppercase tracking-wide mb-2">Terms</div>
+                      <div className="text-gray-800 bg-white p-3 rounded border text-sm">
+                        {contract.terms}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {contracts.length === 0 && (
+          <Card className="border-dashed border-2 border-gray-300">
+            <CardContent className="pt-6">
+              <div className="text-center py-8">
+                <div className="text-gray-400 mb-4">
+                  <DollarSign className="h-16 w-16 mx-auto" />
+                </div>
+                <h3 className="text-xl font-medium text-gray-900 mb-2">No contracts yet</h3>
+                <p className="text-gray-600 mb-6 max-w-sm mx-auto">
+                  Add contracts to track setup fees, annual rates and renewal dates for {customerName}. Each contract will contribute to the total lifetime value.
+                </p>
+                <Button onClick={handleAddContract} size="lg">
+                  <Plus className="h-5 w-5 mr-2" />
+                  Add First Contract
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Contract Dialog - Rendered outside the form using Portal */}
+      {editingContract && isDialogOpen && createPortal(
         <ContractEditDialog
           contract={editingContract}
           isOpen={isDialogOpen}
           onClose={handleCloseDialog}
           onSave={handleSaveContract}
           isNewContract={showAddForm}
-        />
+        />,
+        document.body
       )}
-    </div>
+    </>
   );
 };
 
@@ -366,7 +360,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    e.stopPropagation(); // Prevent event bubbling
+    e.stopPropagation();
     
     console.log('Dialog form submitted', formData);
     
