@@ -58,14 +58,19 @@ export function CustomerForm({
   submitLabel = "Save Customer",
   customerId
 }: CustomerFormProps) {
+  console.log('CustomerForm: Component rendering, isSubmitting:', isSubmitting);
+  
   const avatarUploadRef = useRef<CustomerAvatarUploadRef>(null);
   const contractsListRef = useRef<ContractsListRef>(null);
   
   // Document management
   const { documents, setDocuments, saveDocuments } = useDocumentManager(customerId, "customer");
   
+  // CRITICAL: Configure React Hook Form to ONLY validate on explicit submission
   const form = useForm<CustomerFormData>({
     resolver: zodResolver(customerFormSchema),
+    mode: "onSubmit", // CRITICAL: Only validate when form is explicitly submitted
+    reValidateMode: "onSubmit", // CRITICAL: Only re-validate on explicit submission
     defaultValues: {
       name: initialData?.name || "",
       segment: initialData?.segment || "",
@@ -81,27 +86,53 @@ export function CustomerForm({
     },
   });
 
+  // Debug logging for form state changes
+  useEffect(() => {
+    const subscription = form.watch((value, { name, type }) => {
+      console.log('CustomerForm: Form watch triggered', { name, type, isSubmitting });
+      // Prevent auto-submission by not calling handleSubmit here
+    });
+    return () => subscription.unsubscribe();
+  }, [form, isSubmitting]);
+
   // CRITICAL: Only submit when user explicitly clicks the save button
   const handleFormSubmit = async (data: CustomerFormData) => {
-    console.log('CustomerForm: Explicit form submission started');
+    console.log('CustomerForm: EXPLICIT form submission started by user click');
     
-    // Get the final logo value from the avatar component
-    if (avatarUploadRef.current) {
-      const finalLogoValue = avatarUploadRef.current.getPendingValue();
-      data.logo = finalLogoValue;
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      console.log('CustomerForm: Submission already in progress, ignoring');
+      return;
     }
     
-    // Get contracts from the contracts list component
-    const contracts = contractsListRef.current?.getContracts() || [];
-    console.log('CustomerForm: Retrieved contracts for submission:', { contractCount: contracts.length });
-    
-    // Call the original onSubmit with current contract state
-    await onSubmit(data, contracts);
-    
-    // Save documents if we have a customer ID
-    if (customerId && documents.length > 0) {
-      await saveDocuments(customerId, documents);
+    try {
+      // Get the final logo value from the avatar component
+      if (avatarUploadRef.current) {
+        const finalLogoValue = avatarUploadRef.current.getPendingValue();
+        data.logo = finalLogoValue;
+      }
+      
+      // Get contracts from the contracts list component
+      const contracts = contractsListRef.current?.getContracts() || [];
+      console.log('CustomerForm: Retrieved contracts for submission:', { contractCount: contracts.length });
+      
+      // Call the original onSubmit with current contract state
+      await onSubmit(data, contracts);
+      
+      // Save documents if we have a customer ID
+      if (customerId && documents.length > 0) {
+        await saveDocuments(customerId, documents);
+      }
+    } catch (error) {
+      console.error('CustomerForm: Error during submission:', error);
     }
+  };
+
+  // CRITICAL: Prevent any automatic form submission
+  const preventAutoSubmit = (e: any) => {
+    console.log('CustomerForm: Preventing auto-submit event:', e.type);
+    e.preventDefault();
+    e.stopPropagation();
   };
 
   const segmentOptions = [
@@ -121,7 +152,23 @@ export function CustomerForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
+      <form 
+        onSubmit={(e) => {
+          console.log('CustomerForm: Form onSubmit event triggered');
+          form.handleSubmit(handleFormSubmit)(e);
+        }}
+        onKeyDown={(e) => {
+          // Prevent Enter key from submitting the form unless it's the submit button
+          if (e.key === 'Enter' && e.target !== e.currentTarget) {
+            const target = e.target as HTMLElement;
+            if (target.tagName !== 'BUTTON' || target.getAttribute('type') !== 'submit') {
+              console.log('CustomerForm: Preventing Enter key submission');
+              e.preventDefault();
+            }
+          }
+        }}
+        className="space-y-6"
+      >
         {/* Customer Profile Section */}
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-start gap-6">
@@ -134,7 +181,9 @@ export function CustomerForm({
                 <CustomerAvatarUpload
                   ref={avatarUploadRef}
                   value={initialData?.logo || ""}
-                  onChange={() => {}}
+                  onChange={() => {
+                    console.log('CustomerForm: Avatar changed, but NOT triggering form submission');
+                  }}
                   customerName={customerName || "New Customer"}
                 />
               </div>
@@ -419,7 +468,14 @@ export function CustomerForm({
         />
 
         <div className="flex justify-end space-x-4">
-          <Button type="submit" disabled={isSubmitting}>
+          <Button 
+            type="submit" 
+            disabled={isSubmitting}
+            onClick={(e) => {
+              console.log('CustomerForm: Save button clicked explicitly');
+              // Let the form's onSubmit handle this
+            }}
+          >
             {isSubmitting ? "Saving..." : submitLabel}
           </Button>
         </div>

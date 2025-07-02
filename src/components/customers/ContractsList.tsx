@@ -35,7 +35,9 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
   customerName = "Customer",
   initialData
 }, ref) => {
-  // CRITICAL: Complete isolation - no callbacks to parent
+  console.log('ContractsList: Component rendering');
+  
+  // CRITICAL: Completely isolated contract state - no parent communication
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [loadingContracts, setLoadingContracts] = useState(false);
   
@@ -44,9 +46,12 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [isNewContract, setIsNewContract] = useState(false);
 
-  // Expose contracts to parent via ref - no callbacks needed
+  // CRITICAL: Only expose contracts via ref - NO callbacks to parent
   useImperativeHandle(ref, () => ({
-    getContracts: () => contracts
+    getContracts: () => {
+      console.log('ContractsList: getContracts called, returning:', contracts.length, 'contracts');
+      return contracts;
+    }
   }));
 
   // Load existing contracts for the customer
@@ -54,6 +59,7 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
     const loadContracts = async () => {
       if (!customerId) return;
       
+      console.log('ContractsList: Loading contracts for customer:', customerId);
       setLoadingContracts(true);
       try {
         const { data, error } = await supabase
@@ -63,7 +69,7 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
           .order('created_at', { ascending: false });
         
         if (error) {
-          console.error('Error loading contracts:', error);
+          console.error('ContractsList: Error loading contracts:', error);
           return;
         }
         
@@ -79,10 +85,11 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
             status: contract.status as Contract["status"],
             terms: contract.terms || ""
           }));
+          console.log('ContractsList: Loaded contracts:', mappedContracts.length);
           setContracts(mappedContracts);
         }
       } catch (error) {
-        console.error('Error loading contracts:', error);
+        console.error('ContractsList: Error loading contracts:', error);
       } finally {
         setLoadingContracts(false);
       }
@@ -98,6 +105,7 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
     
     if (!customerId && contracts.length === 0 && (setupFee || annualRate)) {
       if (setupFee > 0 || annualRate > 0) {
+        console.log('ContractsList: Creating legacy contract from initial data');
         const legacyContract: Contract = {
           name: "Primary Contract",
           value: setupFee + annualRate,
@@ -113,9 +121,9 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
     }
   }, [initialData, customerId, contracts.length]);
 
-  // CRITICAL: All contract operations work on local state only
+  // CRITICAL: All contract operations work on isolated local state only
   const handleAddContract = () => {
-    console.log('ContractsList: Starting to add new contract');
+    console.log('ContractsList: Starting to add new contract - ISOLATED operation');
     const newContract: Contract = {
       id: `temp_${Date.now()}`,
       name: `Contract ${contracts.length + 1}`,
@@ -132,19 +140,19 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
     setIsNewContract(true);
     setIsDialogOpen(true);
     
-    console.log('ContractsList: Dialog opened for new contract');
+    console.log('ContractsList: Dialog opened for new contract - NO parent form affected');
   };
 
   const handleEditContract = (contract: Contract) => {
-    console.log('ContractsList: Starting to edit existing contract:', contract.name);
+    console.log('ContractsList: Starting to edit existing contract:', contract.name, '- ISOLATED operation');
     setEditingContract(contract);
     setIsNewContract(false);
     setIsDialogOpen(true);
   };
 
-  // CRITICAL: Only update local state - no parent callbacks
+  // CRITICAL: Only update local state - NO parent callbacks or form interference
   const handleSaveContract = (contract: Contract) => {
-    console.log('ContractsList: Saving contract:', contract.name);
+    console.log('ContractsList: Saving contract LOCALLY ONLY:', contract.name);
     
     const validatedContract = {
       ...contract,
@@ -160,13 +168,19 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
           ? `contract_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` 
           : validatedContract.id
       };
-      setContracts(prev => [...prev, contractToAdd]);
-      console.log('ContractsList: Added new contract to local state');
+      setContracts(prev => {
+        const newContracts = [...prev, contractToAdd];
+        console.log('ContractsList: Added new contract to LOCAL state only. Total contracts:', newContracts.length);
+        return newContracts;
+      });
     } else {
-      setContracts(prev => prev.map(c => 
-        c.id === validatedContract.id ? validatedContract : c
-      ));
-      console.log('ContractsList: Updated existing contract in local state');
+      setContracts(prev => {
+        const updatedContracts = prev.map(c => 
+          c.id === validatedContract.id ? validatedContract : c
+        );
+        console.log('ContractsList: Updated existing contract in LOCAL state only. Total contracts:', updatedContracts.length);
+        return updatedContracts;
+      });
     }
 
     handleCloseDialog();
@@ -174,12 +188,16 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
 
   const handleDeleteContract = (contractId: string | undefined) => {
     if (!contractId) return;
-    console.log('ContractsList: Deleting contract:', contractId);
-    setContracts(prev => prev.filter(c => c.id !== contractId));
+    console.log('ContractsList: Deleting contract LOCALLY ONLY:', contractId);
+    setContracts(prev => {
+      const filteredContracts = prev.filter(c => c.id !== contractId);
+      console.log('ContractsList: Deleted contract from LOCAL state only. Remaining contracts:', filteredContracts.length);
+      return filteredContracts;
+    });
   };
 
   const handleCloseDialog = () => {
-    console.log('ContractsList: Closing dialog');
+    console.log('ContractsList: Closing dialog - NO parent form affected');
     setEditingContract(null);
     setIsNewContract(false);
     setIsDialogOpen(false);
@@ -424,10 +442,13 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
   onSave,
   isNewContract
 }) => {
+  console.log('ContractEditDialog: Rendering dialog for contract:', contract.name);
+  
   const [formData, setFormData] = useState<Contract>({ ...contract });
 
   // Reset form data when contract changes
   React.useEffect(() => {
+    console.log('ContractEditDialog: Resetting form data for contract:', contract.name);
     setFormData({ ...contract });
   }, [contract]);
 
@@ -441,10 +462,10 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
 
   // CRITICAL: Prevent any form submission events from bubbling up
   const handleSubmit = (e: React.FormEvent) => {
+    console.log('ContractEditDialog: ISOLATED form submission - preventing all bubbling');
     e.preventDefault();
     e.stopPropagation();
-    
-    console.log('ContractEditDialog: Form submitted', formData);
+    e.stopImmediatePropagation();
     
     // Validate required fields
     if (!formData.name.trim()) {
@@ -460,19 +481,28 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
       value: (Number(formData.setup_fee) || 0) + (Number(formData.annual_rate) || 0)
     };
     
+    console.log('ContractEditDialog: Saving contract with isolated state:', contractToSave.name);
     onSave(contractToSave);
   };
 
   const handleInputChange = (field: keyof Contract, value: any) => {
+    console.log('ContractEditDialog: Input changed - ISOLATED from parent form:', field);
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   // CRITICAL: Prevent cancel from triggering any parent form events
   const handleCancel = (e: React.MouseEvent) => {
+    console.log('ContractEditDialog: Dialog cancelled - preventing all event bubbling');
     e.preventDefault();
     e.stopPropagation();
-    console.log('ContractEditDialog: Dialog cancelled');
+    e.stopImmediatePropagation();
     onClose();
+  };
+
+  // CRITICAL: Prevent all events from bubbling to parent
+  const handleDialogClick = (e: React.MouseEvent) => {
+    console.log('ContractEditDialog: Dialog clicked - preventing event bubbling');
+    e.stopPropagation();
   };
 
   const formatCurrency = (value: number) => {
@@ -487,16 +517,14 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
     return null;
   }
 
-  console.log('ContractEditDialog: Rendering dialog for contract:', contract.name);
-
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" 
-      onClick={(e) => e.stopPropagation()}
+      onClick={handleDialogClick}
     >
       <div 
         className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" 
-        onClick={(e) => e.stopPropagation()}
+        onClick={handleDialogClick}
       >
         <h3 className="text-lg font-semibold mb-4">
           {isNewContract ? "Add New Contract" : "Edit Contract"}
@@ -512,6 +540,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
               placeholder="Enter contract name"
+              onClick={handleDialogClick}
             />
           </div>
           
@@ -526,6 +555,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
                 min="0"
                 step="0.01"
                 placeholder="0"
+                onClick={handleDialogClick}
               />
             </div>
             
@@ -539,6 +569,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
                 min="0"
                 step="0.01"
                 placeholder="0"
+                onClick={handleDialogClick}
               />
             </div>
           </div>
@@ -563,6 +594,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
                 onChange={(e) => handleInputChange('start_date', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
+                onClick={handleDialogClick}
               />
             </div>
             
@@ -574,6 +606,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
                 onChange={(e) => handleInputChange('end_date', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
+                onClick={handleDialogClick}
               />
             </div>
           </div>
@@ -584,6 +617,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
               value={formData.status}
               onChange={(e) => handleInputChange('status', e.target.value as Contract["status"])}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onClick={handleDialogClick}
             >
               <option value="draft">Draft</option>
               <option value="active">Active</option>
@@ -600,6 +634,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               rows={3}
               placeholder="Enter contract terms and conditions..."
+              onClick={handleDialogClick}
             />
           </div>
           
