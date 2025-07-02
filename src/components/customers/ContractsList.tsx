@@ -30,15 +30,24 @@ export const ContractsList: React.FC<ContractsListProps> = ({
   onContractsChange,
   customerName = "Customer"
 }) => {
+  // Local state to manage dialog independently of parent form
+  const [localContracts, setLocalContracts] = useState<Contract[]>(contracts);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [isNewContract, setIsNewContract] = useState(false);
+
+  // Sync local state when parent contracts change (but not during dialog operations)
+  React.useEffect(() => {
+    if (!isDialogOpen) {
+      setLocalContracts(contracts);
+    }
+  }, [contracts, isDialogOpen]);
 
   const handleAddContract = () => {
     console.log('Adding new contract - opening dialog');
     const newContract: Contract = {
       id: `temp_${Date.now()}`,
-      name: `Contract ${contracts.length + 1}`,
+      name: `Contract ${localContracts.length + 1}`,
       value: 0,
       setup_fee: 0,
       annual_rate: 0,
@@ -81,24 +90,31 @@ export const ContractsList: React.FC<ContractsListProps> = ({
           ? `contract_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` 
           : validatedContract.id
       };
-      updatedContracts = [...contracts, contractToAdd];
-      console.log('Adding new contract to parent state');
+      updatedContracts = [...localContracts, contractToAdd];
+      console.log('Adding new contract');
     } else {
-      updatedContracts = contracts.map(c => 
+      updatedContracts = localContracts.map(c => 
         c.id === validatedContract.id ? validatedContract : c
       );
-      console.log('Updating existing contract in parent state');
+      console.log('Updating existing contract');
     }
 
-    // Only update parent state when contract is actually saved
-    onContractsChange(updatedContracts);
+    // Update local state immediately for UI consistency
+    setLocalContracts(updatedContracts);
+    
+    // Only update parent state after dialog closes to prevent form re-render disruption
+    setTimeout(() => {
+      onContractsChange(updatedContracts);
+    }, 100);
+    
     handleCloseDialog();
   };
 
   const handleDeleteContract = (contractId: string | undefined) => {
     if (!contractId) return;
     console.log('Deleting contract:', contractId);
-    const updatedContracts = contracts.filter(c => c.id !== contractId);
+    const updatedContracts = localContracts.filter(c => c.id !== contractId);
+    setLocalContracts(updatedContracts);
     onContractsChange(updatedContracts);
   };
 
@@ -127,13 +143,16 @@ export const ContractsList: React.FC<ContractsListProps> = ({
     }
   };
 
+  // Use local contracts for display to prevent glitches during dialog operations
+  const displayContracts = isDialogOpen ? localContracts : contracts;
+  
   // Calculate total lifetime value from setup fees and annual rates
-  const totalValue = contracts.reduce((sum, contract) => 
+  const totalValue = displayContracts.reduce((sum, contract) => 
     sum + (contract.setup_fee || 0) + (contract.annual_rate || 0), 0
   );
-  const activeContracts = contracts.filter(c => c.status === "active").length;
-  const totalSetupFees = contracts.reduce((sum, contract) => sum + (contract.setup_fee || 0), 0);
-  const totalAnnualRates = contracts.reduce((sum, contract) => sum + (contract.annual_rate || 0), 0);
+  const activeContracts = displayContracts.filter(c => c.status === "active").length;
+  const totalSetupFees = displayContracts.reduce((sum, contract) => sum + (contract.setup_fee || 0), 0);
+  const totalAnnualRates = displayContracts.reduce((sum, contract) => sum + (contract.annual_rate || 0), 0);
 
   return (
     <>
@@ -149,7 +168,7 @@ export const ContractsList: React.FC<ContractsListProps> = ({
                 <div>
                   <h4 className="text-lg font-semibold text-gray-900">Total Lifetime Value</h4>
                   <p className="text-sm text-gray-600">
-                    {contracts.length} {contracts.length === 1 ? 'Contract' : 'Contracts'} 
+                    {displayContracts.length} {displayContracts.length === 1 ? 'Contract' : 'Contracts'} 
                     {activeContracts > 0 && ` • ${activeContracts} Active`}
                   </p>
                 </div>
@@ -158,7 +177,7 @@ export const ContractsList: React.FC<ContractsListProps> = ({
                 <div className="text-3xl font-bold text-green-600">
                   {formatCurrency(totalValue)}
                 </div>
-                {contracts.length > 0 && (
+                {displayContracts.length > 0 && (
                   <div className="text-sm text-gray-500 mt-1">
                     <div>Setup: {formatCurrency(totalSetupFees)}</div>
                     <div>Annual: {formatCurrency(totalAnnualRates)}</div>
@@ -188,7 +207,7 @@ export const ContractsList: React.FC<ContractsListProps> = ({
 
         {/* Contracts List */}
         <div className="space-y-3">
-          {contracts.map((contract, index) => (
+          {displayContracts.map((contract, index) => (
             <Card key={contract.id || index} className="border-l-4 border-l-blue-500">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between mb-4">
@@ -286,7 +305,7 @@ export const ContractsList: React.FC<ContractsListProps> = ({
           ))}
         </div>
 
-        {contracts.length === 0 && (
+        {displayContracts.length === 0 && (
           <Card className="border-dashed border-2 border-gray-300">
             <CardContent className="pt-6">
               <div className="text-center py-8">
@@ -403,8 +422,8 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
   console.log('Rendering dialog with contract:', contract);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-lg font-semibold mb-4">
           {isNewContract ? "Add New Contract" : "Edit Contract"}
         </h3>
