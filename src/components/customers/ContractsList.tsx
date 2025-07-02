@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
@@ -121,7 +122,11 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
   }, [initialData, customerId, contracts.length]);
 
   // CRITICAL: All contract operations work on isolated local state only
-  const handleAddContract = () => {
+  const handleAddContract = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     console.log('ContractsList: Starting to add new contract - ISOLATED operation');
     const newContract: Contract = {
       id: `temp_${Date.now()}`,
@@ -142,7 +147,11 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
     console.log('ContractsList: Dialog opened for new contract - NO parent form affected');
   };
 
-  const handleEditContract = (contract: Contract) => {
+  const handleEditContract = (contract: Contract, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     console.log('ContractsList: Starting to edit existing contract:', contract.name, '- ISOLATED operation');
     setEditingContract(contract);
     setIsNewContract(false);
@@ -185,7 +194,11 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
     handleCloseDialog();
   };
 
-  const handleDeleteContract = (contractId: string | undefined) => {
+  const handleDeleteContract = (contractId: string | undefined, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (!contractId) return;
     console.log('ContractsList: Deleting contract LOCALLY ONLY:', contractId);
     setContracts(prev => {
@@ -273,7 +286,7 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
               Manage all contracts for {customerName}
             </p>
           </div>
-          <Button onClick={handleAddContract} size="sm">
+          <Button type="button" onClick={handleAddContract} size="sm">
             <Plus className="h-4 w-4 mr-2" />
             Add Contract
           </Button>
@@ -299,16 +312,18 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
                       </div>
                       <div className="flex items-center gap-2">
                         <Button
+                          type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => handleEditContract(contract)}
+                          onClick={(e) => handleEditContract(contract, e)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
+                          type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDeleteContract(contract.id)}
+                          onClick={(e) => handleDeleteContract(contract.id, e)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -395,7 +410,7 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
                       <p className="text-gray-600 mb-6 max-w-sm mx-auto">
                         Add contracts to track setup fees, annual rates and renewal dates for {customerName}. Each contract will contribute to the total lifetime value.
                       </p>
-                      <Button onClick={handleAddContract} size="lg">
+                      <Button type="button" onClick={handleAddContract} size="lg">
                         <Plus className="h-5 w-5 mr-2" />
                         Add First Contract
                       </Button>
