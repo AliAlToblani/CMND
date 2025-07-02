@@ -59,7 +59,10 @@ export function CustomerForm({
   customerId
 }: CustomerFormProps) {
   const avatarUploadRef = useRef<CustomerAvatarUploadRef>(null);
-  const [contracts, setContracts] = useState<Contract[]>([]);
+  
+  // CRITICAL: Keep contracts state completely separate from React Hook Form
+  // This prevents form auto-submission when contracts change
+  const [contractsState, setContractsState] = useState<Contract[]>([]);
   const [loadingContracts, setLoadingContracts] = useState(false);
   
   // Document management
@@ -112,7 +115,7 @@ export function CustomerForm({
             status: contract.status as Contract["status"],
             terms: contract.terms || ""
           }));
-          setContracts(mappedContracts);
+          setContractsState(mappedContracts);
         }
       } catch (error) {
         console.error('Error loading contracts:', error);
@@ -129,7 +132,7 @@ export function CustomerForm({
     const setupFee = (initialData as any)?.setup_fee || 0;
     const annualRate = (initialData as any)?.annual_rate || 0;
     
-    if (!customerId && contracts.length === 0 && (setupFee || annualRate)) {
+    if (!customerId && contractsState.length === 0 && (setupFee || annualRate)) {
       if (setupFee > 0 || annualRate > 0) {
         const legacyContract: Contract = {
           name: "Primary Contract",
@@ -141,20 +144,33 @@ export function CustomerForm({
           status: "active",
           terms: ""
         };
-        setContracts([legacyContract]);
+        setContractsState([legacyContract]);
       }
     }
-  }, [initialData, customerId, contracts.length]);
+  }, [initialData, customerId, contractsState.length]);
 
+  // CRITICAL: Contract state handler that DOES NOT trigger form submission
+  const handleContractsChange = (newContracts: Contract[]) => {
+    console.log('CustomerForm: Contract state updated (NOT triggering form submission)', { contractCount: newContracts.length });
+    setContractsState(newContracts);
+    // NOTE: We do NOT call any form methods here to prevent auto-submission
+  };
+
+  // CRITICAL: Only submit when user explicitly clicks the save button
   const handleFormSubmit = async (data: CustomerFormData) => {
+    console.log('CustomerForm: Explicit form submission started', { 
+      customerData: data, 
+      contractCount: contractsState.length 
+    });
+    
     // Get the final logo value from the avatar component
     if (avatarUploadRef.current) {
       const finalLogoValue = avatarUploadRef.current.getPendingValue();
       data.logo = finalLogoValue;
     }
     
-    // Call the original onSubmit
-    await onSubmit(data, contracts);
+    // Call the original onSubmit with current contract state
+    await onSubmit(data, contractsState);
     
     // Save documents if we have a customer ID
     if (customerId && documents.length > 0) {
@@ -301,8 +317,8 @@ export function CustomerForm({
             </div>
           ) : (
             <ContractsList
-              contracts={contracts}
-              onContractsChange={setContracts}
+              contracts={contractsState}
+              onContractsChange={handleContractsChange}
               customerName={customerName || "Customer"}
             />
           )}

@@ -30,24 +30,18 @@ export const ContractsList: React.FC<ContractsListProps> = ({
   onContractsChange,
   customerName = "Customer"
 }) => {
-  // Local state to manage dialog independently of parent form
-  const [localContracts, setLocalContracts] = useState<Contract[]>(contracts);
+  // State for dialog management - completely isolated from parent
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [isNewContract, setIsNewContract] = useState(false);
 
-  // Sync local state when parent contracts change (but not during dialog operations)
-  React.useEffect(() => {
-    if (!isDialogOpen) {
-      setLocalContracts(contracts);
-    }
-  }, [contracts, isDialogOpen]);
-
+  // CRITICAL: All contract operations work on local copies until dialog closes
+  // This prevents any parent form interaction during editing
   const handleAddContract = () => {
-    console.log('Adding new contract - opening dialog');
+    console.log('ContractsList: Starting to add new contract');
     const newContract: Contract = {
       id: `temp_${Date.now()}`,
-      name: `Contract ${localContracts.length + 1}`,
+      name: `Contract ${contracts.length + 1}`,
       value: 0,
       setup_fee: 0,
       annual_rate: 0,
@@ -61,18 +55,19 @@ export const ContractsList: React.FC<ContractsListProps> = ({
     setIsNewContract(true);
     setIsDialogOpen(true);
     
-    console.log('Dialog state set for new contract');
+    console.log('ContractsList: Dialog opened for new contract');
   };
 
   const handleEditContract = (contract: Contract) => {
-    console.log('Editing existing contract:', contract);
+    console.log('ContractsList: Starting to edit existing contract:', contract.name);
     setEditingContract(contract);
     setIsNewContract(false);
     setIsDialogOpen(true);
   };
 
+  // CRITICAL: Only update parent state when contract is actually saved
   const handleSaveContract = (contract: Contract) => {
-    console.log('Saving contract:', contract);
+    console.log('ContractsList: Saving contract:', contract.name);
     
     const validatedContract = {
       ...contract,
@@ -90,36 +85,29 @@ export const ContractsList: React.FC<ContractsListProps> = ({
           ? `contract_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` 
           : validatedContract.id
       };
-      updatedContracts = [...localContracts, contractToAdd];
-      console.log('Adding new contract');
+      updatedContracts = [...contracts, contractToAdd];
+      console.log('ContractsList: Added new contract to list');
     } else {
-      updatedContracts = localContracts.map(c => 
+      updatedContracts = contracts.map(c => 
         c.id === validatedContract.id ? validatedContract : c
       );
-      console.log('Updating existing contract');
+      console.log('ContractsList: Updated existing contract in list');
     }
 
-    // Update local state immediately for UI consistency
-    setLocalContracts(updatedContracts);
-    
-    // Only update parent state after dialog closes to prevent form re-render disruption
-    setTimeout(() => {
-      onContractsChange(updatedContracts);
-    }, 100);
-    
+    // CRITICAL: Only call parent callback when dialog closes and contract is saved
+    onContractsChange(updatedContracts);
     handleCloseDialog();
   };
 
   const handleDeleteContract = (contractId: string | undefined) => {
     if (!contractId) return;
-    console.log('Deleting contract:', contractId);
-    const updatedContracts = localContracts.filter(c => c.id !== contractId);
-    setLocalContracts(updatedContracts);
+    console.log('ContractsList: Deleting contract:', contractId);
+    const updatedContracts = contracts.filter(c => c.id !== contractId);
     onContractsChange(updatedContracts);
   };
 
   const handleCloseDialog = () => {
-    console.log('Closing dialog');
+    console.log('ContractsList: Closing dialog');
     setEditingContract(null);
     setIsNewContract(false);
     setIsDialogOpen(false);
@@ -143,16 +131,13 @@ export const ContractsList: React.FC<ContractsListProps> = ({
     }
   };
 
-  // Use local contracts for display to prevent glitches during dialog operations
-  const displayContracts = isDialogOpen ? localContracts : contracts;
-  
   // Calculate total lifetime value from setup fees and annual rates
-  const totalValue = displayContracts.reduce((sum, contract) => 
+  const totalValue = contracts.reduce((sum, contract) => 
     sum + (contract.setup_fee || 0) + (contract.annual_rate || 0), 0
   );
-  const activeContracts = displayContracts.filter(c => c.status === "active").length;
-  const totalSetupFees = displayContracts.reduce((sum, contract) => sum + (contract.setup_fee || 0), 0);
-  const totalAnnualRates = displayContracts.reduce((sum, contract) => sum + (contract.annual_rate || 0), 0);
+  const activeContracts = contracts.filter(c => c.status === "active").length;
+  const totalSetupFees = contracts.reduce((sum, contract) => sum + (contract.setup_fee || 0), 0);
+  const totalAnnualRates = contracts.reduce((sum, contract) => sum + (contract.annual_rate || 0), 0);
 
   return (
     <>
@@ -168,7 +153,7 @@ export const ContractsList: React.FC<ContractsListProps> = ({
                 <div>
                   <h4 className="text-lg font-semibold text-gray-900">Total Lifetime Value</h4>
                   <p className="text-sm text-gray-600">
-                    {displayContracts.length} {displayContracts.length === 1 ? 'Contract' : 'Contracts'} 
+                    {contracts.length} {contracts.length === 1 ? 'Contract' : 'Contracts'} 
                     {activeContracts > 0 && ` • ${activeContracts} Active`}
                   </p>
                 </div>
@@ -177,7 +162,7 @@ export const ContractsList: React.FC<ContractsListProps> = ({
                 <div className="text-3xl font-bold text-green-600">
                   {formatCurrency(totalValue)}
                 </div>
-                {displayContracts.length > 0 && (
+                {contracts.length > 0 && (
                   <div className="text-sm text-gray-500 mt-1">
                     <div>Setup: {formatCurrency(totalSetupFees)}</div>
                     <div>Annual: {formatCurrency(totalAnnualRates)}</div>
@@ -207,7 +192,7 @@ export const ContractsList: React.FC<ContractsListProps> = ({
 
         {/* Contracts List */}
         <div className="space-y-3">
-          {displayContracts.map((contract, index) => (
+          {contracts.map((contract, index) => (
             <Card key={contract.id || index} className="border-l-4 border-l-blue-500">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between mb-4">
@@ -305,7 +290,7 @@ export const ContractsList: React.FC<ContractsListProps> = ({
           ))}
         </div>
 
-        {displayContracts.length === 0 && (
+        {contracts.length === 0 && (
           <Card className="border-dashed border-2 border-gray-300">
             <CardContent className="pt-6">
               <div className="text-center py-8">
@@ -326,7 +311,7 @@ export const ContractsList: React.FC<ContractsListProps> = ({
         )}
       </div>
 
-      {/* Contract Dialog - Rendered outside the form using Portal */}
+      {/* Contract Dialog - Rendered outside form using Portal to prevent interference */}
       {editingContract && isDialogOpen && createPortal(
         <ContractEditDialog
           contract={editingContract}
@@ -341,7 +326,7 @@ export const ContractsList: React.FC<ContractsListProps> = ({
   );
 };
 
-// Contract Edit Dialog Component
+// Contract Edit Dialog Component - Completely isolated from form
 interface ContractEditDialogProps {
   contract: Contract;
   isOpen: boolean;
@@ -372,11 +357,12 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
     setFormData(prev => ({ ...prev, value: totalValue }));
   }, [formData.setup_fee, formData.annual_rate]);
 
+  // CRITICAL: Prevent any form submission events from bubbling up
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('Dialog form submitted', formData);
+    console.log('ContractEditDialog: Form submitted', formData);
     
     // Validate required fields
     if (!formData.name.trim()) {
@@ -399,10 +385,11 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  // CRITICAL: Prevent cancel from triggering any parent form events
   const handleCancel = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('Dialog cancelled');
+    console.log('ContractEditDialog: Dialog cancelled');
     onClose();
   };
 
@@ -415,15 +402,20 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
   };
 
   if (!isOpen) {
-    console.log('Dialog not open, not rendering');
     return null;
   }
 
-  console.log('Rendering dialog with contract:', contract);
+  console.log('ContractEditDialog: Rendering dialog for contract:', contract.name);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={(e) => e.stopPropagation()}>
-      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" 
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div 
+        className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" 
+        onClick={(e) => e.stopPropagation()}
+      >
         <h3 className="text-lg font-semibold mb-4">
           {isNewContract ? "Add New Contract" : "Edit Contract"}
         </h3>
