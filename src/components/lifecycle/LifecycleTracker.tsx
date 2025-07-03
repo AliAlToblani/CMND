@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { LifecycleStageComponent, LifecycleStageProps } from "./LifecycleStage";
 import { AddEditStage } from "./AddEditStage";
 import { LifecycleProgress } from "./LifecycleProgress";
+import { CategorySection } from "./CategorySection";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { defaultLifecycleStages } from "@/data/defaultLifecycleStages";
@@ -202,6 +203,20 @@ export function LifecycleTracker({
 
   const sortedStages = sortStagesByOrder(stages);
 
+  // Group stages by category
+  const groupedStages = sortedStages.reduce((acc, stage) => {
+    const category = stage.category || "Other";
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(stage);
+    return acc;
+  }, {} as Record<string, LifecycleStageProps[]>);
+
+  // Define category order for consistent display
+  const categoryOrder = ["Pre-Sales", "Sales", "Implementation", "Finance", "Other"];
+  const orderedCategories = categoryOrder.filter(category => groupedStages[category]?.length > 0);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -213,14 +228,15 @@ export function LifecycleTracker({
       
       <LifecycleProgress stages={sortedStages} />
       
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {sortedStages.map((stage) => (
-          <LifecycleStageComponent
-            key={stage.id}
-            {...stage}
+      <div className="space-y-6">
+        {orderedCategories.map((categoryName) => (
+          <CategorySection
+            key={categoryName}
+            categoryName={categoryName}
+            stages={groupedStages[categoryName]}
             customerId={customerId}
             customerName={customerName}
-            onUpdate={handleStageUpdate}
+            onStageUpdate={handleStageUpdate}
           />
         ))}
       </div>
