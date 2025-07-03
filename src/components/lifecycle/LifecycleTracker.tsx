@@ -80,7 +80,7 @@ export function LifecycleTracker({
     }
   };
 
-  const handleStageAdd = async (newStage: Partial<LifecycleStageProps>) => {
+  const handleStageAdd = async (newStage: { name?: string; status?: string; category?: string; owner?: { id: string; name: string; role: string; }; deadline?: string; notes?: string; icon?: React.ReactNode; }) => {
     console.log("Adding new stage:", newStage);
     setIsLoading(true);
     
