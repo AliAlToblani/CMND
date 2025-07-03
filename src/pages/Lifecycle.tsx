@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { LifecycleTracker } from "@/components/lifecycle/LifecycleTracker";
@@ -19,7 +18,7 @@ import { defaultLifecycleStages } from "@/data/defaultLifecycleStages";
 import { removeDuplicateCustomers } from "@/utils/customerDataSync";
 import { 
   FileCheck, Users, Briefcase, DollarSign, Calendar,
-  BookOpen, HeartHandshake, Medal, Zap, CheckSquare
+  BookOpen, HeartHandshake, Medal, Zap, CheckSquare, Monitor
 } from "lucide-react";
 
 // Icon mapping for stages
@@ -28,6 +27,7 @@ const stageIcons: Record<string, React.ReactNode> = {
   "Qualified Lead": <CheckSquare className="h-5 w-5" />,
   "Meeting Set": <Calendar className="h-5 w-5" />,
   "Discovery Call": <Calendar className="h-5 w-5" />,
+  "Demo": <Monitor className="h-5 w-5" />,
   "Proposal Sent": <FileCheck className="h-5 w-5" />,
   "Proposal Approved": <CheckSquare className="h-5 w-5" />,
   "Contract Sent": <FileCheck className="h-5 w-5" />,

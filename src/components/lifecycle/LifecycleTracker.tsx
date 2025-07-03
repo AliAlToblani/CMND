@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LifecycleStageComponent, LifecycleStageProps } from "./LifecycleStage";
@@ -11,7 +12,7 @@ import { createNotification } from "@/utils/notificationHelpers";
 import { checkForDuplicateStages } from "@/utils/customerDataSync";
 import { 
   FileCheck, Users, Briefcase, DollarSign, Calendar,
-  BookOpen, HeartHandshake, Medal, Zap, CheckSquare
+  BookOpen, HeartHandshake, Medal, Zap, CheckSquare, Monitor
 } from "lucide-react";
 
 interface LifecycleTrackerProps {
@@ -35,6 +36,7 @@ const stageIcons: Record<string, React.ReactNode> = {
   "Qualified Lead": <CheckSquare className="h-5 w-5" />,
   "Meeting Set": <Calendar className="h-5 w-5" />,
   "Discovery Call": <Calendar className="h-5 w-5" />,
+  "Demo": <Monitor className="h-5 w-5" />,
   "Proposal Sent": <FileCheck className="h-5 w-5" />,
   "Proposal Approved": <CheckSquare className="h-5 w-5" />,
   "Contract Sent": <FileCheck className="h-5 w-5" />,

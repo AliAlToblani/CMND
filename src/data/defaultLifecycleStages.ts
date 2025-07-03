@@ -23,6 +23,11 @@ export const defaultLifecycleStages = [
     category: "Sales"
   },
   {
+    name: "Demo",
+    status: "not-started",
+    category: "Sales"
+  },
+  {
     name: "Proposal Sent",
     status: "not-started",
     category: "Sales"
