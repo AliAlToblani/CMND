@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect } from "react";
-import { LifecycleStageComponent, LifecycleStageProps } from "./LifecycleStage";
+import { LifecycleStageProps } from "./LifecycleStage";
 import { AddEditStage } from "./AddEditStage";
 import { LifecycleProgress } from "./LifecycleProgress";
 import { CategorySection } from "./CategorySection";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { defaultLifecycleStages } from "@/data/defaultLifecycleStages";
@@ -32,6 +34,8 @@ export function LifecycleTracker({
   onStagesUpdate 
 }: LifecycleTrackerProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("Pre-Sales");
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   const getDbCustomerId = (customerId: string) => {
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(customerId)) {
@@ -161,45 +165,77 @@ export function LifecycleTracker({
     }
   };
 
-  useEffect(() => {
-    const initializeStages = async () => {
-      if (stages.length === 0) {
-        console.log("No stages found, adding default stages for customer:", customerId);
-        setIsLoading(true);
-        
-        try {
-          const dbCustomerId = getDbCustomerId(customerId);
-          
-          for (const defaultStage of defaultLifecycleStages) {
-            console.log("Adding default stage:", defaultStage.name);
-            await supabase
-              .from('lifecycle_stages')
-              .insert({
-                customer_id: dbCustomerId,
-                name: defaultStage.name,
-                status: defaultStage.status,
-                category: defaultStage.category,
-                owner_id: defaultStage.owner.id,
-                deadline: defaultStage.deadline,
-                notes: defaultStage.notes
-              });
-          }
-          
-          toast.success("Default lifecycle stages initialized");
-          
-          window.location.reload();
-          
-        } catch (error) {
-          console.error("Error initializing default stages:", error);
-          toast.error("Failed to initialize default stages");
-        } finally {
-          setIsLoading(false);
-        }
+  const initializeDefaultStages = async () => {
+    if (hasInitialized || stages.length > 0) return;
+    
+    console.log("Initializing default stages for customer:", customerId);
+    setIsLoading(true);
+    setHasInitialized(true);
+    
+    try {
+      const dbCustomerId = getDbCustomerId(customerId);
+      
+      for (const defaultStage of defaultLifecycleStages) {
+        console.log("Adding default stage:", defaultStage.name);
+        await supabase
+          .from('lifecycle_stages')
+          .insert({
+            customer_id: dbCustomerId,
+            name: defaultStage.name,
+            status: defaultStage.status,
+            category: defaultStage.category,
+            owner_id: defaultStage.owner.id,
+            deadline: defaultStage.deadline,
+            notes: defaultStage.notes
+          });
       }
-    };
+      
+      toast.success("Default lifecycle stages initialized");
+      
+      // Refresh stages data without page reload
+      const { data, error } = await supabase
+        .from('lifecycle_stages')
+        .select(`
+          *,
+          staff:owner_id (id, name, role)
+        `)
+        .eq('customer_id', dbCustomerId);
 
-    initializeStages();
-  }, [customerId, stages.length]);
+      if (!error && data) {
+        const formattedStages: LifecycleStageProps[] = data.map((stage: any) => ({
+          id: stage.id,
+          name: stage.name,
+          status: stage.status as LifecycleStageProps["status"],
+          category: stage.category || "",
+          owner: stage.staff ? {
+            id: stage.staff.id,
+            name: stage.staff.name,
+            role: stage.staff.role
+          } : {
+            id: "unknown",
+            name: "Unknown",
+            role: "Unknown"
+          },
+          deadline: stage.deadline,
+          notes: stage.notes,
+        }));
+        
+        onStagesUpdate(sortStagesByOrder(formattedStages));
+      }
+      
+    } catch (error) {
+      console.error("Error initializing default stages:", error);
+      toast.error("Failed to initialize default stages");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (stages.length === 0 && !hasInitialized) {
+      initializeDefaultStages();
+    }
+  }, [customerId, stages.length, hasInitialized]);
 
   const sortedStages = sortStagesByOrder(stages);
 
@@ -214,8 +250,22 @@ export function LifecycleTracker({
   }, {} as Record<string, LifecycleStageProps[]>);
 
   // Define category order for consistent display
-  const categoryOrder = ["Pre-Sales", "Sales", "Implementation", "Finance", "Other"];
-  const orderedCategories = categoryOrder.filter(category => groupedStages[category]?.length > 0);
+  const categoryOrder = ["Pre-Sales", "Sales", "Implementation", "Finance"];
+  const availableCategories = categoryOrder.filter(category => groupedStages[category]?.length > 0);
+
+  // Set default active tab to first available category
+  useEffect(() => {
+    if (availableCategories.length > 0 && !availableCategories.includes(activeTab)) {
+      setActiveTab(availableCategories[0]);
+    }
+  }, [availableCategories, activeTab]);
+
+  const getCategoryProgress = (categoryName: string) => {
+    const categoryStages = groupedStages[categoryName] || [];
+    const completedStages = categoryStages.filter(stage => stage.status === 'done').length;
+    const totalStages = categoryStages.filter(stage => stage.status !== 'not-applicable').length;
+    return { completed: completedStages, total: totalStages };
+  };
 
   return (
     <div className="space-y-6">
@@ -228,18 +278,49 @@ export function LifecycleTracker({
       
       <LifecycleProgress stages={sortedStages} />
       
-      <div className="space-y-6">
-        {orderedCategories.map((categoryName) => (
-          <CategorySection
-            key={categoryName}
-            categoryName={categoryName}
-            stages={groupedStages[categoryName]}
-            customerId={customerId}
-            customerName={customerName}
-            onStageUpdate={handleStageUpdate}
-          />
-        ))}
-      </div>
+      {availableCategories.length > 0 ? (
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-4">
+            {categoryOrder.map((categoryName) => {
+              const progress = getCategoryProgress(categoryName);
+              const isAvailable = availableCategories.includes(categoryName);
+              return (
+                <TabsTrigger 
+                  key={categoryName} 
+                  value={categoryName}
+                  disabled={!isAvailable}
+                  className="flex flex-col items-center space-y-1"
+                >
+                  <span>{categoryName}</span>
+                  {isAvailable && (
+                    <span className="text-xs text-muted-foreground">
+                      {progress.completed}/{progress.total}
+                    </span>
+                  )}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+          
+          {categoryOrder.map((categoryName) => (
+            <TabsContent key={categoryName} value={categoryName} className="mt-6">
+              {groupedStages[categoryName] && (
+                <CategorySection
+                  categoryName={categoryName}
+                  stages={groupedStages[categoryName]}
+                  customerId={customerId}
+                  customerName={customerName}
+                  onStageUpdate={handleStageUpdate}
+                />
+              )}
+            </TabsContent>
+          ))}
+        </Tabs>
+      ) : (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">No lifecycle stages available.</p>
+        </div>
+      )}
       
       {isLoading && (
         <div className="flex justify-center py-4">

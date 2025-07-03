@@ -57,38 +57,39 @@ export function CategorySection({
   if (stages.length === 0) return null;
 
   return (
-    <Card className="mb-6 animate-fade-in">
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xl font-semibold flex items-center gap-3">
-            <div className={`w-4 h-4 rounded-full bg-gradient-to-r ${getCategoryColor(categoryName)}`} />
-            {categoryName}
-          </CardTitle>
-          <Badge className={getCategoryBadgeColor(categoryName)}>
-            {completedStages}/{totalStages} completed
-          </Badge>
-        </div>
-        <div className="mt-3">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm text-muted-foreground">Category Progress</span>
-            <span className="text-sm font-medium">{progressPercentage}%</span>
+    <div className="space-y-4">
+      <Card className="bg-gradient-to-r from-background to-muted/30">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold flex items-center gap-3">
+              <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${getCategoryColor(categoryName)}`} />
+              {categoryName} Overview
+            </CardTitle>
+            <Badge className={getCategoryBadgeColor(categoryName)}>
+              {completedStages}/{totalStages} completed
+            </Badge>
           </div>
-          <Progress value={progressPercentage} className="h-2" />
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {stages.map((stage) => (
-            <LifecycleStageComponent
-              key={stage.id}
-              {...stage}
-              customerId={customerId}
-              customerName={customerName}
-              onUpdate={onStageUpdate}
-            />
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+          <div className="mt-3">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-muted-foreground">Progress</span>
+              <span className="text-sm font-medium">{progressPercentage}%</span>
+            </div>
+            <Progress value={progressPercentage} className="h-2" />
+          </div>
+        </CardHeader>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {stages.map((stage) => (
+          <LifecycleStageComponent
+            key={stage.id}
+            {...stage}
+            customerId={customerId}
+            customerName={customerName}
+            onUpdate={onStageUpdate}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
