@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Combobox } from "@/components/ui/combobox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, ArrowLeft } from "lucide-react";
+import { CalendarIcon, ArrowLeft, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
@@ -28,6 +28,7 @@ import { countryOptions } from "@/data/defaultLifecycleStages";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 
 const partnershipSchema = z.object({
   name: z.string().min(1, "Partnership name is required"),
@@ -51,6 +52,9 @@ export default function AddEditPartnership() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [partnershipName, setPartnershipName] = useState("");
   
   // Document management
   const { documents, setDocuments, saveDocuments } = useDocumentManager(id, "partnership");
@@ -93,6 +97,7 @@ export default function AddEditPartnership() {
         }
 
         if (data) {
+          setPartnershipName(data.name);
           form.reset({
             name: data.name,
             partnership_type: data.partnership_type,
@@ -116,6 +121,57 @@ export default function AddEditPartnership() {
 
     loadPartnership();
   }, [id, form, toast]);
+
+  const handleDelete = async () => {
+    if (!id) return;
+    
+    setIsDeleting(true);
+    try {
+      // Delete related records in correct order to avoid foreign key constraints
+      const deleteOperations = [
+        // Delete partnership contacts
+        supabase.from('partnership_contacts').delete().eq('partnership_id', id),
+        // Delete partnership documents
+        supabase.from('partnership_documents').delete().eq('partnership_id', id),
+        // Delete partnership timeline
+        supabase.from('partnership_timeline').delete().eq('partnership_id', id),
+      ];
+
+      // Execute all delete operations
+      for (const operation of deleteOperations) {
+        const { error } = await operation;
+        if (error) {
+          console.error('Error deleting related records:', error);
+          // Continue with other deletions even if one fails
+        }
+      }
+
+      // Finally delete the partnership
+      const { error: partnershipError } = await supabase
+        .from('partnerships')
+        .delete()
+        .eq('id', id);
+
+      if (partnershipError) throw partnershipError;
+
+      toast({
+        title: "Success",
+        description: "Partnership deleted successfully!",
+      });
+
+      navigate('/partnerships');
+    } catch (error) {
+      console.error('Error deleting partnership:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete partnership.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
 
   const onSubmit = async (data: PartnershipFormData) => {
     setIsSubmitting(true);
@@ -213,18 +269,32 @@ export default function AddEditPartnership() {
   return (
     <DashboardLayout>
       <div className="max-w-4xl mx-auto p-6">
-        <div className="flex items-center gap-4 mb-6">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/partnerships')}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Partnerships
-          </Button>
-          <h1 className="text-2xl font-bold">
-            {id ? 'Edit Partnership' : 'Add New Partnership'}
-          </h1>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/partnerships')}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Partnerships
+            </Button>
+            <h1 className="text-2xl font-bold">
+              {id ? 'Edit Partnership' : 'Add New Partnership'}
+            </h1>
+          </div>
+          
+          {id && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowDeleteDialog(true)}
+              disabled={isDeleting}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Partnership
+            </Button>
+          )}
         </div>
 
         <Form {...form}>
@@ -547,6 +617,16 @@ export default function AddEditPartnership() {
             </div>
           </form>
         </Form>
+
+        <DeleteConfirmationDialog
+          open={showDeleteDialog}
+          onOpenChange={setShowDeleteDialog}
+          onConfirm={handleDelete}
+          title="Delete Partnership"
+          description="Are you sure you want to delete this partnership?"
+          itemName={partnershipName}
+          isDeleting={isDeleting}
+        />
       </div>
     </DashboardLayout>
   );

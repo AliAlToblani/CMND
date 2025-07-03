@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Trash2 } from "lucide-react";
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 
 export default function AddEditCustomer() {
   const { id } = useParams();
@@ -16,6 +17,9 @@ export default function AddEditCustomer() {
   const [initialData, setInitialData] = useState<Partial<CustomerFormData> | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [customerName, setCustomerName] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -40,6 +44,7 @@ export default function AddEditCustomer() {
         }
 
         if (data) {
+          setCustomerName(data.name);
           setInitialData({
             name: data.name,
             segment: data.segment || "",
@@ -63,6 +68,67 @@ export default function AddEditCustomer() {
 
     loadCustomer();
   }, [id, toast]);
+
+  const handleDelete = async () => {
+    if (!id) return;
+    
+    setIsDeleting(true);
+    try {
+      // Delete related records in correct order to avoid foreign key constraints
+      const deleteOperations = [
+        // Delete contracts first
+        supabase.from('contracts').delete().eq('customer_id', id),
+        // Delete customer feedback
+        supabase.from('customer_feedback').delete().eq('customer_id', id),
+        // Delete customer team members
+        supabase.from('customer_team_members').delete().eq('customer_id', id),
+        // Delete customer timeline
+        supabase.from('customer_timeline').delete().eq('customer_id', id),
+        // Delete documents
+        supabase.from('documents').delete().eq('customer_id', id),
+        // Delete lifecycle stages
+        supabase.from('lifecycle_stages').delete().eq('customer_id', id),
+        // Delete referrals
+        supabase.from('referrals').delete().eq('customer_id', id),
+        // Delete tasks
+        supabase.from('tasks').delete().eq('customer_id', id),
+      ];
+
+      // Execute all delete operations
+      for (const operation of deleteOperations) {
+        const { error } = await operation;
+        if (error) {
+          console.error('Error deleting related records:', error);
+          // Continue with other deletions even if one fails
+        }
+      }
+
+      // Finally delete the customer
+      const { error: customerError } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', id);
+
+      if (customerError) throw customerError;
+
+      toast({
+        title: "Success",
+        description: "Customer deleted successfully!",
+      });
+
+      navigate('/customers');
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete customer.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
 
   const handleSubmit = async (data: CustomerFormData, contracts: Contract[]) => {
     setIsSubmitting(true);
@@ -166,18 +232,32 @@ export default function AddEditCustomer() {
   return (
     <DashboardLayout>
       <div className="max-w-4xl mx-auto p-6">
-        <div className="flex items-center gap-4 mb-6">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/customers')}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Customers
-          </Button>
-          <h1 className="text-2xl font-bold">
-            {id ? 'Edit Customer' : 'Add New Customer'}
-          </h1>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/customers')}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Customers
+            </Button>
+            <h1 className="text-2xl font-bold">
+              {id ? 'Edit Customer' : 'Add New Customer'}
+            </h1>
+          </div>
+          
+          {id && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowDeleteDialog(true)}
+              disabled={isDeleting}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Customer
+            </Button>
+          )}
         </div>
 
         <CustomerForm
@@ -186,6 +266,16 @@ export default function AddEditCustomer() {
           isSubmitting={isSubmitting}
           submitLabel={id ? "Update Customer" : "Create Customer"}
           customerId={id}
+        />
+
+        <DeleteConfirmationDialog
+          open={showDeleteDialog}
+          onOpenChange={setShowDeleteDialog}
+          onConfirm={handleDelete}
+          title="Delete Customer"
+          description="Are you sure you want to delete this customer?"
+          itemName={customerName}
+          isDeleting={isDeleting}
         />
       </div>
     </DashboardLayout>
