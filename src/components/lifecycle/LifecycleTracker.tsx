@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from "react";
 import { LifecycleStageProps } from "./LifecycleStage";
 import { AddEditStage } from "./AddEditStage";
-import { LifecycleProgress } from "./LifecycleProgress";
+import { EnhancedLifecycleProgress } from "./EnhancedLifecycleProgress";
 import { CategorySection } from "./CategorySection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
@@ -276,7 +275,7 @@ export function LifecycleTracker({
         <AddEditStage onSave={handleStageAdd} />
       </div>
       
-      <LifecycleProgress stages={sortedStages} />
+      <EnhancedLifecycleProgress stages={sortedStages} />
       
       {availableCategories.length > 0 ? (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
