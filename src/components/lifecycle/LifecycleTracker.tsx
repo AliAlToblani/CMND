@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LifecycleStageComponent, LifecycleStageProps } from "./LifecycleStage";
@@ -10,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LifecycleProgress } from "./LifecycleProgress";
 import { createNotification } from "@/utils/notificationHelpers";
 import { checkForDuplicateStages } from "@/utils/customerDataSync";
+import { sortStagesByOrder } from "@/utils/stageOrdering";
 import { 
   FileCheck, Users, Briefcase, DollarSign, Calendar,
   BookOpen, HeartHandshake, Medal, Zap, CheckSquare, Monitor
@@ -195,7 +195,8 @@ export function LifecycleTracker({
           icon: stageIcons[data[0].name] || <FileCheck className="h-5 w-5" />
         };
 
-        const updatedStages = [...stages, newStageData];
+        // Sort stages after adding new one
+        const updatedStages = sortStagesByOrder([...stages, newStageData]);
         setStages(updatedStages);
         
         if (onStagesUpdate) {
@@ -267,10 +268,12 @@ export function LifecycleTracker({
         return stage;
       });
       
-      setStages(updatedStages);
+      // Sort stages after updating in case name changed
+      const sortedStages = sortStagesByOrder(updatedStages);
+      setStages(sortedStages);
       
       if (onStagesUpdate) {
-        onStagesUpdate(updatedStages);
+        onStagesUpdate(sortedStages);
       }
 
       if (updatedStage.name || updatedStage.owner || updatedStage.deadline || updatedStage.notes || updatedStage.category) {
@@ -448,11 +451,13 @@ export function LifecycleTracker({
           };
         });
 
-        setStages(formattedStages);
+        // Sort stages by logical order instead of creation time
+        const sortedStages = sortStagesByOrder(formattedStages);
+        setStages(sortedStages);
         setHasFetchedStages(true);
         
         if (onStagesUpdate) {
-          onStagesUpdate(formattedStages);
+          onStagesUpdate(sortedStages);
         }
       }
     } catch (error) {
