@@ -14,6 +14,16 @@ interface LifecycleTrackerProps {
   onStagesUpdate: (stages: LifecycleStageProps[]) => void;
 }
 
+interface NewStageData {
+  name?: string;
+  status?: string;
+  category?: string;
+  owner?: { id: string; name: string; role: string; };
+  deadline?: string;
+  notes?: string;
+  icon?: React.ReactNode;
+}
+
 export function LifecycleTracker({ 
   customerId, 
   customerName, 
@@ -80,7 +90,7 @@ export function LifecycleTracker({
     }
   };
 
-  const handleStageAdd = async (newStage: { name?: string; status?: string; category?: string; owner?: { id: string; name: string; role: string; }; deadline?: string; notes?: string; icon?: React.ReactNode; }) => {
+  const handleStageAdd = async (newStage: NewStageData) => {
     console.log("Adding new stage:", newStage);
     setIsLoading(true);
     
