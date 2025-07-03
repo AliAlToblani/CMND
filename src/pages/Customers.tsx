@@ -21,10 +21,12 @@ import { syncCustomersToDatabase, checkForDuplicateStages, removeDuplicateCustom
 const Customers = () => {
   const navigate = useNavigate();
   const [filter, setFilter] = useState("all");
+  const [countryFilter, setCountryFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc" | "none">("none");
   const [sortBy, setSortBy] = useState<"name" | "contractSize">("name");
   const [customers, setCustomers] = useState<CustomerData[]>([]);
+  const [uniqueCountries, setUniqueCountries] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const convertToCustomerData = (customer: any): CustomerData => {
@@ -67,6 +69,16 @@ const Customers = () => {
     };
   };
 
+  const extractUniqueCountries = (customersData: CustomerData[]) => {
+    const countries = customersData
+      .map(customer => customer.country)
+      .filter(country => country && country !== "Unknown Country")
+      .filter((country, index, arr) => arr.indexOf(country) === index)
+      .sort();
+    
+    setUniqueCountries(countries);
+  };
+
   useEffect(() => {
     const initialSetup = async () => {
       // Ensure customer data is synced on first load
@@ -98,6 +110,7 @@ const Customers = () => {
       if (data && data.length > 0) {
         const formattedCustomers = data.map(formatDatabaseCustomer);
         setCustomers(formattedCustomers);
+        extractUniqueCountries(formattedCustomers);
         
         // Run duplicate stage check for all customers
         await Promise.all(formattedCustomers.map(customer => checkForDuplicateStages(customer.id)));
@@ -122,6 +135,7 @@ const Customers = () => {
         }));
         
         setCustomers(formattedRealCustomers);
+        extractUniqueCountries(formattedRealCustomers);
       }
     } catch (error) {
       console.error("Error fetching customers:", error);
@@ -145,6 +159,7 @@ const Customers = () => {
       }));
       
       setCustomers(formattedRealCustomers);
+      extractUniqueCountries(formattedRealCustomers);
     } finally {
       setIsLoading(false);
     }
@@ -198,6 +213,10 @@ const Customers = () => {
       return false;
     }
     
+    if (countryFilter !== "all" && customer.country !== countryFilter) {
+      return false;
+    }
+    
     if (
       searchTerm &&
       !customer.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -242,6 +261,20 @@ const Customers = () => {
               <SelectItem value="in-progress">In Progress</SelectItem>
               <SelectItem value="done">Done</SelectItem>
               <SelectItem value="blocked">Blocked</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={countryFilter} onValueChange={setCountryFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Filter by country" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Countries</SelectItem>
+              {uniqueCountries.map(country => (
+                <SelectItem key={country} value={country}>
+                  {country}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           
