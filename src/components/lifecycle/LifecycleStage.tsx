@@ -1,3 +1,4 @@
+
 import React from "react";
 import { AddEditStage } from "./AddEditStage";
 import { 
@@ -84,17 +85,17 @@ export function LifecycleStageComponent({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "not-started":
-        return <Badge variant="outline">Not Started</Badge>;
+        return <Badge variant="outline" className="text-xs">Not Started</Badge>;
       case "in-progress":
-        return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">In Progress</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 text-xs">In Progress</Badge>;
       case "done":
-        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">Done</Badge>;
+        return <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 text-xs">Done</Badge>;
       case "blocked":
-        return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300">Blocked</Badge>;
+        return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 text-xs">Blocked</Badge>;
       case "not-applicable":
-        return <Badge variant="outline" className="border-gray-300 text-gray-500">Not Applicable</Badge>;
+        return <Badge variant="outline" className="border-gray-300 text-gray-500 text-xs">Not Applicable</Badge>;
       default:
-        return <Badge>{status}</Badge>;
+        return <Badge className="text-xs">{status}</Badge>;
     }
   };
 
@@ -171,73 +172,75 @@ ${category ? `Category: ${category}` : ''}`;
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            {icon && icon}
-            {name}
+    <Card className="h-full flex flex-col">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-base font-medium flex items-start gap-2 leading-tight">
+            {icon && <span className="flex-shrink-0 mt-0.5">{icon}</span>}
+            <span className="break-words">{name}</span>
           </CardTitle>
           <Button
             variant="outline"
             size="sm"
             onClick={handleAddAsTask}
-            className="h-8 w-8 p-0"
+            className="h-7 w-7 p-0 flex-shrink-0"
             title="Add as Task"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3 w-3" />
           </Button>
         </div>
+        {category && (
+          <Badge variant="outline" className="bg-secondary/10 text-xs w-fit mt-2">{category}</Badge>
+        )}
       </CardHeader>
-      <CardContent>
-        <div className="space-y-2">
-          {category && (
-            <Badge variant="outline" className="bg-secondary/10">{category}</Badge>
-          )}
+      
+      <CardContent className="flex-1 pt-0 pb-3">
+        <div className="space-y-3">
           <div className="flex items-center space-x-2">
-            <Avatar className="h-7 w-7">
+            <Avatar className="h-6 w-6 flex-shrink-0">
               <AvatarImage src={`https://avatar.vercel.sh/${owner.name}.png`} alt={owner.name} />
-              <AvatarFallback className="bg-secondary/50 text-secondary">{owner.name.charAt(0)}</AvatarFallback>
+              <AvatarFallback className="bg-secondary/50 text-secondary text-xs">{owner.name.charAt(0)}</AvatarFallback>
             </Avatar>
-            <div className="text-sm">
-              <p className="font-medium">{owner.name}</p>
-              <p className="text-muted-foreground">{owner.role}</p>
+            <div className="text-xs min-w-0 flex-1">
+              <p className="font-medium truncate">{owner.name}</p>
+              <p className="text-muted-foreground truncate">{owner.role}</p>
             </div>
           </div>
           
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="link" className="p-0 h-auto text-xs flex items-center">
-                    <Calendar className="h-3.5 w-3.5 mr-1" />
+          <div className="flex items-center justify-start">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="link" className="p-0 h-auto text-xs flex items-center text-muted-foreground hover:text-foreground">
+                  <Calendar className="h-3 w-3 mr-1 flex-shrink-0" />
+                  <span className="truncate">
                     {deadline ? new Date(deadline).toLocaleDateString() : "Set deadline"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={deadline ? new Date(deadline) : undefined}
-                    onSelect={handleDateSelect}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={deadline ? new Date(deadline) : undefined}
+                  onSelect={handleDateSelect}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           
           {notes && (
-            <div className="text-sm">
-              <p className="text-muted-foreground">Notes:</p>
-              <p>{notes}</p>
+            <div className="text-xs space-y-1">
+              <p className="text-muted-foreground font-medium">Notes:</p>
+              <p className="break-words leading-relaxed">{notes}</p>
             </div>
           )}
         </div>
       </CardContent>
-      <CardFooter className="flex justify-between items-center">
+      
+      <CardFooter className="flex justify-between items-center pt-0 gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="px-2">
+            <Button variant="ghost" size="sm" className="px-2 h-7 text-xs">
               {getStatusBadge(status)}
             </Button>
           </DropdownMenuTrigger>
