@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { LifecycleStageComponent, LifecycleStageProps } from "./LifecycleStage";
 import { AddEditStage } from "./AddEditStage";
@@ -81,7 +80,7 @@ export function LifecycleTracker({
     }
   };
 
-  const handleStageAdd = async (newStage: Omit<LifecycleStageProps, 'id'>) => {
+  const handleStageAdd = async (newStage: Partial<LifecycleStageProps>) => {
     console.log("Adding new stage:", newStage);
     setIsLoading(true);
     
@@ -118,7 +117,11 @@ export function LifecycleTracker({
             id: data[0].staff.id,
             name: data[0].staff.name,
             role: data[0].staff.role
-          } : newStage.owner,
+          } : newStage.owner || {
+            id: "unknown",
+            name: "Unknown",
+            role: "Unknown"
+          },
           deadline: data[0].deadline,
           notes: data[0].notes,
           icon: newStage.icon
