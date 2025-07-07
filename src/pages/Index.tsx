@@ -10,13 +10,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { CustomerData } from "@/types/customers";
 import { syncCustomersToDatabase, checkForDuplicateStages } from "@/utils/customerDataSync";
 import { toast } from "sonner";
-import { useDashboardAnalytics } from "@/hooks/useDashboardAnalytics";
+import { 
+  getLiveCustomers, 
+  getCustomerARRData, 
+  getDealsPipeline, 
+  calculateAverageGoLiveTime,
+  calculateChurnRate,
+  calculateSalesLifecycle,
+  formatCurrency
+} from "@/utils/customerUtils";
 
 const Index = () => {
   const navigate = useNavigate();
   const [customers, setCustomers] = useState<CustomerData[]>([]);
   const [loading, setLoading] = useState(true);
-  const analytics = useDashboardAnalytics();
   
   useEffect(() => {
     const initialSync = async () => {
@@ -109,55 +116,63 @@ const Index = () => {
     fetchCustomers();
   }, []);
 
-  // Dashboard metrics from real-time analytics
+  // Calculate dashboard metrics
+  const { totalARR, liveCustomers, growthRate } = getCustomerARRData(customers);
+  const formattedARR = formatCurrency(totalARR);
+  const dealsPipeline = getDealsPipeline(customers);
+  const formattedDealsPipeline = formatCurrency(dealsPipeline.value);
+  
+  const getTotalCustomersCount = () => {
+    return customers.length;
+  };
+  
   const dashboardStats = [
     {
       title: "Total ARR",
-      value: analytics.formattedARR,
-      change: analytics.growthRate > 0 ? { value: analytics.growthRate, type: "increase" as const } : undefined,
+      value: formattedARR,
+      change: { value: 14, type: "increase" as const },
       icon: <BarChart3 className="h-6 w-6" />
     },
     {
       title: "Live Customers",
-      value: `${analytics.liveCustomersCount}`,
+      value: `${liveCustomers.length}`,
+      change: { value: 5, type: "increase" as const },
       icon: <LifeBuoy className="h-6 w-6" />
     },
     {
       title: "Total Customers",
-      value: `${analytics.totalCustomersCount}`,
+      value: `${getTotalCustomersCount()}`,
       icon: <Briefcase className="h-6 w-6" />
     },
     {
       title: "Deals Pipeline",
-      value: analytics.formattedDealsPipeline,
-      description: `${analytics.dealsPipelineCount} active deals`,
+      value: formattedDealsPipeline,
+      description: `${dealsPipeline.count} active deals`,
       icon: <TrendingUp className="h-6 w-6" />
     },
     {
       title: "Sales Lifecycle",
-      value: analytics.salesLifecycleDays > 0 ? `${analytics.salesLifecycleDays} days` : "No data",
+      value: calculateSalesLifecycle(),
       description: "Average sales cycle",
       icon: <Kanban className="h-6 w-6" />
     },
     {
       title: "Growth Rate",
-      value: `${analytics.growthRate}%`,
+      value: `${growthRate}%`,
       description: "Last quarter",
-      change: analytics.growthRate > 0 ? { value: analytics.growthRate, type: "increase" as const } : 
-              analytics.growthRate < 0 ? { value: Math.abs(analytics.growthRate), type: "decrease" as const } : undefined,
+      change: { value: 8, type: "increase" as const },
       icon: <TrendingUp className="h-6 w-6" />
     },
     {
       title: "Avg. Go Live Time",
-      value: analytics.avgGoLiveDays > 0 ? `${analytics.avgGoLiveDays} days` : "No data",
+      value: calculateAverageGoLiveTime(),
       description: "From contract to live",
       icon: <Clock className="h-6 w-6" />
     },
     {
       title: "Churn Rate",
-      value: `${analytics.churnRate}%`,
+      value: calculateChurnRate(customers),
       description: "Last 12 months",
-      change: analytics.churnRate > 0 ? { value: analytics.churnRate, type: "decrease" as const } : undefined,
       icon: <Activity className="h-6 w-6" />
     }
   ];
@@ -197,7 +212,7 @@ const Index = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {loading || analytics.isLoading ? (
+                {loading ? (
                   Array(4).fill(0).map((_, i) => (
                     <div key={i} className="h-48 bg-gray-100 animate-pulse rounded-md"></div>
                   ))
