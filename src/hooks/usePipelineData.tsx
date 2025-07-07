@@ -20,21 +20,48 @@ const PIPELINE_STAGES = [
   "Live"
 ];
 
-// Map existing customer stages to new streamlined stages
-const STAGE_MAPPING: Record<string, string> = {
-  "Interest Captured": "Lead",
-  "High Potential": "Qualified",
-  "Demo Booked": "Demo",
-  "Demo Stage": "Demo",
+// Map completed lifecycle stages to pipeline stages
+const LIFECYCLE_TO_PIPELINE_MAPPING: Record<string, string> = {
+  // Lead stage
+  "Prospect": "Lead",
+  "Meeting Set": "Lead",
+  // Qualified stage
+  "Qualified Lead": "Qualified",
+  // Demo stage
+  "Demo": "Demo",
+  // Proposal stage
   "Proposal Sent": "Proposal",
+  // Contract stage
   "Contract Sent": "Contract",
-  "Contract Signed": "Contract",
-  "Integration": "Implementation",
-  "Pilot Stage": "Implementation",
-  "Went Live": "Live",
-  // Add fallback mappings for any other stages
-  "Unknown": "Lead",
-  "": "Lead"
+  // Implementation stage
+  "Onboarding": "Implementation",
+  "Technical Setup": "Implementation",
+  "Training": "Implementation",
+  // Live stage
+  "Go Live": "Live"
+};
+
+// Define pipeline stage order for determining furthest stage
+const PIPELINE_STAGE_ORDER = ["Lead", "Qualified", "Demo", "Proposal", "Contract", "Implementation", "Live"];
+
+// Function to determine the furthest pipeline stage based on completed lifecycle stages
+const getFurthestPipelineStage = (completedStages: string[]): string => {
+  const pipelineStages = completedStages
+    .map(stage => LIFECYCLE_TO_PIPELINE_MAPPING[stage])
+    .filter(Boolean);
+  
+  if (pipelineStages.length === 0) return "Lead";
+  
+  // Find the furthest stage in the pipeline
+  let furthestStageIndex = -1;
+  for (const stage of pipelineStages) {
+    const index = PIPELINE_STAGE_ORDER.indexOf(stage);
+    if (index > furthestStageIndex) {
+      furthestStageIndex = index;
+    }
+  }
+  
+  return furthestStageIndex >= 0 ? PIPELINE_STAGE_ORDER[furthestStageIndex] : "Lead";
 };
 
 export const usePipelineData = () => {
@@ -51,33 +78,57 @@ export const usePipelineData = () => {
       setIsLoading(true);
       setError(null);
 
+      // Fetch all customers
       const { data: customers, error: fetchError } = await supabase
         .from('customers')
-        .select('*')
-        .not('stage', 'is', null);
+        .select('*');
 
       if (fetchError) {
         throw fetchError;
       }
 
-      // Transform customers to CustomerData format
-      const transformedCustomers: CustomerData[] = (customers || []).map(customer => ({
-        id: customer.id,
-        name: customer.name,
-        logo: customer.logo || undefined,
-        segment: customer.segment || "Unknown Segment",
-        country: customer.country || "Unknown Country",
-        stage: customer.stage || "Unknown",
-        status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
-        contractSize: customer.contract_size || 0,
-        owner: {
-          id: customer.owner_id || "unknown",
-          name: "Unassigned",
-          role: "Unassigned"
-        }
-      }));
+      // Fetch all completed lifecycle stages
+      const { data: lifecycleStages, error: stagesError } = await supabase
+        .from('lifecycle_stages')
+        .select('customer_id, name, status')
+        .eq('status', 'done');
 
-      // Group customers by mapped stage
+      if (stagesError) {
+        throw stagesError;
+      }
+
+      // Group lifecycle stages by customer ID
+      const stagesByCustomer: Record<string, string[]> = {};
+      lifecycleStages?.forEach(stage => {
+        if (!stagesByCustomer[stage.customer_id]) {
+          stagesByCustomer[stage.customer_id] = [];
+        }
+        stagesByCustomer[stage.customer_id].push(stage.name);
+      });
+
+      // Transform customers to CustomerData format with pipeline stage determination
+      const transformedCustomers: CustomerData[] = (customers || []).map(customer => {
+        const completedStages = stagesByCustomer[customer.id] || [];
+        const pipelineStage = getFurthestPipelineStage(completedStages);
+        
+        return {
+          id: customer.id,
+          name: customer.name,
+          logo: customer.logo || undefined,
+          segment: customer.segment || "Unknown Segment",
+          country: customer.country || "Unknown Country",
+          stage: pipelineStage,
+          status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
+          contractSize: customer.contract_size || 0,
+          owner: {
+            id: customer.owner_id || "unknown",
+            name: "Unassigned",
+            role: "Unassigned"
+          }
+        };
+      });
+
+      // Group customers by pipeline stage
       const stageGroups: Record<string, CustomerData[]> = {};
       
       // Initialize all pipeline stages
@@ -85,15 +136,12 @@ export const usePipelineData = () => {
         stageGroups[stage] = [];
       });
 
-      // Group customers by their mapped stage
+      // Group customers by their pipeline stage
       transformedCustomers.forEach(customer => {
-        const originalStage = customer.stage || "Unknown";
-        const mappedStage = STAGE_MAPPING[originalStage] || "Lead"; // Default to Lead if no mapping found
-        
-        if (!stageGroups[mappedStage]) {
-          stageGroups[mappedStage] = [];
+        const pipelineStage = customer.stage;
+        if (stageGroups[pipelineStage]) {
+          stageGroups[pipelineStage].push(customer);
         }
-        stageGroups[mappedStage].push(customer);
       });
 
       // Create pipeline data in order
