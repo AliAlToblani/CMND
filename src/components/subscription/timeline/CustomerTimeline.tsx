@@ -3,6 +3,7 @@ import React from "react";
 import { ProcessedCustomer } from "../types";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, Calendar } from "lucide-react";
+import { formatCurrency } from "@/utils/contractUtils";
 
 interface CustomerTimelineProps {
   customer: ProcessedCustomer;
@@ -35,30 +36,8 @@ export const CustomerTimeline: React.FC<CustomerTimelineProps> = ({ customer }) 
     }
   };
 
-  const formatValue = (value: number | null) => {
-    console.log("formatValue called with:", value, typeof value);
-    
-    // Explicitly handle null, undefined, 0, and falsy values
-    if (value === null || value === undefined || value === 0 || !value) {
-      console.log("formatValue returning empty string for:", value);
-      return null; // Return null instead of empty string to prevent rendering
-    }
-    
-    // Handle values that are already in correct format
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    }
-    if (value >= 1000) {
-      return `$${(value / 1000).toFixed(0)}K`;
-    }
-    return `$${value.toLocaleString()}`;
-  };
-
-  // Add debugging for the customer data
-  console.log("CustomerTimeline rendering for:", customer.name, "Annual rate:", customer.annual_rate);
-
-  const formattedAnnualRate = formatValue(customer.annual_rate);
-  console.log("Formatted annual rate:", formattedAnnualRate);
+  // Use utility function for consistent formatting
+  const formattedAnnualRate = customer.annual_rate ? formatCurrency(customer.annual_rate) : null;
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg border p-6 hover:shadow-md transition-shadow">

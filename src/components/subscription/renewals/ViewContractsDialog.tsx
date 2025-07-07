@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { FileText, Calendar, DollarSign } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { contractQueryKeys, calculateContractValue, formatCurrency as utilFormatCurrency } from "@/utils/contractUtils";
 
 interface ViewContractsDialogProps {
   customerId: string;
@@ -27,7 +28,7 @@ export const ViewContractsDialog: React.FC<ViewContractsDialogProps> = ({
   const [isOpen, setIsOpen] = useState(false);
 
   const { data: contracts = [], isLoading } = useQuery({
-    queryKey: ['customer-contracts', customerId],
+    queryKey: contractQueryKeys.customer(customerId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('contracts')
@@ -41,14 +42,8 @@ export const ViewContractsDialog: React.FC<ViewContractsDialogProps> = ({
     enabled: isOpen
   });
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+  // Use utility function for consistent currency formatting
+  const formatCurrency = utilFormatCurrency;
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -58,8 +53,8 @@ export const ViewContractsDialog: React.FC<ViewContractsDialogProps> = ({
     });
   };
 
-  // Calculate total lifetime value from contract values
-  const totalLifetimeValue = contracts.reduce((sum, contract) => sum + (contract.value || 0), 0);
+  // Use utility function for consistent contract value calculation
+  const totalLifetimeValue = contracts.reduce((sum, contract) => sum + calculateContractValue(contract), 0);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -158,7 +153,7 @@ export const ViewContractsDialog: React.FC<ViewContractsDialogProps> = ({
                         <div>
                           <div className="text-xs text-gray-600 uppercase tracking-wide">Contract Value</div>
                           <div className="font-bold text-green-600">
-                            {formatCurrency(contract.value || 0)}
+                            {formatCurrency(calculateContractValue(contract))}
                           </div>
                         </div>
                       </div>

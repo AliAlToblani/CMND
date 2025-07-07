@@ -36,6 +36,8 @@ import { Badge } from "@/components/ui/badge";
 import { AddEditContract, ContractData } from "@/components/contracts/AddEditContract";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { contractQueryKeys, calculateContractValue, formatCurrency } from "@/utils/contractUtils";
+import { useQueryClient } from "@tanstack/react-query";
 
 const getStatusBadge = (status: string) => {
   switch(status) {
@@ -70,6 +72,7 @@ const ContractsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   
   const fetchContracts = async () => {
     try {
@@ -165,6 +168,12 @@ const ContractsPage = () => {
         };
         
         setContracts(prevContracts => [...prevContracts, newContractData]);
+        
+        // Invalidate related queries to sync across pages
+        queryClient.invalidateQueries({ queryKey: contractQueryKeys.all });
+        queryClient.invalidateQueries({ queryKey: contractQueryKeys.subscription() });
+        queryClient.invalidateQueries({ queryKey: ['all-customers-for-filters'] });
+        
         toast.success("Contract created successfully");
       }
     } catch (error) {
@@ -204,6 +213,12 @@ const ContractsPage = () => {
       });
       
       setContracts(updatedContracts);
+      
+      // Invalidate related queries to sync across pages
+      queryClient.invalidateQueries({ queryKey: contractQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: contractQueryKeys.subscription() });
+      queryClient.invalidateQueries({ queryKey: ['all-customers-for-filters'] });
+      
       toast.success("Contract updated successfully");
     } catch (error) {
       console.error("Error updating contract:", error);
@@ -340,10 +355,10 @@ const ContractsPage = () => {
                   <div>
                     <p className="text-sm text-muted-foreground">Total Value</p>
                     <h3 className="text-2xl font-bold">
-                      ${contracts.reduce((sum, contract) => {
-                        const value = Number(contract.value.replace(/[^0-9.-]+/g, ""));
-                        return sum + (isNaN(value) ? 0 : value);
-                      }, 0).toLocaleString()}
+                      {formatCurrency(contracts.reduce((sum, contract) => {
+                        const numericValue = Number(contract.value.replace(/[^0-9.-]+/g, ""));
+                        return sum + (isNaN(numericValue) ? 0 : numericValue);
+                      }, 0))}
                     </h3>
                   </div>
                   <div className="h-10 w-10 rounded-full bg-doo-purple-100 flex items-center justify-center">

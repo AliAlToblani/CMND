@@ -5,6 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Customer } from "@/types/customers";
 import { ProcessedCustomer } from "./types";
 import { useToast } from "@/hooks/use-toast";
+import { contractQueryKeys, calculateLifetimeValue, calculateEffectiveAnnualRate, getLatestContractEndDate } from "@/utils/contractUtils";
+import { useEffect } from "react";
 
 export const useSubscriptionData = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -28,8 +30,8 @@ export const useSubscriptionData = () => {
   });
 
   // Fetch customers who have completed "Go Live" stage along with their contracts
-  const { data: customers = [], isLoading } = useQuery({
-    queryKey: ['subscription-tracker-with-contracts'],
+  const { data: customers = [], isLoading, refetch } = useQuery({
+    queryKey: contractQueryKeys.subscription(),
     queryFn: async () => {
       // First, get customer IDs who have completed "Go Live" stage
       const { data: goLiveCustomers, error: stageError } = await supabase
@@ -77,39 +79,10 @@ export const useSubscriptionData = () => {
       const customersWithContracts = customersData?.map(customer => {
         const customerContracts = contractsByCustomer[customer.id] || [];
         
-        // Calculate lifetime value using new structure: sum of setup fees + annual rates
-        const contractsSetupFees = customerContracts.reduce((sum, contract) => sum + (contract.setup_fee || 0), 0);
-        const contractsAnnualRates = customerContracts.reduce((sum, contract) => sum + (contract.annual_rate || 0), 0);
-        const lifetimeValue = contractsSetupFees + contractsAnnualRates;
-        
-        // For backward compatibility, also include legacy value field if setup_fee and annual_rate are not set
-        const legacyContractValue = customerContracts.reduce((sum, contract) => {
-          if (!contract.setup_fee && !contract.annual_rate && contract.value) {
-            return sum + contract.value;
-          }
-          return sum;
-        }, 0);
-        
-        const totalLifetimeValue = lifetimeValue + legacyContractValue;
-        
-        // Get the latest end date for renewal tracking (only from active/pending contracts)
-        const activeContracts = customerContracts.filter(c => ['active', 'pending'].includes(c.status));
-        const latestEndDate = activeContracts.reduce((latest, contract) => {
-          if (!latest || new Date(contract.end_date) > new Date(latest)) {
-            return contract.end_date;
-          }
-          return latest;
-        }, null);
-        
-        // Calculate effective annual rate from active/pending contracts only
-        const effectiveAnnualRate = activeContracts.reduce((sum, contract) => {
-          return sum + (contract.annual_rate || 0);
-        }, 0) + activeContracts.reduce((sum, contract) => {
-          if (!contract.setup_fee && !contract.annual_rate && contract.value) {
-            return sum + contract.value; // Treat legacy values as annual rate
-          }
-          return sum;
-        }, 0);
+        // Use utility functions for consistent calculations
+        const totalLifetimeValue = calculateLifetimeValue(customerContracts);
+        const latestEndDate = getLatestContractEndDate(customerContracts);
+        const effectiveAnnualRate = calculateEffectiveAnnualRate(customerContracts);
         
         return {
           ...customer,
@@ -132,6 +105,29 @@ export const useSubscriptionData = () => {
       })[];
     }
   });
+
+  // Add real-time subscription for contract changes
+  useEffect(() => {
+    const channel = supabase
+      .channel('contract-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'contracts'
+        },
+        () => {
+          console.log('Contract change detected, refetching subscription data');
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    }
+  }, [refetch]);
 
   const processCustomers = (customers: any[]): ProcessedCustomer[] => {
     return customers.map(customer => {
