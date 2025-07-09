@@ -37,6 +37,7 @@ const customerFormSchema = z.object({
   subscription_end_date: z.date().optional(),
   description: z.string().optional(),
   logo: z.string().optional(),
+  owner_id: z.string().optional(),
   contact_name: z.string().optional(),
   contact_email: z.string().email("Invalid email format").optional().or(z.literal("")),
   contact_phone: z.string().optional(),
@@ -82,6 +83,7 @@ export function CustomerForm({
       subscription_end_date: initialData?.subscription_end_date,
       description: initialData?.description || "",
       logo: initialData?.logo || "",
+      owner_id: initialData?.owner_id || "",
       contact_name: initialData?.contact_name || "",
       contact_email: initialData?.contact_email || "",
       contact_phone: initialData?.contact_phone || "",
@@ -302,6 +304,20 @@ export function CustomerForm({
                           className="pl-8"
                         />
                       </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="owner_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Deal Owner</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter deal owner name" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
