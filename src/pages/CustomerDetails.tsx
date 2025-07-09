@@ -269,7 +269,7 @@ const CustomerDetails = () => {
                 <User className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">Account Manager</p>
-                  <p className="font-medium">{customer.owner_id ? "Account Manager" : "Unassigned"}</p>
+                  <p className="font-medium">{customer.owner_id || "Unassigned"}</p>
                 </div>
               </div>
             </CardContent>
