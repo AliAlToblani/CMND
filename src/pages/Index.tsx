@@ -4,7 +4,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { CustomerCard } from "@/components/customers/CustomerCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, HandHeart, Kanban, BarChart3, TrendingUp, Activity, Clock, Briefcase, LifeBuoy, Calendar } from "lucide-react";
+import { Plus, Users, HandHeart, Kanban, BarChart3, TrendingUp, Activity, Clock, Briefcase, LifeBuoy, Calendar, DollarSign, Target, AlertTriangle, Percent } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomerData } from "@/types/customers";
@@ -14,6 +14,12 @@ import {
   getLiveCustomers, 
   getCustomerARRData, 
   getDealsPipeline, 
+  getTotalPipelineValue,
+  getActiveContractsValue,
+  getConversionRate,
+  getAverageDealSize,
+  getMRR,
+  getDealsAtRisk,
   calculateAverageGoLiveTime,
   calculateChurnRate,
   calculateSalesLifecycle,
@@ -24,6 +30,15 @@ const Index = () => {
   const navigate = useNavigate();
   const [customers, setCustomers] = useState<CustomerData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState({
+    dealsPipeline: { value: 0, count: 0 },
+    totalPipelineValue: 0,
+    activeContractsValue: 0,
+    conversionRate: 0,
+    averageDealSize: 0,
+    mrr: 0,
+    dealsAtRisk: 0
+  });
   
   useEffect(() => {
     const initialSync = async () => {
@@ -116,11 +131,51 @@ const Index = () => {
     fetchCustomers();
   }, []);
 
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const [
+          dealsPipeline,
+          totalPipelineValue,
+          activeContractsValue,
+          conversionRate,
+          averageDealSize,
+          mrr,
+          dealsAtRisk
+        ] = await Promise.all([
+          getDealsPipeline(),
+          getTotalPipelineValue(),
+          getActiveContractsValue(),
+          getConversionRate(),
+          getAverageDealSize(),
+          getMRR(),
+          getDealsAtRisk()
+        ]);
+
+        setMetrics({
+          dealsPipeline,
+          totalPipelineValue,
+          activeContractsValue,
+          conversionRate,
+          averageDealSize,
+          mrr,
+          dealsAtRisk
+        });
+      } catch (error) {
+        console.error("Error fetching metrics:", error);
+      }
+    };
+
+    fetchMetrics();
+  }, [customers]);
+
   // Calculate dashboard metrics
   const { totalARR, liveCustomers, growthRate } = getCustomerARRData(customers);
   const formattedARR = formatCurrency(totalARR);
-  const dealsPipeline = getDealsPipeline(customers);
-  const formattedDealsPipeline = formatCurrency(dealsPipeline.value);
+  const formattedDealsPipeline = formatCurrency(metrics.dealsPipeline.value);
+  const formattedActiveContracts = formatCurrency(metrics.activeContractsValue);
+  const formattedAverageDeal = formatCurrency(metrics.averageDealSize);
+  const formattedMRR = formatCurrency(metrics.mrr);
   
   const getTotalCustomersCount = () => {
     return customers.length;
@@ -147,33 +202,45 @@ const Index = () => {
     {
       title: "Deals Pipeline",
       value: formattedDealsPipeline,
-      description: `${dealsPipeline.count} active deals`,
+      description: `${metrics.dealsPipeline.count} active deals`,
       icon: <TrendingUp className="h-6 w-6" />
     },
     {
-      title: "Sales Lifecycle",
-      value: calculateSalesLifecycle(),
-      description: "Average sales cycle",
-      icon: <Kanban className="h-6 w-6" />
+      title: "Active Contracts",
+      value: formattedActiveContracts,
+      description: "Current contract value",
+      icon: <DollarSign className="h-6 w-6" />
     },
     {
-      title: "Growth Rate",
-      value: `${growthRate}%`,
-      description: "Last quarter",
+      title: "Conversion Rate",
+      value: `${metrics.conversionRate.toFixed(1)}%`,
+      description: "Lead to customer",
+      icon: <Target className="h-6 w-6" />
+    },
+    {
+      title: "Average Deal Size",
+      value: formattedAverageDeal,
+      description: "Pipeline average",
+      icon: <BarChart3 className="h-6 w-6" />
+    },
+    {
+      title: "Monthly Recurring Revenue",
+      value: formattedMRR,
+      description: "Current MRR",
       change: { value: 8, type: "increase" as const },
       icon: <TrendingUp className="h-6 w-6" />
     },
     {
-      title: "Avg. Go Live Time",
-      value: calculateAverageGoLiveTime(),
-      description: "From contract to live",
-      icon: <Clock className="h-6 w-6" />
+      title: "Deals at Risk",
+      value: `${metrics.dealsAtRisk}`,
+      description: "Overdue stages",
+      icon: <AlertTriangle className="h-6 w-6 text-red-500" />
     },
     {
       title: "Churn Rate",
       value: calculateChurnRate(customers),
       description: "Last 12 months",
-      icon: <Activity className="h-6 w-6" />
+      icon: <Percent className="h-6 w-6" />
     }
   ];
   
@@ -194,7 +261,7 @@ const Index = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {dashboardStats.map((stat, index) => (
             <StatCard key={index} {...stat} />
           ))}

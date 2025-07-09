@@ -229,30 +229,189 @@ export const getCustomerARRData = (customers: CustomerData[]): {
 };
 
 /**
- * Gets deals pipeline information using estimated deal values
+ * Gets deals pipeline information using estimated deal values from database
  * Deals in pipeline are those not yet "Live" - using estimated values, not actual contracts
  */
-export const getDealsPipeline = (customers: CustomerData[]): { 
+export const getDealsPipeline = async (): Promise<{ 
   value: number, 
   count: number 
-} => {
-  // Pipeline includes all customers who haven't reached "Live" stage
-  const pipelineCustomers = customers.filter(customer => {
-    if (customer.status === "done") return false;
-    if (!customer.stage) return true;
+}> => {
+  try {
+    // Get customers from database with estimated_deal_value that are not live
+    const { data: customers, error } = await supabase
+      .from('customers')
+      .select('estimated_deal_value, stage, status')
+      .not('stage', 'ilike', '%live%')
+      .neq('status', 'done');
     
-    // Exclude only customers who have reached "Live" stage
-    return !customer.stage?.toLowerCase().includes("live");
-  });
-  
-  // Use estimated deal value (contractSize field represents estimated value in pipeline)
-  const totalValue = pipelineCustomers.reduce((sum, c) => sum + (c.contractSize || 0), 0);
-  const count = pipelineCustomers.length;
-  
-  return {
-    value: totalValue,
-    count
-  };
+    if (error) {
+      console.error("Error fetching pipeline data:", error);
+      return { value: 0, count: 0 };
+    }
+    
+    if (!customers || customers.length === 0) {
+      return { value: 0, count: 0 };
+    }
+    
+    const totalValue = customers.reduce((sum, c) => sum + (c.estimated_deal_value || 0), 0);
+    const count = customers.length;
+    
+    return {
+      value: totalValue,
+      count
+    };
+  } catch (error) {
+    console.error("Error in getDealsPipeline:", error);
+    return { value: 0, count: 0 };
+  }
+};
+
+/**
+ * Gets total pipeline value for customers not yet live
+ */
+export const getTotalPipelineValue = async (): Promise<number> => {
+  try {
+    const { data: customers, error } = await supabase
+      .from('customers')
+      .select('estimated_deal_value')
+      .not('stage', 'ilike', '%live%')
+      .neq('status', 'done');
+    
+    if (error || !customers) {
+      console.error("Error fetching pipeline value:", error);
+      return 0;
+    }
+    
+    return customers.reduce((sum, c) => sum + (c.estimated_deal_value || 0), 0);
+  } catch (error) {
+    console.error("Error in getTotalPipelineValue:", error);
+    return 0;
+  }
+};
+
+/**
+ * Gets total value of active contracts for live customers
+ */
+export const getActiveContractsValue = async (): Promise<number> => {
+  try {
+    const { data: contracts, error } = await supabase
+      .from('contracts')
+      .select('value, annual_rate, setup_fee')
+      .eq('status', 'active');
+    
+    if (error || !contracts) {
+      console.error("Error fetching contracts value:", error);
+      return 0;
+    }
+    
+    return contracts.reduce((sum, c) => {
+      const contractValue = c.annual_rate || c.value || 0;
+      const setupFee = c.setup_fee || 0;
+      return sum + contractValue + setupFee;
+    }, 0);
+  } catch (error) {
+    console.error("Error in getActiveContractsValue:", error);
+    return 0;
+  }
+};
+
+/**
+ * Calculate conversion rate from leads to live customers
+ */
+export const getConversionRate = async (): Promise<number> => {
+  try {
+    const { data: allCustomers, error: allError } = await supabase
+      .from('customers')
+      .select('stage, status');
+    
+    if (allError || !allCustomers) {
+      console.error("Error fetching customers for conversion:", allError);
+      return 0;
+    }
+    
+    const totalCustomers = allCustomers.length;
+    const liveCustomers = allCustomers.filter(c => 
+      c.status === 'done' || 
+      (c.stage && c.stage.toLowerCase().includes('live'))
+    ).length;
+    
+    return totalCustomers > 0 ? (liveCustomers / totalCustomers) * 100 : 0;
+  } catch (error) {
+    console.error("Error in getConversionRate:", error);
+    return 0;
+  }
+};
+
+/**
+ * Calculate average deal size from estimated deal values
+ */
+export const getAverageDealSize = async (): Promise<number> => {
+  try {
+    const { data: customers, error } = await supabase
+      .from('customers')
+      .select('estimated_deal_value')
+      .not('estimated_deal_value', 'is', null);
+    
+    if (error || !customers || customers.length === 0) {
+      console.error("Error fetching deal sizes:", error);
+      return 0;
+    }
+    
+    const totalValue = customers.reduce((sum, c) => sum + (c.estimated_deal_value || 0), 0);
+    return totalValue / customers.length;
+  } catch (error) {
+    console.error("Error in getAverageDealSize:", error);
+    return 0;
+  }
+};
+
+/**
+ * Calculate Monthly Recurring Revenue from active contracts
+ */
+export const getMRR = async (): Promise<number> => {
+  try {
+    const { data: contracts, error } = await supabase
+      .from('contracts')
+      .select('annual_rate')
+      .eq('status', 'active')
+      .not('annual_rate', 'is', null);
+    
+    if (error || !contracts) {
+      console.error("Error fetching MRR data:", error);
+      return 0;
+    }
+    
+    const totalARR = contracts.reduce((sum, c) => sum + (c.annual_rate || 0), 0);
+    return totalARR / 12; // Convert ARR to MRR
+  } catch (error) {
+    console.error("Error in getMRR:", error);
+    return 0;
+  }
+};
+
+/**
+ * Get count of deals at risk (customers with overdue lifecycle stages)
+ */
+export const getDealsAtRisk = async (): Promise<number> => {
+  try {
+    const { data: stages, error } = await supabase
+      .from('lifecycle_stages')
+      .select('customer_id')
+      .lt('deadline', new Date().toISOString())
+      .eq('status', 'not-started');
+    
+    if (error || !stages) {
+      console.error("Error fetching at-risk deals:", error);
+      return 0;
+    }
+    
+    // Count unique customers with overdue stages
+    const uniqueCustomers = new Set(stages.map(s => s.customer_id));
+    return uniqueCustomers.size;
+  } catch (error) {
+    console.error("Error in getDealsAtRisk:", error);
+    return 0;
+  }
 };
 
 /**
