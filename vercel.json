@@ -7,6 +7,14 @@
   "devCommand": "npm run dev",
   "rewrites": [
     {
+      "source": "/accept-invite",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/accept-invite/(.*)",
+      "destination": "/index.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

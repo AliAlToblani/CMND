@@ -48,6 +48,10 @@ const PageLoader = () => (
 );
 
 const App = () => {
+  // Add debug logging
+  console.log('App component rendering');
+  console.log('Current pathname:', window.location.pathname);
+
   return (
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
@@ -58,7 +62,7 @@ const App = () => {
             <BrowserRouter>
               <Suspense fallback={<PageLoader />}>
                 <Routes>
-                  {/* Public routes */}
+                  {/* Public routes - these should come first to ensure they're matched */}
                   <Route path="/auth" element={<LazyAuth />} />
                   <Route path="/accept-invite" element={<LazyAcceptInvite />} />
                   

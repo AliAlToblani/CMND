@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,6 +29,11 @@ export const AcceptInvite = () => {
   const [tokenError, setTokenError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Add debug logging
+    console.log('AcceptInvite component mounted');
+    console.log('Current URL:', window.location.href);
+    console.log('Token from URL:', token);
+    
     if (token) {
       validateInvitationToken();
     } else {
