@@ -1,3 +1,4 @@
+
 import React from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "./DashboardSidebar";
@@ -9,7 +10,8 @@ import {
   Calendar,
   FileText,
   User,
-  Check
+  Check,
+  Settings
 } from "lucide-react";
 import { 
   DropdownMenu,
@@ -166,27 +168,27 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="min-h-screen flex w-full">
         <DashboardSidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="backdrop-blur-lg bg-white/70 dark:bg-black/50 border-b border-white/10 dark:border-white/5 h-16 flex items-center justify-between px-6 z-10 shadow-sm">
+          <header className="backdrop-blur-lg bg-white/90 dark:bg-gray-900/90 border-b border-gray-200/50 dark:border-gray-700/50 h-16 flex items-center justify-between px-6 z-10 shadow-sm">
             <div className="flex items-center">
-              <SidebarTrigger className="hover:bg-white/10 p-2 rounded-md transition-colors text-gray-700 dark:text-gray-200" />
+              <SidebarTrigger className="hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded-md transition-colors text-gray-700 dark:text-gray-200" />
             </div>
             <div className="flex items-center space-x-4">
               <Button 
                 variant="ghost" 
-                size="icon" 
-                className="rounded-full hover:bg-white/10"
+                size="icon"
+                className="rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
                 onClick={toggleTheme}
               >
                 {theme === "light" ? (
-                  <Moon className="h-5 w-5 text-gray-600" />
+                  <Moon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
                 ) : (
-                  <Sun className="h-5 w-5 text-gray-300" />
+                  <Sun className="h-5 w-5 text-gray-600 dark:text-gray-300" />
                 )}
               </Button>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full hover:bg-white/10 relative">
+                  <Button variant="ghost" size="icon" className="rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 relative">
                     <Bell className="h-5 w-5 text-gray-600 dark:text-gray-300" />
                     {unreadCount > 0 && (
                       <span className="absolute top-0 right-0 h-4 w-4 bg-doo-purple-500 rounded-full flex items-center justify-center text-xs text-white">
@@ -255,10 +257,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <DropdownMenuContent align="end" className="glass-dropdown">
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator className="bg-white/10" />
-                  <DropdownMenuItem className="cursor-pointer hover:bg-white/10 dark:hover:bg-white/5 transition-colors">
-                    <User className="h-4 w-4 mr-2" />
-                    Profile
-                  </DropdownMenuItem>
+                  <Link to="/settings">
+                    <DropdownMenuItem className="cursor-pointer hover:bg-white/10 dark:hover:bg-white/5 transition-colors">
+                      <Settings className="h-4 w-4 mr-2" />
+                      Settings
+                    </DropdownMenuItem>
+                  </Link>
                   <Link to="/team">
                     <DropdownMenuItem className="cursor-pointer hover:bg-white/10 dark:hover:bg-white/5 transition-colors">
                       <User className="h-4 w-4 mr-2" />

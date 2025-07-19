@@ -22,6 +22,7 @@ import TeamManagement from "./pages/TeamManagement";
 import TasksBoard from "./pages/TasksBoard";
 import Lifecycle from "./pages/Lifecycle";
 import Contracts from "./pages/Contracts";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import { AcceptInvite } from "./pages/AcceptInvite";
 
@@ -60,6 +61,7 @@ const App = () => {
                 <Route path="/team" element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
                 <Route path="/lifecycle" element={<ProtectedRoute><Lifecycle /></ProtectedRoute>} />
                 <Route path="/contracts" element={<ProtectedRoute><Contracts /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                 
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
