@@ -23,6 +23,7 @@ import TasksBoard from "./pages/TasksBoard";
 import Lifecycle from "./pages/Lifecycle";
 import Contracts from "./pages/Contracts";
 import NotFound from "./pages/NotFound";
+import { AcceptInvite } from "./pages/AcceptInvite";
 
 // Create a client
 const queryClient = new QueryClient();
@@ -36,11 +37,12 @@ const App = () => {
             <Toaster />
             <Sonner />
             <BrowserRouter>
-              <Routes>
-                {/* Public route */}
-                <Route path="/auth" element={<Auth />} />
-                
-                {/* Protected routes */}
+            <Routes>
+              {/* Public routes */}
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/accept-invite" element={<AcceptInvite />} />
+              
+              {/* Protected routes */}
                 <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
                 <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
                 <Route path="/customers/new" element={<ProtectedRoute><AddEditCustomer /></ProtectedRoute>} />

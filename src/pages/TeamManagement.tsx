@@ -53,15 +53,14 @@ import { Notification } from "@/types/notifications";
 interface TeamMember {
   id: string;
   email: string;
-  name: string;
+  full_name: string;
   role: 'admin' | 'user';
-  avatar?: string;
+  avatar_url?: string;
   created_at: string;
 }
 
 const inviteFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
-  name: z.string().min(2, { message: "Name must be at least 2 characters" }),
   role: z.enum(["admin", "user"]),
 });
 
@@ -77,7 +76,6 @@ const TeamManagementPage = () => {
     resolver: zodResolver(inviteFormSchema),
     defaultValues: {
       email: "",
-      name: "",
       role: "user",
     },
   });
@@ -90,13 +88,11 @@ const TeamManagementPage = () => {
     if (editMember) {
       form.reset({
         email: editMember.email,
-        name: editMember.name,
         role: editMember.role,
       });
     } else {
       form.reset({
         email: "",
-        name: "",
         role: "user",
       });
     }
@@ -106,7 +102,7 @@ const TeamManagementPage = () => {
     try {
       setIsLoading(true);
       const { data, error } = await supabase
-        .from('staff')
+        .from('profiles')
         .select('*');
 
       if (error) throw error;
@@ -124,49 +120,35 @@ const TeamManagementPage = () => {
 
   const onSubmit: SubmitHandler<InviteFormValues> = async (data) => {
     try {
-      if (editMember) {
-        const { error } = await supabase
-          .from('staff')
-          .update({
-            name: data.name,
-            email: data.email,
-            role: data.role,
-          })
-          .eq('id', editMember.id);
+      // Generate invitation token
+      const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      
+      // Create invitation record using raw query since types aren't available yet
+      const { error } = await (supabase as any)
+        .from('invitations')
+        .insert([{
+          email: data.email,
+          role: data.role,
+          token: token,
+          invited_by: (await supabase.auth.getUser()).data.user?.id,
+        }]);
 
-        if (error) throw error;
-
-        toast.success(`${data.name}'s details have been updated`);
-        
-        await createTeamNotification({
-          type: 'team',
-          title: 'Team Member Updated',
-          message: `${data.name}'s details have been updated.`,
-          related_id: editMember.id
-        });
-      } else {
-        const { data: newMember, error } = await supabase
-          .from('staff')
-          .insert({
-            name: data.name,
-            email: data.email,
-            role: data.role,
-          })
-          .select();
-
-        if (error) throw error;
-
-        toast.success(`Invitation sent to ${data.email}`);
-        
-        if (newMember && newMember.length > 0) {
-          await createTeamNotification({
-            type: 'team',
-            title: 'New Team Member',
-            message: `${data.name} has been invited to join the team.`,
-            related_id: newMember[0].id
-          });
-        }
+      if (error) {
+        console.error('Error creating invitation:', error);
+        toast.error('Failed to create invitation');
+        return;
       }
+
+      // Create invitation link
+      const inviteLink = `${window.location.origin}/accept-invite?token=${token}`;
+      
+      toast.success(`Invitation created! Send this link to ${data.email}: ${inviteLink}`);
+      
+      await createTeamNotification({
+        type: 'team',
+        title: 'Team Member Invited',
+        message: `${data.email} has been invited to join as ${data.role}`,
+      });
 
       form.reset();
       setInviteDialogOpen(false);
@@ -174,20 +156,22 @@ const TeamManagementPage = () => {
       
       fetchTeamMembers();
     } catch (error) {
-      console.error("Error saving team member:", error);
-      toast.error("Failed to save team member");
+      console.error("Error creating invitation:", error);
+      toast.error("Failed to create invitation");
     }
   };
 
   const handleEditMember = (member: TeamMember) => {
     setEditMember(member);
+    form.setValue('email', member.email);
+    form.setValue('role', member.role);
     setInviteDialogOpen(true);
   };
 
   const handleDeleteMember = async (memberId: string) => {
     try {
       const { error } = await supabase
-        .from('staff')
+        .from('profiles')
         .delete()
         .eq('id', memberId);
 
@@ -209,7 +193,8 @@ const TeamManagementPage = () => {
     }
   };
 
-  const getInitials = (name: string) => {
+  const getInitials = (name: string | null) => {
+    if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
@@ -250,28 +235,13 @@ const TeamManagementPage = () => {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px] glass-card">
               <DialogHeader>
-                <DialogTitle>{editMember ? "Edit Team Member" : "Invite Team Member"}</DialogTitle>
+                <DialogTitle>Invite Team Member</DialogTitle>
                 <DialogDescription>
-                  {editMember 
-                    ? "Update this team member's information and role."
-                    : "Send an invitation to join your team. They'll receive an email with instructions."}
+                  Create an invitation link to share with new team members.
                 </DialogDescription>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="John Doe" {...field} className="glass-input" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                   <FormField
                     control={form.control}
                     name="email"
@@ -284,7 +254,7 @@ const TeamManagementPage = () => {
                             type="email" 
                             {...field} 
                             className="glass-input"
-                            disabled={!!editMember}
+                            
                           />
                         </FormControl>
                         <FormMessage />
@@ -318,7 +288,7 @@ const TeamManagementPage = () => {
                   />
                   <DialogFooter>
                     <Button type="submit" className="glass-button">
-                      {editMember ? "Save Changes" : "Send Invitation"}
+                      Create Invitation
                     </Button>
                   </DialogFooter>
                 </form>
@@ -343,16 +313,16 @@ const TeamManagementPage = () => {
                   <div key={member.id} className="p-4 glass-card rounded-lg flex items-center justify-between animate-slide-in">
                     <div className="flex items-center space-x-4">
                       <Avatar className="h-10 w-10">
-                        {member.avatar ? (
-                          <AvatarImage src={member.avatar} alt={member.name} />
+                        {member.avatar_url ? (
+                          <AvatarImage src={member.avatar_url} alt={member.full_name || ''} />
                         ) : null}
                         <AvatarFallback className={member.role === 'admin' ? 'bg-doo-purple-500' : 'bg-blue-500'}>
-                          {getInitials(member.name)}
+                          {getInitials(member.full_name)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="flex items-center">
-                          <p className="font-medium">{member.name}</p>
+                          <p className="font-medium">{member.full_name || 'Unknown'}</p>
                           {member.role === 'admin' && (
                             <Badge variant="secondary" className="ml-2">
                               <Shield className="h-3 w-3 mr-1" />
@@ -386,7 +356,7 @@ const TeamManagementPage = () => {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                This will remove {member.name} from your team. They will no longer have access to your organization's data.
+                                This will remove {member.full_name || member.email} from your team. They will no longer have access to your organization's data.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
