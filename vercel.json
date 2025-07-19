@@ -11,11 +11,11 @@
       "destination": "/index.html"
     },
     {
-      "source": "/accept-invite/(.*)",
+      "source": "/accept-invite/?(.*)",
       "destination": "/index.html"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api|_next|static|public|favicon.ico).*)",
       "destination": "/index.html"
     }
   ],
