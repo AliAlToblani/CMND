@@ -307,3 +307,5 @@ export const AcceptInvite = () => {
     </div>
   );
 };
+
+export default AcceptInvite;
