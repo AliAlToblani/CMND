@@ -1,33 +1,51 @@
 
-import React from "react";
+import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import Customers from "./pages/Customers";
-import CustomerDetails from "./pages/CustomerDetails";
-import AddEditCustomer from "./pages/AddEditCustomer";
-import Partnerships from "./pages/Partnerships";
-import PartnershipDetails from "./pages/PartnershipDetails";
-import AddEditPartnership from "./pages/AddEditPartnership";
-import SubscriptionTracker from "./pages/SubscriptionTracker";
-import PipelineMap from "./pages/PipelineMap";
-import Notifications from "./pages/Notifications";
-import TeamManagement from "./pages/TeamManagement";
-import TasksBoard from "./pages/TasksBoard";
-import Lifecycle from "./pages/Lifecycle";
-import Contracts from "./pages/Contracts";
-import Settings from "./pages/Settings";
-import NotFound from "./pages/NotFound";
-import { AcceptInvite } from "./pages/AcceptInvite";
+import {
+  LazyIndex,
+  LazyAuth,
+  LazyCustomers,
+  LazyCustomerDetails,
+  LazyAddEditCustomer,
+  LazyPartnerships,
+  LazyPartnershipDetails,
+  LazyAddEditPartnership,
+  LazySubscriptionTracker,
+  LazyPipelineMap,
+  LazyNotifications,
+  LazyTeamManagement,
+  LazyTasksBoard,
+  LazyLifecycle,
+  LazyContracts,
+  LazySettings,
+  LazyNotFound,
+  LazyAcceptInvite,
+} from "@/components/routing/LazyRoutes";
 
-// Create a client
-const queryClient = new QueryClient();
+// Create a client with optimized settings
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 10 * 60 * 1000, // 10 minutes
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+// Loading component for Suspense
+const PageLoader = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+  </div>
+);
 
 const App = () => {
   return (
@@ -38,34 +56,36 @@ const App = () => {
             <Toaster />
             <Sonner />
             <BrowserRouter>
-            <Routes>
-              {/* Public routes */}
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/accept-invite" element={<AcceptInvite />} />
-              
-              {/* Protected routes */}
-                <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-                <Route path="/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
-                <Route path="/customers/new" element={<ProtectedRoute><AddEditCustomer /></ProtectedRoute>} />
-                <Route path="/customers/:id/edit" element={<ProtectedRoute><AddEditCustomer /></ProtectedRoute>} />
-                <Route path="/customers/edit/:id" element={<ProtectedRoute><AddEditCustomer /></ProtectedRoute>} />
-                <Route path="/customers/:id" element={<ProtectedRoute><CustomerDetails /></ProtectedRoute>} />
-                <Route path="/partnerships" element={<ProtectedRoute><Partnerships /></ProtectedRoute>} />
-                <Route path="/partnerships/new" element={<ProtectedRoute><AddEditPartnership /></ProtectedRoute>} />
-                <Route path="/partnerships/:id" element={<ProtectedRoute><PartnershipDetails /></ProtectedRoute>} />
-                <Route path="/partnerships/:id/edit" element={<ProtectedRoute><AddEditPartnership /></ProtectedRoute>} />
-                <Route path="/subscription-tracker" element={<ProtectedRoute><SubscriptionTracker /></ProtectedRoute>} />
-                <Route path="/pipeline" element={<ProtectedRoute><PipelineMap /></ProtectedRoute>} />
-                <Route path="/tasks" element={<ProtectedRoute><TasksBoard /></ProtectedRoute>} />
-                <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-                <Route path="/team" element={<ProtectedRoute><TeamManagement /></ProtectedRoute>} />
-                <Route path="/lifecycle" element={<ProtectedRoute><Lifecycle /></ProtectedRoute>} />
-                <Route path="/contracts" element={<ProtectedRoute><Contracts /></ProtectedRoute>} />
-                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  {/* Public routes */}
+                  <Route path="/auth" element={<LazyAuth />} />
+                  <Route path="/accept-invite" element={<LazyAcceptInvite />} />
+                  
+                  {/* Protected routes */}
+                  <Route path="/" element={<ProtectedRoute><LazyIndex /></ProtectedRoute>} />
+                  <Route path="/customers" element={<ProtectedRoute><LazyCustomers /></ProtectedRoute>} />
+                  <Route path="/customers/new" element={<ProtectedRoute><LazyAddEditCustomer /></ProtectedRoute>} />
+                  <Route path="/customers/:id/edit" element={<ProtectedRoute><LazyAddEditCustomer /></ProtectedRoute>} />
+                  <Route path="/customers/edit/:id" element={<ProtectedRoute><LazyAddEditCustomer /></ProtectedRoute>} />
+                  <Route path="/customers/:id" element={<ProtectedRoute><LazyCustomerDetails /></ProtectedRoute>} />
+                  <Route path="/partnerships" element={<ProtectedRoute><LazyPartnerships /></ProtectedRoute>} />
+                  <Route path="/partnerships/new" element={<ProtectedRoute><LazyAddEditPartnership /></ProtectedRoute>} />
+                  <Route path="/partnerships/:id" element={<ProtectedRoute><LazyPartnershipDetails /></ProtectedRoute>} />
+                  <Route path="/partnerships/:id/edit" element={<ProtectedRoute><LazyAddEditPartnership /></ProtectedRoute>} />
+                  <Route path="/subscription-tracker" element={<ProtectedRoute><LazySubscriptionTracker /></ProtectedRoute>} />
+                  <Route path="/pipeline" element={<ProtectedRoute><LazyPipelineMap /></ProtectedRoute>} />
+                  <Route path="/tasks" element={<ProtectedRoute><LazyTasksBoard /></ProtectedRoute>} />
+                  <Route path="/notifications" element={<ProtectedRoute><LazyNotifications /></ProtectedRoute>} />
+                  <Route path="/team" element={<ProtectedRoute><LazyTeamManagement /></ProtectedRoute>} />
+                  <Route path="/lifecycle" element={<ProtectedRoute><LazyLifecycle /></ProtectedRoute>} />
+                  <Route path="/contracts" element={<ProtectedRoute><LazyContracts /></ProtectedRoute>} />
+                  <Route path="/settings" element={<ProtectedRoute><LazySettings /></ProtectedRoute>} />
+                  
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<LazyNotFound />} />
+                </Routes>
+              </Suspense>
             </BrowserRouter>
           </TooltipProvider>
         </AuthProvider>

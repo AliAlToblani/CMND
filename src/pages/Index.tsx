@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CustomerData } from "@/types/customers";
 import { syncCustomersToDatabase, checkForDuplicateStages } from "@/utils/customerDataSync";
 import { toast } from "sonner";
+import { usePerformanceMonitoring } from "@/hooks/usePerformanceMonitoring";
 import { 
   getLiveCustomers, 
   getCustomerARRData, 
@@ -27,6 +28,9 @@ import {
 } from "@/utils/customerUtils";
 
 const Index = () => {
+  // Enable performance monitoring
+  usePerformanceMonitoring();
+  
   const navigate = useNavigate();
   const [customers, setCustomers] = useState<CustomerData[]>([]);
   const [loading, setLoading] = useState(true);
