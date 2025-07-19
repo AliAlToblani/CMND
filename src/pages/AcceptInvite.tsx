@@ -42,25 +42,23 @@ export const AcceptInvite = () => {
     try {
       console.log('Validating invitation token:', token);
       
-      // Use the secure get_valid_invitation function
+      // Query invitations table directly
       const { data, error } = await supabase
-        .rpc('get_valid_invitation', { token_param: token });
+        .from('invitations' as any)
+        .select('*')
+        .eq('token', token)
+        .gt('expires_at', new Date().toISOString())
+        .is('accepted_at', null)
+        .single();
 
       if (error) {
         console.error('Error validating invitation:', error);
-        setTokenError('Failed to validate invitation');
-        return;
-      }
-
-      if (!data || data.length === 0) {
-        console.log('No valid invitation found for token');
         setTokenError('This invitation link has expired or is invalid');
         return;
       }
 
-      const invitation = data[0];
-      console.log('Valid invitation found:', invitation);
-      setInvitationData(invitation);
+      console.log('Valid invitation found:', data);
+      setInvitationData(data as unknown as InvitationData);
     } catch (error) {
       console.error('Error validating token:', error);
       setTokenError('Failed to validate invitation');
@@ -132,7 +130,7 @@ export const AcceptInvite = () => {
 
         // Mark invitation as accepted
         const { error: invitationError } = await supabase
-          .from('invitations')
+          .from('invitations' as any)
           .update({ accepted_at: new Date().toISOString() })
           .eq('id', invitationData.id);
 

@@ -135,7 +135,7 @@ const TeamManagementPage = () => {
   const fetchPendingInvitations = async () => {
     try {
       const { data, error } = await supabase
-        .from('invitations')
+        .from('invitations' as any)
         .select('*')
         .is('accepted_at', null)
         .gt('expires_at', new Date().toISOString());
@@ -143,7 +143,7 @@ const TeamManagementPage = () => {
       if (error) throw error;
 
       if (data) {
-        setPendingInvitations(data as InvitationRecord[]);
+        setPendingInvitations(data as unknown as InvitationRecord[] || []);
       }
     } catch (error) {
       console.error("Error fetching pending invitations:", error);
@@ -176,7 +176,7 @@ const TeamManagementPage = () => {
 
       // Generate secure invitation token using the database function
       const { data: tokenData, error: tokenError } = await supabase
-        .rpc('generate_invitation_token');
+        .rpc('generate_invitation_token' as any);
 
       if (tokenError) {
         console.error('Error generating token:', tokenError);
@@ -188,7 +188,7 @@ const TeamManagementPage = () => {
 
       // Create invitation record
       const { data: invitationData, error: invitationError } = await supabase
-        .from('invitations')
+        .from('invitations' as any)
         .insert([{
           email: data.email,
           role: data.role,

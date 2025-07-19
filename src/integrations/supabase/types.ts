@@ -346,6 +346,42 @@ export type Database = {
           },
         ]
       }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          role: Database["public"]["Enums"]["app_role"]
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by: string
+          role?: Database["public"]["Enums"]["app_role"]
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       lifecycle_stages: {
         Row: {
           category: string | null
@@ -878,6 +914,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_invitation_token: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_current_user_profile: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -895,6 +935,16 @@ export type Database = {
           notification_type: Database["public"]["Enums"]["notification_type"]
           email_enabled: boolean
           in_app_enabled: boolean
+        }[]
+      }
+      get_valid_invitation: {
+        Args: { token_param: string }
+        Returns: {
+          id: string
+          email: string
+          role: Database["public"]["Enums"]["app_role"]
+          invited_by: string
+          expires_at: string
         }[]
       }
       has_role: {
