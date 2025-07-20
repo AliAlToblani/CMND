@@ -1,4 +1,3 @@
-
 import React from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "./DashboardSidebar";
@@ -28,6 +27,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Notification } from "@/types/notifications";
+import { useProfile } from "@/hooks/useProfile";
+import { getInitials } from "@/utils/avatarUtils";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -40,6 +41,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [theme, setTheme] = useState<"light" | "dark">("light"); // Default to light
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const { profile } = useProfile();
   const navigate = useNavigate();
   
   // Toggle theme functionality with localStorage persistence
@@ -249,8 +251,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="rounded-full p-0">
                     <Avatar className="h-8 w-8 ring-2 ring-offset-2 ring-doo-purple-400">
-                      <AvatarImage src="" alt="User" />
-                      <AvatarFallback className="bg-doo-purple-600 text-white">AD</AvatarFallback>
+                      <AvatarImage src={profile?.avatar_url || ""} alt="User" />
+                      <AvatarFallback className="bg-doo-purple-600 text-white">
+                        {getInitials(profile?.full_name)}
+                      </AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>

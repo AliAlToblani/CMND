@@ -1,4 +1,3 @@
-
 import React from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { CountryManagement } from "@/components/settings/CountryManagement";
+import { ProfileTab } from "@/components/settings/ProfileTab";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -58,6 +58,7 @@ const SettingsPage = () => {
       setLoading(false);
     }
   };
+  
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -111,54 +112,8 @@ const SettingsPage = () => {
                 
                 {/* Main Content Area */}
                 <div className="flex-1 p-6 overflow-hidden">
-                  <TabsContent value="profile" className="m-0 animate-slide-in">
-                    <h2 className="text-xl font-semibold mb-4">My Profile</h2>
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-6">
-                        <Avatar className="h-20 w-20">
-                          <AvatarImage src="" alt="Profile" />
-                          <AvatarFallback className="text-2xl bg-doo-purple-500 text-white">AD</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <Button variant="outline" className="glass-input mr-2">Change</Button>
-                          <Button variant="outline" className="glass-input text-destructive">Remove</Button>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="firstName">First Name</Label>
-                          <Input id="firstName" defaultValue="Alex" className="glass-input" />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="lastName">Last Name</Label>
-                          <Input id="lastName" defaultValue="Doe" className="glass-input" />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="email">Email</Label>
-                          <Input id="email" type="email" defaultValue="alex.doe@doocommand.com" className="glass-input" />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="phone">Phone</Label>
-                          <Input id="phone" type="tel" defaultValue="+1 (555) 123-4567" className="glass-input" />
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="bio">Bio</Label>
-                        <Textarea id="bio" rows={4} className="glass-input" defaultValue="Customer Success Manager at DOO Command, focused on making onboarding smooth and efficient for all customers." />
-                      </div>
-                      
-                      <div className="pt-4 flex justify-end">
-                        <Button className="glass-button">
-                          <Save className="mr-2 h-4 w-4" />
-                          Save Changes
-                        </Button>
-                      </div>
-                    </div>
+                  <TabsContent value="profile" className="m-0">
+                    <ProfileTab />
                   </TabsContent>
                   
                   <TabsContent value="company" className="m-0 animate-slide-in">
