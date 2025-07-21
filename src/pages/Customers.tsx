@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { CustomerCard } from "@/components/customers/CustomerCard";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, ArrowUpDown, RefreshCw } from "lucide-react";
+import { Plus, Search, ArrowUpDown, RefreshCw, Download } from "lucide-react";
 import { 
   Select,
   SelectContent,
@@ -16,8 +17,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomerData } from "@/types/customers";
 import { toast } from "sonner";
-import { customers as realCustomers } from "@/data/realCustomers";
-import { syncCustomersToDatabase, checkForDuplicateStages, removeDuplicateCustomers } from "@/utils/customerDataSync";
+import { syncCustomersToDatabase } from "@/utils/customerDataSync";
 
 const Customers = () => {
   const navigate = useNavigate();
@@ -31,28 +31,7 @@ const Customers = () => {
   const [uniqueCountries, setUniqueCountries] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  const convertToCustomerData = (customer: any): CustomerData => {
-    return {
-      id: customer.id || crypto.randomUUID(),
-      name: customer.name,
-      logo: customer.logo || undefined,
-      segment: customer.segment || "Unknown Segment",
-      country: customer.country || "Unknown Country",
-      stage: customer.stage || "New",
-      status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
-      contractSize: customer.contractSize || 0,
-      owner: customer.owner ? {
-        id: customer.owner.id,
-        name: customer.owner.name,
-        role: customer.owner.role || "Unknown Role"
-      } : {
-        id: "unknown",
-        name: "Unassigned",
-        role: "Unassigned"
-      }
-    };
-  };
+  const [isImporting, setIsImporting] = useState(false);
 
   const formatDatabaseCustomer = (dbCustomer: any): CustomerData => {
     return {
@@ -90,7 +69,7 @@ const Customers = () => {
         setIsLoading(true);
       }
       
-      console.log("Fetching customers...");
+      console.log("Fetching customers from database...");
       const { data, error } = await supabase
         .from('customers')
         .select('*');
@@ -106,76 +85,50 @@ const Customers = () => {
         const formattedCustomers = data.map(formatDatabaseCustomer);
         setCustomers(formattedCustomers);
         extractUniqueCountries(formattedCustomers);
-        
-        // Run duplicate stage check for all customers
-        await Promise.all(formattedCustomers.map(customer => checkForDuplicateStages(customer.id)));
       } else {
-        console.log("No customers found in database, using real customer data");
-        
-        // Map real customers into the expected format
-        const formattedRealCustomers = realCustomers.map(customer => ({
-          id: crypto.randomUUID(),
-          name: customer.name,
-          logo: undefined,
-          segment: customer.segment || "Unknown Segment",
-          country: customer.country || "Unknown Country",
-          stage: customer.stage,
-          status: "not-started" as "not-started" | "in-progress" | "done" | "blocked",
-          contractSize: customer.contractSize || 0,
-          owner: {
-            id: "unknown",
-            name: customer.owner?.name || "Unassigned",
-            role: customer.owner?.role || "Unassigned"
-          }
-        }));
-        
-        setCustomers(formattedRealCustomers);
-        extractUniqueCountries(formattedRealCustomers);
+        console.log("No customers found in database");
+        setCustomers([]);
+        setUniqueCountries([]);
       }
     } catch (error) {
       console.error("Error fetching customers:", error);
-      toast.error("Failed to load customers, using real customer data");
-      
-      // Map real customers into the expected format
-      const formattedRealCustomers = realCustomers.map(customer => ({
-        id: crypto.randomUUID(),
-        name: customer.name,
-        logo: undefined,
-        segment: customer.segment || "Unknown Segment",
-        country: customer.country || "Unknown Country",
-        stage: customer.stage,
-        status: "not-started" as "not-started" | "in-progress" | "done" | "blocked",
-        contractSize: customer.contractSize || 0,
-        owner: {
-          id: "unknown",
-          name: customer.owner?.name || "Unassigned",
-          role: customer.owner?.role || "Unassigned"
-        }
-      }));
-      
-      setCustomers(formattedRealCustomers);
-      extractUniqueCountries(formattedRealCustomers);
+      toast.error("Failed to load customers");
+      setCustomers([]);
+      setUniqueCountries([]);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
   };
 
+  const handleImportSampleData = async () => {
+    try {
+      setIsImporting(true);
+      console.log("Importing sample customer data...");
+      
+      const success = await syncCustomersToDatabase();
+      
+      if (success) {
+        toast.success("Sample data imported successfully");
+        await fetchCustomers(true);
+      } else {
+        toast.error("Failed to import sample data");
+      }
+    } catch (error) {
+      console.error("Error importing sample data:", error);
+      toast.error("Failed to import sample data");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   useEffect(() => {
-    const initialSetup = async () => {
-      // Ensure customer data is synced on first load
-      await syncCustomersToDatabase();
-      // Remove duplicate customers before fetching
-      await removeDuplicateCustomers();
-      fetchCustomers();
-    };
-    
-    initialSetup();
+    // Only fetch from database, no automatic sync
+    fetchCustomers();
   }, []);
 
   // Refresh data when navigating back to this page
   useEffect(() => {
-    // Check if we're coming back from another page (like after a deletion)
     if (location.state?.refresh || location.pathname === '/customers') {
       fetchCustomers(true);
     }
@@ -262,6 +215,17 @@ const Customers = () => {
               <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
+            {customers.length === 0 && !isLoading && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleImportSampleData}
+                disabled={isImporting}
+              >
+                <Download className={`mr-2 h-4 w-4 ${isImporting ? 'animate-spin' : ''}`} />
+                Import Sample Data
+              </Button>
+            )}
             <Button onClick={() => navigate("/customers/new")}>
               <Plus className="mr-2 h-4 w-4" /> Add Customer
             </Button>
@@ -348,9 +312,19 @@ const Customers = () => {
               ))
             )}
             
-            {!isLoading && filteredCustomers.length === 0 && (
+            {!isLoading && filteredCustomers.length === 0 && customers.length === 0 && (
               <div className="col-span-3 py-16 text-center">
-                <p className="text-gray-500 dark:text-gray-400">No customers found. Try adjusting your filters or add a new customer.</p>
+                <p className="text-gray-500 dark:text-gray-400 mb-4">No customers found in the database.</p>
+                <Button onClick={handleImportSampleData} disabled={isImporting}>
+                  <Download className={`mr-2 h-4 w-4 ${isImporting ? 'animate-spin' : ''}`} />
+                  Import Sample Data
+                </Button>
+              </div>
+            )}
+
+            {!isLoading && filteredCustomers.length === 0 && customers.length > 0 && (
+              <div className="col-span-3 py-16 text-center">
+                <p className="text-gray-500 dark:text-gray-400">No customers match your current filters.</p>
               </div>
             )}
           </div>

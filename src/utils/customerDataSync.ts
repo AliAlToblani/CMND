@@ -1,13 +1,14 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { customers as realCustomers } from "@/data/realCustomers";
 
 /**
- * Syncs all customers from the local data to the database if they don't exist
- * This function is called automatically on application startup
+ * Syncs customers from the local data to the database only when explicitly called
+ * This function should only be used for importing sample data, not automatic sync
  */
 export const syncCustomersToDatabase = async (): Promise<boolean> => {
   try {
-    console.log("Starting customer data sync check to database...");
+    console.log("Starting manual customer data import...");
     
     const { data: existingCustomers, error: fetchError } = await supabase
       .from('customers')
@@ -39,9 +40,10 @@ export const syncCustomersToDatabase = async (): Promise<boolean> => {
     });
     
     if (customersToInsert.length === 0) {
-      console.log("No new customers to sync to database");
+      console.log("No new customers to import - all sample customers already exist");
+      return true;
     } else {
-      console.log(`Found ${customersToInsert.length} new customers to sync to database`);
+      console.log(`Importing ${customersToInsert.length} new sample customers`);
       
       // Insert new customers in batches to avoid too large requests
       for (let i = 0; i < customersToInsert.length; i += 50) {
@@ -52,17 +54,15 @@ export const syncCustomersToDatabase = async (): Promise<boolean> => {
         
         if (insertError) {
           console.error(`Error inserting batch ${i}-${i+batch.length}:`, insertError);
+          return false;
         }
       }
       
-      console.log(`Successfully synced new customers to the database`);
+      console.log(`Successfully imported ${customersToInsert.length} sample customers`);
     }
     
     // Update existing customers with missing industry data
     await updateExistingCustomersWithIndustry();
-    
-    // After sync, remove any duplicates in the database
-    await removeDuplicateCustomers();
     
     return true;
   } catch (error) {
