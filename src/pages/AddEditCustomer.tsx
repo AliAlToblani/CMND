@@ -76,6 +76,17 @@ export default function AddEditCustomer() {
     
     setIsDeleting(true);
     try {
+      // Check authentication status first
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to delete customers.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       // Delete related records in correct order to avoid foreign key constraints
       const deleteOperations = [
         // Delete contracts first
@@ -111,7 +122,10 @@ export default function AddEditCustomer() {
         .delete()
         .eq('id', id);
 
-      if (customerError) throw customerError;
+      if (customerError) {
+        console.error('Customer deletion error:', customerError);
+        throw customerError;
+      }
 
       toast({
         title: "Success",
@@ -119,11 +133,19 @@ export default function AddEditCustomer() {
       });
 
       navigate('/customers');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting customer:', error);
+      
+      let errorMessage = "Failed to delete customer.";
+      if (error?.message?.includes('row-level security')) {
+        errorMessage = "You don't have permission to delete this customer.";
+      } else if (error?.message?.includes('authentication')) {
+        errorMessage = "Authentication required. Please log in and try again.";
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to delete customer.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
