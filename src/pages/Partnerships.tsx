@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,18 +18,61 @@ const Partnerships = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("name");
 
-  const { data: partnerships = [], isLoading } = useQuery({
+  const { data: partnerships = [], isLoading, refetch } = useQuery({
     queryKey: ['partnerships'],
     queryFn: async () => {
+      console.log('Fetching partnerships from database...');
       const { data, error } = await supabase
         .from('partnerships')
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching partnerships:', error);
+        throw error;
+      }
+      
+      console.log('Partnerships fetched:', data);
       return data as Partnership[];
     }
   });
+
+  // Set up real-time subscription for partnerships
+  useEffect(() => {
+    console.log('Setting up real-time subscription for partnerships...');
+    
+    const channel = supabase
+      .channel('partnerships_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'partnerships'
+        },
+        (payload) => {
+          console.log('Real-time partnership change:', payload);
+          // Refetch partnerships when any change occurs
+          refetch();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log('Cleaning up real-time subscription...');
+      supabase.removeChannel(channel);
+    };
+  }, [refetch]);
+
+  // Reset filters when component mounts (e.g., when navigating back from form)
+  useEffect(() => {
+    console.log('Partnerships component mounted, current filters:', {
+      searchTerm,
+      typeFilter,
+      statusFilter,
+      sortBy
+    });
+  }, []);
 
   const filteredPartnerships = partnerships
     .filter(partnership => {
@@ -67,6 +111,13 @@ const Partnerships = () => {
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
     }
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setTypeFilter("all");
+    setStatusFilter("all");
+    setSortBy("name");
   };
 
   return (
@@ -142,6 +193,15 @@ const Partnerships = () => {
                   <SelectItem value="expected_value">Expected Value</SelectItem>
                 </SelectContent>
               </Select>
+              {(searchTerm || typeFilter !== "all" || statusFilter !== "all" || sortBy !== "name") && (
+                <Button
+                  variant="outline"
+                  onClick={handleClearFilters}
+                  className="w-full sm:w-auto"
+                >
+                  Clear Filters
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>

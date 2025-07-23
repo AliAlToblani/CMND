@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -29,6 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
+import { useQueryClient } from "@tanstack/react-query";
 
 const partnershipSchema = z.object({
   name: z.string().min(1, "Partnership name is required"),
@@ -50,6 +50,7 @@ export default function AddEditPartnership() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -133,6 +134,11 @@ export default function AddEditPartnership() {
         }
       } catch (error) {
         console.error('Error loading partnership:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load partnership data.",
+          variant: "destructive"
+        });
       } finally {
         setIsLoading(false);
       }
@@ -173,6 +179,9 @@ export default function AddEditPartnership() {
 
       if (partnershipError) throw partnershipError;
 
+      // Invalidate the partnerships cache
+      queryClient.invalidateQueries({ queryKey: ['partnerships'] });
+
       toast({
         title: "Success",
         description: "Partnership deleted successfully!",
@@ -195,6 +204,8 @@ export default function AddEditPartnership() {
   const onSubmit = async (data: PartnershipFormData) => {
     setIsSubmitting(true);
     try {
+      console.log('Submitting partnership data:', data);
+      
       const partnershipData = {
         name: data.name,
         partnership_type: data.partnership_type,
@@ -209,6 +220,8 @@ export default function AddEditPartnership() {
         notes: data.notes,
       };
 
+      console.log('Formatted partnership data:', partnershipData);
+
       let partnershipId = id;
 
       if (id) {
@@ -218,7 +231,12 @@ export default function AddEditPartnership() {
           .update(partnershipData)
           .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error updating partnership:', error);
+          throw error;
+        }
+        
+        console.log('Partnership updated successfully');
       } else {
         // Create new partnership
         const { data: newPartnership, error } = await supabase
@@ -227,7 +245,12 @@ export default function AddEditPartnership() {
           .select()
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error creating partnership:', error);
+          throw error;
+        }
+        
+        console.log('Partnership created successfully:', newPartnership);
         partnershipId = newPartnership.id;
       }
 
@@ -235,6 +258,9 @@ export default function AddEditPartnership() {
       if (partnershipId && documents.length > 0) {
         await saveDocuments(partnershipId, documents);
       }
+
+      // Invalidate the partnerships cache to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['partnerships'] });
 
       toast({
         title: "Success",
@@ -246,7 +272,7 @@ export default function AddEditPartnership() {
       console.error('Error saving partnership:', error);
       toast({
         title: "Error",
-        description: `Failed to ${id ? 'update' : 'create'} partnership.`,
+        description: `Failed to ${id ? 'update' : 'create'} partnership. Please try again.`,
         variant: "destructive"
       });
     } finally {
@@ -311,14 +337,13 @@ export default function AddEditPartnership() {
               disabled={isDeleting}
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Delete Partnership
+              {isDeleting ? 'Deleting...' : 'Delete Partnership'}
             </Button>
           )}
         </div>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Basic Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Basic Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -407,7 +432,6 @@ export default function AddEditPartnership() {
               </div>
             </div>
 
-            {/* Location */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Location</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -449,7 +473,6 @@ export default function AddEditPartnership() {
               </div>
             </div>
 
-            {/* Documents Section */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Documents</h3>
               <DocumentUpload
@@ -460,7 +483,6 @@ export default function AddEditPartnership() {
               />
             </div>
 
-            {/* Dates */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Important Dates</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -583,7 +605,6 @@ export default function AddEditPartnership() {
               </div>
             </div>
 
-            {/* Description and Notes */}
             <div className="space-y-4">
               <FormField
                 control={form.control}
