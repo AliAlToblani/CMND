@@ -10,6 +10,12 @@ export const syncCustomersToDatabase = async (): Promise<boolean> => {
   try {
     console.log("Starting manual customer data import...");
     
+    // Check if there are customers to import
+    if (!realCustomers || realCustomers.length === 0) {
+      console.log("No sample customers to import - sample data has been disabled to prevent accidental imports");
+      return true;
+    }
+    
     const { data: existingCustomers, error: fetchError } = await supabase
       .from('customers')
       .select('name, industry');

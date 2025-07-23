@@ -6,105 +6,26 @@ import {
   Facebook
 } from "lucide-react";
 
-// Mock customers
-export const customers = [
-  {
-    id: "cust-001",
-    name: "Al Jazeera Media",
-    logo: "",
-    segment: "Enterprise",
-    country: "Qatar",
-    stage: "Integration Setup",
-    status: "in-progress" as const,
-    contractSize: 75000,
-    industry: "Media & Broadcasting",
-    owner: {
-      id: "user-001",
-      name: "Ahmed Abdullah",
-      role: "Account Executive"
-    }
-  },
-  {
-    id: "cust-002",
-    name: "Aramex Logistics",
-    logo: "",
-    segment: "Enterprise",
-    country: "UAE",
-    stage: "Contract Signed",
-    status: "done" as const,
-    contractSize: 120000,
-    industry: "Logistics & Shipping",
-    owner: {
-      id: "user-002",
-      name: "Fatima Hassan",
-      role: "Customer Success Manager"
-    }
-  },
-  {
-    id: "cust-003",
-    name: "Souq Marketplace",
-    logo: "",
-    segment: "Mid-Market",
-    country: "UAE",
-    stage: "Demo Completed",
-    status: "not-started" as const,
-    contractSize: 45000,
-    industry: "E-commerce",
-    owner: {
-      id: "user-003",
-      name: "Khalid Al-Farsi",
-      role: "Finance Manager"
-    }
-  },
-  {
-    id: "cust-004",
-    name: "Talabat Food Delivery",
-    logo: "",
-    segment: "Enterprise",
-    country: "Kuwait",
-    stage: "Go Live",
-    status: "blocked" as const,
-    contractSize: 85000,
-    industry: "Food & Delivery",
-    owner: {
-      id: "user-004",
-      name: "Mohammed Rahman",
-      role: "Integration Engineer"
-    }
-  },
-  {
-    id: "cust-005",
-    name: "Careem Transportation",
-    logo: "",
-    segment: "Enterprise",
-    country: "UAE",
-    stage: "Proposal Sent",
-    status: "in-progress" as const,
-    contractSize: 95000,
-    industry: "Transportation",
-    owner: {
-      id: "user-001",
-      name: "Ahmed Abdullah",
-      role: "Account Executive"
-    }
-  },
-  {
-    id: "cust-006",
-    name: "Emirates Airlines",
-    logo: "",
-    segment: "Enterprise",
-    country: "UAE",
-    stage: "Interest Captured",
-    status: "not-started" as const,
-    contractSize: 200000,
-    industry: "Aviation",
-    owner: {
-      id: "user-002",
-      name: "Fatima Hassan",
-      role: "Customer Success Manager"
-    }
-  },
-];
+// Customer type definition
+export interface MockCustomer {
+  id: string;
+  name: string;
+  logo: string;
+  segment: string;
+  country: string;
+  stage: string;
+  status: "not-started" | "in-progress" | "done" | "blocked";
+  contractSize: number;
+  industry: string;
+  owner: {
+    id: string;
+    name: string;
+    role: string;
+  };
+}
+
+// Empty customers array - no sample data to prevent accidental imports
+export const customers: MockCustomer[] = [];
 
 // Add the missing icons to our icon mapping
 export const icons = {
