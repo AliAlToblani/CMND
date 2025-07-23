@@ -188,7 +188,7 @@ export interface CustomerData {
   segment?: string;
   country?: string;
   stage?: string;
-  status?: "not-started" | "in-progress" | "done" | "blocked";
+  status?: string;
   contractSize: number;
   setup_fee?: number;
   annual_rate?: number;

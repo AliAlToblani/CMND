@@ -80,7 +80,7 @@ const Customers = () => {
       segment: dbCustomer.segment || "Unknown Segment",
       country: dbCustomer.country || "Unknown Country",
       stage: pipelineStage,
-      status: pipelineStage.toLowerCase().includes('live') ? "done" : "in-progress",
+      status: pipelineStage,
       contractSize: dbCustomer.contract_size || 0,
       owner: {
         id: dbCustomer.owner_id || "unknown",
