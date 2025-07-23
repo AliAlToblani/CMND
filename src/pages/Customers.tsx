@@ -70,15 +70,8 @@ const Customers = () => {
     return PIPELINE_STAGE_ORDER[furthestStageIndex] || "Lead";
   };
 
-  const getCustomerStatus = (stage: string): "not-started" | "in-progress" | "done" | "blocked" => {
-    if (stage === "Live") return "done";
-    if (stage === "Lead") return "not-started";
-    return "in-progress";
-  };
-
   const formatDatabaseCustomer = (dbCustomer: any, completedStages: string[] = []): CustomerData => {
     const pipelineStage = getFurthestPipelineStage(completedStages);
-    const derivedStatus = getCustomerStatus(pipelineStage);
     
     return {
       id: dbCustomer.id,
@@ -87,7 +80,7 @@ const Customers = () => {
       segment: dbCustomer.segment || "Unknown Segment",
       country: dbCustomer.country || "Unknown Country",
       stage: pipelineStage,
-      status: derivedStatus,
+      status: pipelineStage.toLowerCase().includes('live') ? "done" : "in-progress",
       contractSize: dbCustomer.contract_size || 0,
       owner: {
         id: dbCustomer.owner_id || "unknown",
