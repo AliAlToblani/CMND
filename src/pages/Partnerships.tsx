@@ -245,10 +245,10 @@ const Partnerships = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
             {filteredPartnerships.map((partnership) => (
               <Link key={partnership.id} to={`/partnerships/${partnership.id}`}>
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+                <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -260,43 +260,45 @@ const Partnerships = () => {
                         </div>
                       </div>
                       <Badge className={getStatusBadgeColor(partnership.status)}>
-                        {PARTNERSHIP_STATUS_LABELS[partnership.status]}
+                        {PARTNERSHIP_STATUS_LABELS[partnership.status] || 'Unknown'}
                       </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="pt-0">
+                  <CardContent className="pt-0 flex-1">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600 dark:text-gray-400">Type:</span>
                         <Badge variant="outline">
-                          {PARTNERSHIP_TYPE_LABELS[partnership.partnership_type]}
+                          {PARTNERSHIP_TYPE_LABELS[partnership.partnership_type] || 'Unknown Type'}
                         </Badge>
                       </div>
                       
-                      {partnership.start_date && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600 dark:text-gray-400">Start Date:</span>
-                          <span className="font-medium">
-                            {new Date(partnership.start_date).toLocaleDateString()}
-                          </span>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">Start Date:</span>
+                        <span className="font-medium">
+                          {partnership.start_date 
+                            ? new Date(partnership.start_date).toLocaleDateString()
+                            : 'Not set'
+                          }
+                        </span>
+                      </div>
                       
-                      {partnership.expected_value && partnership.expected_value > 0 && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600 dark:text-gray-400">Expected Value:</span>
-                          <span className="font-medium text-green-600 dark:text-green-400">
-                            ${partnership.expected_value.toLocaleString()}
-                          </span>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">Expected Value:</span>
+                        <span className="font-medium text-green-600 dark:text-green-400">
+                          {partnership.expected_value && partnership.expected_value > 0
+                            ? `$${partnership.expected_value.toLocaleString()}`
+                            : 'Not specified'
+                          }
+                        </span>
+                      </div>
                       
-                      {partnership.owner_id && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600 dark:text-gray-400">Owner:</span>
-                          <span className="font-medium">{partnership.owner_id}</span>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">Owner:</span>
+                        <span className="font-medium">
+                          {partnership.owner_id || 'Unassigned'}
+                        </span>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
