@@ -70,13 +70,11 @@ const Lifecycle = () => {
         .select('id');
       
       if (error) {
-        console.error("Error fetching staff IDs:", error);
         return [];
       }
       
       return data?.map(staff => staff.id) || [];
     } catch (error) {
-      console.error("Error in fetchValidStaffIds:", error);
       return [];
     }
   };
@@ -84,7 +82,6 @@ const Lifecycle = () => {
   useEffect(() => {
     const loadStaffIds = async () => {
       const ids = await fetchValidStaffIds();
-      console.log("Valid staff IDs:", ids);
       setValidStaffIds(ids);
     };
     
@@ -97,18 +94,14 @@ const Lifecycle = () => {
         // First, remove any duplicate customers that might be in the database
         await removeDuplicateCustomers();
         
-        console.log("Fetching customers for lifecycle...");
         const { data, error } = await supabase
           .from('customers')
           .select('*')
           .order('name', { ascending: true });
 
         if (error) {
-          console.error("Error fetching customers:", error);
           throw error;
         }
-
-        console.log("Lifecycle - fetched customers:", data);
 
         if (data && data.length > 0) {
           // Cast the status to the proper type
@@ -119,11 +112,9 @@ const Lifecycle = () => {
           setCustomerList(typedCustomers);
           setSelectedCustomer(data[0].id);
         } else {
-          console.log("No customers found in the database");
           setCustomerList([]);
         }
       } catch (error) {
-        console.error("Error in fetchCustomers:", error);
         toast.error("Failed to load customers");
         setCustomerList([]);
       } finally {
@@ -147,22 +138,18 @@ const Lifecycle = () => {
   }, [searchTerm, customerList]);
 
   const handleCustomerChange = async (value: string) => {
-    console.log("Selected customer changed to:", value);
     setSelectedCustomer(value);
     await fetchCustomerStages(value);
   };
 
   const fetchCustomerStages = async (customerId: string) => {
     if (!customerId) {
-      console.log("❌ No customer ID provided, can't fetch stages");
       return;
     }
     
     try {
       setLoading(true);
       const dbCustomerId = getDbCustomerId(customerId);
-      console.log("🔍 Fetching stages for customer:", customerId);
-      console.log("🔗 Database customer ID:", dbCustomerId);
       
       const { data, error } = await supabase
         .from('lifecycle_stages')
@@ -173,22 +160,11 @@ const Lifecycle = () => {
         .eq('customer_id', dbCustomerId);
 
       if (error) {
-        console.error("❌ Error fetching lifecycle stages:", error);
         throw error;
       }
-
-      console.log("📊 Raw fetched stages data:", data);
-      console.log("📈 Number of stages found:", data?.length || 0);
       
       if (data && Array.isArray(data)) {
-        const formattedStages: LifecycleStageProps[] = data.map((stage: any, index: number) => {
-          console.log(`🎯 Processing stage ${index + 1}:`, {
-            id: stage.id,
-            name: stage.name,
-            status: stage.status,
-            category: stage.category
-          });
-          
+        const formattedStages: LifecycleStageProps[] = data.map((stage: any) => {
           return {
             id: stage.id,
             name: stage.name,
@@ -209,26 +185,15 @@ const Lifecycle = () => {
           };
         });
 
-        console.log("✅ Formatted stages:", formattedStages);
-        console.log("📋 Setting customer stages state with", formattedStages.length, "stages");
         setCustomerStages(formattedStages);
-        
-        if (formattedStages.length === 0) {
-          console.log("⚠️ No stages found, default stages will be added by the lifecycle tracker");
-        } else {
-          console.log("🎉 Successfully loaded", formattedStages.length, "stages for customer");
-        }
       } else {
-        console.log("⚠️ No data returned or data is not an array:", data);
         setCustomerStages([]);
       }
     } catch (error) {
-      console.error("❌ Error in fetchCustomerStages:", error);
       toast.error("Failed to load lifecycle stages");
       setCustomerStages([]);
     } finally {
       setLoading(false);
-      console.log("🏁 fetchCustomerStages completed");
     }
   };
 
@@ -246,7 +211,6 @@ const Lifecycle = () => {
 
   useEffect(() => {
     if (selectedCustomer) {
-      console.log("Selected customer useEffect:", selectedCustomer);
       fetchCustomerStages(selectedCustomer);
     }
   }, [selectedCustomer]);

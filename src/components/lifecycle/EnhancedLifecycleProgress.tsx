@@ -33,19 +33,6 @@ export function EnhancedLifecycleProgress({
 }: EnhancedLifecycleProgressProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   
-  // Enhanced debugging for EnhancedLifecycleProgress
-  console.log("🚀 EnhancedLifecycleProgress render:", {
-    customerId,
-    customerName,
-    stagesReceived: stages?.length || 0,
-    stagesData: stages?.map(s => ({ 
-      id: s.id, 
-      name: s.name, 
-      status: s.status, 
-      category: s.category 
-    })) || [],
-    expandedCategories: Array.from(expandedCategories)
-  });
   
   const toggleCategory = (categoryName: string) => {
     const newExpanded = new Set(expandedCategories);
@@ -58,10 +45,7 @@ export function EnhancedLifecycleProgress({
   };
 
   const { overallProgress, categoryProgress, groupedStages } = useMemo(() => {
-    console.log("🧮 Calculating progress for stages:", stages?.length || 0);
-    
     if (!stages || stages.length === 0) {
-      console.log("⚠️ No stages provided to EnhancedLifecycleProgress");
       return { 
         overallProgress: { completed: 0, total: 0, percentage: 0 },
         categoryProgress: [],
@@ -83,9 +67,6 @@ export function EnhancedLifecycleProgress({
       acc[category].push(stage);
       return acc;
     }, {} as Record<string, LifecycleStageProps[]>);
-
-    console.log("📊 Stages grouped by category:", stagesByCategory);
-    console.log("📈 Categories found:", Object.keys(stagesByCategory));
 
     // Group stages by category and calculate progress
     const categories = ['Pre-Sales', 'Sales', 'Implementation', 'Finance'];
@@ -127,7 +108,6 @@ export function EnhancedLifecycleProgress({
       groupedStages: stagesByCategory
     };
 
-    console.log("✅ Progress calculation complete:", result);
     return result;
   }, [stages]);
 
@@ -202,13 +182,6 @@ export function EnhancedLifecycleProgress({
     );
   };
 
-  // Log rendering decision
-  console.log("🎨 Rendering EnhancedLifecycleProgress:", {
-    hasStages: stages && stages.length > 0,
-    overallProgress,
-    categoryProgressCount: categoryProgress.length,
-    groupedStagesKeys: Object.keys(groupedStages)
-  });
 
   // Show loading state if no stages
   if (!stages || stages.length === 0) {

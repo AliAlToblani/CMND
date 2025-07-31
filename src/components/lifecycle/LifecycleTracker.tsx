@@ -33,15 +33,6 @@ export function LifecycleTracker({
   const [isLoading, setIsLoading] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
   
-  // Enhanced debugging for props
-  console.log("🔄 LifecycleTracker render:", {
-    customerId,
-    customerName,
-    stagesCount: stages?.length || 0,
-    stages: stages?.map(s => ({ id: s.id, name: s.name, status: s.status, category: s.category })) || [],
-    hasInitialized,
-    isLoading
-  });
 
   const getDbCustomerId = (customerId: string) => {
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(customerId)) {
@@ -52,7 +43,6 @@ export function LifecycleTracker({
   };
 
   const handleStageUpdate = async (stageId: string, updatedStage: Partial<LifecycleStageProps>) => {
-    console.log("Updating stage:", stageId, updatedStage);
     
     // Optimistic update - immediately update UI
     const originalStages = [...stages];
@@ -65,7 +55,6 @@ export function LifecycleTracker({
     
     try {
       const dbCustomerId = getDbCustomerId(customerId);
-      console.log("Attempting database update for stage:", stageId, "with status:", updatedStage.status);
       
       const { data, error } = await supabase
         .from('lifecycle_stages')
@@ -82,13 +71,11 @@ export function LifecycleTracker({
         .select();
 
       if (error) {
-        console.error("Database update error:", error);
         // Revert optimistic update on error
         onStagesUpdate(originalStages);
         throw error;
       }
 
-      console.log("Database update successful:", data);
       toast.success("Stage updated successfully");
 
       // Add timeline entry
@@ -104,7 +91,6 @@ export function LifecycleTracker({
         });
 
     } catch (error) {
-      console.error("Error in handleStageUpdate:", error);
       toast.error("Failed to update stage");
     } finally {
       setIsLoading(false);
@@ -112,7 +98,6 @@ export function LifecycleTracker({
   };
 
   const handleStageAdd = async (newStage: NewStageData) => {
-    console.log("Adding new stage:", newStage);
     setIsLoading(true);
     
     try {
@@ -134,7 +119,6 @@ export function LifecycleTracker({
         `);
 
       if (error) {
-        console.error("Error adding stage:", error);
         throw error;
       }
 
@@ -174,7 +158,6 @@ export function LifecycleTracker({
           });
       }
     } catch (error) {
-      console.error("Error in handleStageAdd:", error);
       toast.error("Failed to add stage");
     } finally {
       setIsLoading(false);
@@ -184,7 +167,6 @@ export function LifecycleTracker({
   const initializeDefaultStages = async () => {
     if (hasInitialized || stages.length > 0) return;
     
-    console.log("Initializing default stages for customer:", customerId);
     setIsLoading(true);
     setHasInitialized(true);
     
@@ -196,7 +178,6 @@ export function LifecycleTracker({
       .eq('customer_id', dbCustomerId);
     
     if (existingStages && existingStages.length > 0) {
-      console.log("Stages already exist in database, skipping initialization");
       setIsLoading(false);
       return;
     }
@@ -209,7 +190,6 @@ export function LifecycleTracker({
         .select('id, name, role');
       
       if (staffError) {
-        console.error("Error fetching staff:", staffError);
         throw staffError;
       }
       
@@ -222,7 +202,6 @@ export function LifecycleTracker({
       };
       
       for (const defaultStage of defaultLifecycleStages) {
-        console.log("Adding default stage:", defaultStage.name);
         
         // Try to find a matching staff member by role, fallback to first available or null
         const matchingStaff = staffByRole[defaultStage.owner.role as keyof typeof staffByRole] || 
@@ -276,7 +255,6 @@ export function LifecycleTracker({
       }
       
     } catch (error) {
-      console.error("Error initializing default stages:", error);
       toast.error("Failed to initialize default stages");
     } finally {
       setIsLoading(false);
@@ -291,13 +269,6 @@ export function LifecycleTracker({
 
   const sortedStages = sortStagesByOrder(stages);
 
-  // Log the stages that will be rendered
-  console.log("🎬 LifecycleTracker about to render EnhancedLifecycleProgress with:", {
-    sortedStagesCount: sortedStages.length,
-    sortedStages: sortedStages.map(s => ({ id: s.id, name: s.name, status: s.status, category: s.category })),
-    customerId,
-    customerName
-  });
 
   return (
     <div className="space-y-6">
@@ -308,30 +279,6 @@ export function LifecycleTracker({
         <AddEditStage onSave={handleStageAdd} />
       </div>
       
-      {/* Debug info card */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
-          <h3 className="font-medium text-yellow-800 mb-2">Debug Info:</h3>
-          <p className="text-yellow-700">
-            Customer: {customerName} ({customerId})<br/>
-            Stages: {sortedStages.length} found<br/>
-            Loading: {isLoading ? 'Yes' : 'No'}<br/>
-            Initialized: {hasInitialized ? 'Yes' : 'No'}
-          </p>
-          {sortedStages.length > 0 && (
-            <details className="mt-2">
-              <summary className="cursor-pointer text-yellow-800 font-medium">View Stages</summary>
-              <pre className="mt-2 text-xs text-yellow-600 overflow-auto">
-                {JSON.stringify(sortedStages.map(s => ({ 
-                  name: s.name, 
-                  status: s.status, 
-                  category: s.category 
-                })), null, 2)}
-              </pre>
-            </details>
-          )}
-        </div>
-      )}
       
       <EnhancedLifecycleProgress 
         stages={sortedStages}
