@@ -32,6 +32,16 @@ export function LifecycleTracker({
 }: LifecycleTrackerProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
+  
+  // Enhanced debugging for props
+  console.log("🔄 LifecycleTracker render:", {
+    customerId,
+    customerName,
+    stagesCount: stages?.length || 0,
+    stages: stages?.map(s => ({ id: s.id, name: s.name, status: s.status, category: s.category })) || [],
+    hasInitialized,
+    isLoading
+  });
 
   const getDbCustomerId = (customerId: string) => {
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(customerId)) {
@@ -281,6 +291,14 @@ export function LifecycleTracker({
 
   const sortedStages = sortStagesByOrder(stages);
 
+  // Log the stages that will be rendered
+  console.log("🎬 LifecycleTracker about to render EnhancedLifecycleProgress with:", {
+    sortedStagesCount: sortedStages.length,
+    sortedStages: sortedStages.map(s => ({ id: s.id, name: s.name, status: s.status, category: s.category })),
+    customerId,
+    customerName
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -289,6 +307,31 @@ export function LifecycleTracker({
         </h2>
         <AddEditStage onSave={handleStageAdd} />
       </div>
+      
+      {/* Debug info card */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm">
+          <h3 className="font-medium text-yellow-800 mb-2">Debug Info:</h3>
+          <p className="text-yellow-700">
+            Customer: {customerName} ({customerId})<br/>
+            Stages: {sortedStages.length} found<br/>
+            Loading: {isLoading ? 'Yes' : 'No'}<br/>
+            Initialized: {hasInitialized ? 'Yes' : 'No'}
+          </p>
+          {sortedStages.length > 0 && (
+            <details className="mt-2">
+              <summary className="cursor-pointer text-yellow-800 font-medium">View Stages</summary>
+              <pre className="mt-2 text-xs text-yellow-600 overflow-auto">
+                {JSON.stringify(sortedStages.map(s => ({ 
+                  name: s.name, 
+                  status: s.status, 
+                  category: s.category 
+                })), null, 2)}
+              </pre>
+            </details>
+          )}
+        </div>
+      )}
       
       <EnhancedLifecycleProgress 
         stages={sortedStages}

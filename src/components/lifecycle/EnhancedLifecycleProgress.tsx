@@ -33,6 +33,20 @@ export function EnhancedLifecycleProgress({
 }: EnhancedLifecycleProgressProps) {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
   
+  // Enhanced debugging for EnhancedLifecycleProgress
+  console.log("🚀 EnhancedLifecycleProgress render:", {
+    customerId,
+    customerName,
+    stagesReceived: stages?.length || 0,
+    stagesData: stages?.map(s => ({ 
+      id: s.id, 
+      name: s.name, 
+      status: s.status, 
+      category: s.category 
+    })) || [],
+    expandedCategories: Array.from(expandedCategories)
+  });
+  
   const toggleCategory = (categoryName: string) => {
     const newExpanded = new Set(expandedCategories);
     if (newExpanded.has(categoryName)) {
@@ -44,7 +58,10 @@ export function EnhancedLifecycleProgress({
   };
 
   const { overallProgress, categoryProgress, groupedStages } = useMemo(() => {
+    console.log("🧮 Calculating progress for stages:", stages?.length || 0);
+    
     if (!stages || stages.length === 0) {
+      console.log("⚠️ No stages provided to EnhancedLifecycleProgress");
       return { 
         overallProgress: { completed: 0, total: 0, percentage: 0 },
         categoryProgress: [],
@@ -66,6 +83,9 @@ export function EnhancedLifecycleProgress({
       acc[category].push(stage);
       return acc;
     }, {} as Record<string, LifecycleStageProps[]>);
+
+    console.log("📊 Stages grouped by category:", stagesByCategory);
+    console.log("📈 Categories found:", Object.keys(stagesByCategory));
 
     // Group stages by category and calculate progress
     const categories = ['Pre-Sales', 'Sales', 'Implementation', 'Finance'];
@@ -97,7 +117,7 @@ export function EnhancedLifecycleProgress({
       };
     });
 
-    return {
+    const result = {
       overallProgress: {
         completed: completedStages,
         total: totalStages,
@@ -106,6 +126,9 @@ export function EnhancedLifecycleProgress({
       categoryProgress: categoryData,
       groupedStages: stagesByCategory
     };
+
+    console.log("✅ Progress calculation complete:", result);
+    return result;
   }, [stages]);
 
   const getStepperIcon = (category: CategoryProgress) => {
@@ -178,6 +201,31 @@ export function EnhancedLifecycleProgress({
       </div>
     );
   };
+
+  // Log rendering decision
+  console.log("🎨 Rendering EnhancedLifecycleProgress:", {
+    hasStages: stages && stages.length > 0,
+    overallProgress,
+    categoryProgressCount: categoryProgress.length,
+    groupedStagesKeys: Object.keys(groupedStages)
+  });
+
+  // Show loading state if no stages
+  if (!stages || stages.length === 0) {
+    return (
+      <Card className="glass-card animate-fade-in mb-6">
+        <CardContent className="p-6">
+          <div className="text-center py-8">
+            <div className="animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-1/2 mx-auto"></div>
+            </div>
+            <p className="text-muted-foreground mt-4">Loading lifecycle stages...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="glass-card animate-fade-in mb-6">

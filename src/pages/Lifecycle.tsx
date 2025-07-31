@@ -154,14 +154,15 @@ const Lifecycle = () => {
 
   const fetchCustomerStages = async (customerId: string) => {
     if (!customerId) {
-      console.log("No customer ID provided, can't fetch stages");
+      console.log("❌ No customer ID provided, can't fetch stages");
       return;
     }
     
     try {
       setLoading(true);
       const dbCustomerId = getDbCustomerId(customerId);
-      console.log("Fetching stages for customer ID:", customerId, "DB ID:", dbCustomerId);
+      console.log("🔍 Fetching stages for customer:", customerId);
+      console.log("🔗 Database customer ID:", dbCustomerId);
       
       const { data, error } = await supabase
         .from('lifecycle_stages')
@@ -172,14 +173,22 @@ const Lifecycle = () => {
         .eq('customer_id', dbCustomerId);
 
       if (error) {
-        console.error("Error fetching lifecycle stages:", error);
+        console.error("❌ Error fetching lifecycle stages:", error);
         throw error;
       }
 
-      console.log("Fetched stages:", data);
+      console.log("📊 Raw fetched stages data:", data);
+      console.log("📈 Number of stages found:", data?.length || 0);
       
       if (data && Array.isArray(data)) {
-        const formattedStages: LifecycleStageProps[] = data.map((stage: any) => {
+        const formattedStages: LifecycleStageProps[] = data.map((stage: any, index: number) => {
+          console.log(`🎯 Processing stage ${index + 1}:`, {
+            id: stage.id,
+            name: stage.name,
+            status: stage.status,
+            category: stage.category
+          });
+          
           return {
             id: stage.id,
             name: stage.name,
@@ -200,18 +209,26 @@ const Lifecycle = () => {
           };
         });
 
+        console.log("✅ Formatted stages:", formattedStages);
+        console.log("📋 Setting customer stages state with", formattedStages.length, "stages");
         setCustomerStages(formattedStages);
         
         if (formattedStages.length === 0) {
-          console.log("No stages found, default stages will be added by the lifecycle tracker");
+          console.log("⚠️ No stages found, default stages will be added by the lifecycle tracker");
+        } else {
+          console.log("🎉 Successfully loaded", formattedStages.length, "stages for customer");
         }
+      } else {
+        console.log("⚠️ No data returned or data is not an array:", data);
+        setCustomerStages([]);
       }
     } catch (error) {
-      console.error("Error in fetchCustomerStages:", error);
+      console.error("❌ Error in fetchCustomerStages:", error);
       toast.error("Failed to load lifecycle stages");
       setCustomerStages([]);
     } finally {
       setLoading(false);
+      console.log("🏁 fetchCustomerStages completed");
     }
   };
 
