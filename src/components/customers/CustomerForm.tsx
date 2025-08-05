@@ -25,7 +25,7 @@ import { industryOptions } from "@/data/defaultLifecycleStages";
 import { getActiveCountries } from "@/utils/countryUtils";
 import { CustomerAvatarUpload, CustomerAvatarUploadRef } from "./CustomerAvatarUpload";
 import { ContractsList, Contract, ContractsListRef } from "./ContractsList";
-import { DocumentUpload } from "@/components/documents/DocumentUpload";
+import { DocumentUpload, Document as UploadDocument } from "@/components/documents/DocumentUpload";
 import { useDocumentManager } from "@/hooks/useDocumentManager";
 
 const customerFormSchema = z.object({
@@ -48,7 +48,7 @@ export type CustomerFormData = z.infer<typeof customerFormSchema>;
 
 interface CustomerFormProps {
   initialData?: Partial<CustomerFormData>;
-  onSubmit: (data: CustomerFormData, contracts: Contract[]) => void;
+  onSubmit: (data: CustomerFormData, contracts: Contract[], documents: UploadDocument[]) => void;
   isSubmitting?: boolean;
   submitLabel?: string;
   customerId?: string;
@@ -139,14 +139,10 @@ export function CustomerForm({
       // Get contracts from the contracts list component
       const contracts = contractsListRef.current?.getContracts() || [];
       console.log('CustomerForm: Retrieved contracts for submission:', { contractCount: contracts.length });
+      console.log('CustomerForm: Retrieved documents for submission:', { documentCount: documents.length });
       
-      // Call the original onSubmit with current contract state
-      await onSubmit(data, contracts);
-      
-      // Save documents if we have a customer ID
-      if (customerId && documents.length > 0) {
-        await saveDocuments(customerId, documents);
-      }
+      // Call the original onSubmit with current contract state and documents
+      await onSubmit(data, contracts, documents);
     } catch (error) {
       console.error('CustomerForm: Error during submission:', error);
     }

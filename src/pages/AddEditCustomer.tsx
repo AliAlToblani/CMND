@@ -9,6 +9,55 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 
+// Helper function to save documents to database
+const saveDocumentsToDatabase = async (customerId: string, documents: any[]) => {
+  // Get existing documents in database to avoid duplicates
+  const { data: existingDocs } = await supabase
+    .from('documents')
+    .select('id, file_path')
+    .eq('customer_id', customerId);
+
+  const existingFilePaths = new Set(existingDocs?.map(doc => doc.file_path) || []);
+  const newDocuments = documents.filter(doc => !doc.id && !existingFilePaths.has(doc.file_path));
+
+  // Insert new documents
+  if (newDocuments.length > 0) {
+    const documentsToInsert = newDocuments.map(doc => ({
+      customer_id: customerId,
+      name: doc.name,
+      file_path: doc.file_path,
+      document_type: doc.document_type,
+      file_size: doc.file_size || 0
+    }));
+
+    const { error } = await supabase
+      .from('documents')
+      .insert(documentsToInsert);
+
+    if (error) {
+      console.error('Error saving documents to database:', error);
+      throw error;
+    }
+  }
+
+  // Update existing documents (for document type changes)
+  const existingDocsToUpdate = documents.filter(doc => doc.id);
+  for (const doc of existingDocsToUpdate) {
+    const { error } = await supabase
+      .from('documents')
+      .update({
+        document_type: doc.document_type,
+        name: doc.name
+      })
+      .eq('id', doc.id);
+
+    if (error) {
+      console.error('Error updating document:', error);
+      throw error;
+    }
+  }
+};
+
 export default function AddEditCustomer() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -154,7 +203,7 @@ export default function AddEditCustomer() {
     }
   };
 
-  const handleSubmit = async (data: CustomerFormData, contracts: Contract[]) => {
+  const handleSubmit = async (data: CustomerFormData, contracts: Contract[], documents: any[] = []) => {
     setIsSubmitting(true);
     try {
       const customerData = {
@@ -224,6 +273,27 @@ export default function AddEditCustomer() {
 
         if (contractError) {
           console.error('Error saving contracts:', contractError);
+        }
+      }
+
+      // Save documents after customer creation/update
+      if (customerId && documents.length > 0) {
+        console.log('AddEditCustomer: Saving documents to database:', { 
+          customerId, 
+          documentCount: documents.length 
+        });
+        
+        try {
+          await saveDocumentsToDatabase(customerId, documents);
+          console.log('AddEditCustomer: Documents saved successfully');
+        } catch (docError) {
+          console.error('AddEditCustomer: Error saving documents:', docError);
+          // Don't fail the whole operation, just show a warning
+          toast({
+            title: "Warning",
+            description: "Customer saved but some documents may not have been saved properly.",
+            variant: "destructive"
+          });
         }
       }
 
