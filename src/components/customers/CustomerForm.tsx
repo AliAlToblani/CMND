@@ -34,8 +34,6 @@ const customerFormSchema = z.object({
   country: z.string().min(1, "Country is required"),
   industry: z.string().optional(),
   estimated_deal_value: z.number().nullable().optional(),
-  go_live_date: z.date().optional(),
-  subscription_end_date: z.date().optional(),
   description: z.string().optional(),
   logo: z.string().optional(),
   owner_id: z.string().optional(),
@@ -82,8 +80,6 @@ export function CustomerForm({
       country: initialData?.country || "",
       industry: initialData?.industry || "",
       estimated_deal_value: initialData?.estimated_deal_value || null,
-      go_live_date: initialData?.go_live_date,
-      subscription_end_date: initialData?.subscription_end_date,
       description: initialData?.description || "",
       logo: initialData?.logo || "",
       owner_id: initialData?.owner_id || "",
@@ -370,99 +366,6 @@ export function CustomerForm({
           />
         </div>
 
-        {/* Timeline / Dates Section */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            Timeline / Dates
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField
-              control={form.control}
-              name="go_live_date"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Go Live Date</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date) =>
-                          date < new Date("1900-01-01")
-                        }
-                        initialFocus
-                        compact={true}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="subscription_end_date"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Subscription End Date</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={field.onChange}
-                        disabled={(date) =>
-                          date < new Date()
-                        }
-                        initialFocus
-                        compact={true}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </div>
 
         {/* Contact Information Section */}
         <div className="space-y-4">

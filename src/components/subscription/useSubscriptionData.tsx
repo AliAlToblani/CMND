@@ -29,36 +29,26 @@ export const useSubscriptionData = () => {
     }
   });
 
-  // Fetch customers who have completed "Go Live" stage OR have contracts
+  // Fetch customers who have active contracts only
   const { data: customers = [], isLoading, refetch } = useQuery({
     queryKey: contractQueryKeys.subscription(),
     queryFn: async () => {
-      // Get customer IDs who have completed "Go Live" stage
-      const { data: goLiveCustomers, error: stageError } = await supabase
-        .from('lifecycle_stages')
-        .select('customer_id')
-        .eq('name', 'Go Live')
-        .eq('status', 'done');
-      
-      if (stageError) throw stageError;
-      
-      // Get customer IDs who have contracts
-      const { data: contractCustomers, error: contractError } = await supabase
+      // Get customer IDs who have active contracts only
+      const { data: activeContracts, error: contractError } = await supabase
         .from('contracts')
-        .select('customer_id');
+        .select('customer_id')
+        .eq('status', 'active');
       
       if (contractError) throw contractError;
       
-      // Combine and deduplicate customer IDs
-      const goLiveCustomerIds = goLiveCustomers.map(stage => stage.customer_id);
-      const contractCustomerIds = contractCustomers.map(contract => contract.customer_id);
-      const customerIds = Array.from(new Set([...goLiveCustomerIds, ...contractCustomerIds]));
+      // Get unique customer IDs with active contracts
+      const customerIds = Array.from(new Set(activeContracts.map(contract => contract.customer_id)));
       
       if (customerIds.length === 0) {
         return [];
       }
       
-      // Now fetch customers with those IDs
+      // Now fetch customers with active contracts
       const { data: customersData, error } = await supabase
         .from('customers')
         .select('*')
@@ -67,11 +57,12 @@ export const useSubscriptionData = () => {
       
       if (error) throw error;
       
-      // Fetch ALL contracts for these customers (including draft status)
+      // Fetch ONLY active contracts for these customers
       const { data: contractsData, error: contractsError } = await supabase
         .from('contracts')
         .select('*')
-        .in('customer_id', customerIds);
+        .in('customer_id', customerIds)
+        .eq('status', 'active');
       
       if (contractsError) throw contractsError;
       
@@ -98,10 +89,11 @@ export const useSubscriptionData = () => {
           contracts: customerContracts,
           contractCount: customerContracts.length,
           lifetimeValue: totalLifetimeValue,
-          // Use contract end date if available, otherwise fall back to subscription_end_date
-          effective_end_date: latestEndDate || customer.subscription_end_date,
-          // Use calculated annual rate from contracts
-          effective_annual_rate: effectiveAnnualRate || customer.annual_rate || 0
+          // Use ONLY contract dates for active contracts
+          effective_end_date: latestEndDate,
+          effective_start_date: customerContracts.length > 0 ? customerContracts[0].start_date : null,
+          // Use calculated annual rate from active contracts only
+          effective_annual_rate: effectiveAnnualRate || 0
         };
       }) || [];
       
@@ -110,6 +102,7 @@ export const useSubscriptionData = () => {
         contractCount: number,
         lifetimeValue: number,
         effective_end_date: string | null,
+        effective_start_date: string | null,
         effective_annual_rate: number
       })[];
     }
@@ -142,7 +135,7 @@ export const useSubscriptionData = () => {
     return customers.map(customer => {
       const today = new Date();
       const endDate = customer.effective_end_date ? new Date(customer.effective_end_date) : null;
-      const startDate = customer.go_live_date ? new Date(customer.go_live_date) : null;
+      const startDate = customer.effective_start_date ? new Date(customer.effective_start_date) : null;
       
       let timeLeft = "";
       let status: "active" | "expiring_soon" | "expired" | "missing_date" = "missing_date";
@@ -247,18 +240,10 @@ export const useSubscriptionData = () => {
     }
   };
 
-  // Handle update subscription date
+  // Handle update subscription date - only update active contracts
   const handleUpdateDate = async (customerId: string, newDate: string, customerName: string) => {
     try {
-      // Update the customer's subscription end date
-      const { error: customerError } = await supabase
-        .from('customers')
-        .update({ subscription_end_date: newDate })
-        .eq('id', customerId);
-
-      if (customerError) throw customerError;
-
-      // Also update the end date of the customer's most recent contract
+      // Update the end date of the customer's active contracts only
       const { error: contractError } = await supabase
         .from('contracts')
         .update({ 
@@ -266,18 +251,19 @@ export const useSubscriptionData = () => {
           renewal_date: newDate 
         })
         .eq('customer_id', customerId)
-        .in('status', ['active', 'pending']);
+        .eq('status', 'active');
 
-      if (contractError) {
-        console.warn('Failed to update contract dates:', contractError);
-      }
+      if (contractError) throw contractError;
+
+      // Refresh the data
+      refetch();
 
       toast({
         title: "Date Updated",
-        description: `Subscription date updated for ${customerName}`,
+        description: `Contract renewal date updated for ${customerName}`,
       });
 
-      console.log(`Updated subscription date for ${customerId} to ${newDate}`);
+      console.log(`Updated contract renewal date for ${customerId} to ${newDate}`);
     } catch (error) {
       toast({
         title: "Error",
