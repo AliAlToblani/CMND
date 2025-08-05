@@ -24,12 +24,19 @@ const saveDocumentsToDatabase = async (customerId: string, documents: any[]) => 
   const existingFilePaths = new Set(existingDocs?.map(doc => doc.file_path) || []);
   const newDocuments = documents.filter(doc => !doc.id && !existingFilePaths.has(doc.file_path));
 
-  console.log('saveDocumentsToDatabase: Processing documents:', {
-    totalDocuments: documents.length,
-    newDocuments: newDocuments.length,
-    existingDocuments: documents.filter(doc => doc.id).length,
-    currentUserId
-  });
+      console.log('saveDocumentsToDatabase: Processing documents:', {
+        totalDocuments: documents.length,
+        newDocuments: newDocuments.length,
+        existingDocuments: documents.filter(doc => doc.id).length,
+        currentUserId,
+        documentsStructure: documents.map(doc => ({ 
+          name: doc.name, 
+          file_path: doc.file_path, 
+          hasId: !!doc.id,
+          document_type: doc.document_type
+        })),
+        existingFilePaths: Array.from(existingFilePaths)
+      });
 
   // Insert new documents
   if (newDocuments.length > 0) {
@@ -224,6 +231,12 @@ export default function AddEditCustomer() {
   const handleSubmit = async (data: CustomerFormData, contracts: Contract[], documents: any[] = []) => {
     setIsSubmitting(true);
     try {
+      console.log('AddEditCustomer: Starting submission with:', { 
+        customerId: id, 
+        contractCount: contracts.length, 
+        documentCount: documents.length,
+        documents: documents.map(doc => ({ name: doc.name, file_path: doc.file_path, hasId: !!doc.id }))
+      });
       const customerData = {
         name: data.name,
         segment: data.segment,
