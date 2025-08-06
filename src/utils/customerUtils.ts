@@ -405,11 +405,12 @@ export const calculateChurnRate = async (periodDays: number = 30): Promise<strin
       .or('status.eq.done,stage.eq.Live')
       .lt('created_at', periodStartDate.toISOString()); // Were already customers at period start
 
-    // Get customers who churned during the period
+    // Get customers who were manually churned during the period
     const { data: churnedCustomers, error: churnError } = await supabase
       .from('customers')
       .select('id', { count: 'exact' })
       .eq('status', 'churned')
+      .eq('churn_method', 'manual')
       .gte('churn_date', periodStartDate.toISOString())
       .lte('churn_date', new Date().toISOString());
 

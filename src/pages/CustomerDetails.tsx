@@ -38,7 +38,8 @@ const CustomerDetails = () => {
         .from('customers')
         .update({ 
           status: 'churned',
-          churn_date: new Date().toISOString().split('T')[0]
+          churn_date: new Date().toISOString().split('T')[0],
+          churn_method: 'manual'
         })
         .eq('id', id);
 
@@ -64,7 +65,8 @@ const CustomerDetails = () => {
         .from('customers')
         .update({ 
           status: 'done',
-          churn_date: null
+          churn_date: null,
+          churn_method: null
         })
         .eq('id', id);
 
