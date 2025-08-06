@@ -17,7 +17,8 @@ export const getLiveCustomers = async (): Promise<CustomerData[]> => {
     const { data, error } = await supabase
       .from('customers')
       .select('*')
-      .or('status.eq.done,stage.eq.Live'); // Check both status and stage for live customers
+      .or('status.eq.done,stage.eq.Live') // Check both status and stage for live customers
+      .neq('status', 'churned'); // Exclude churned customers
 
     if (error) {
       console.error("Error fetching live customers:", error);
@@ -65,7 +66,8 @@ export const getCustomerARRData = async (customers: CustomerData[]) => {
         )
       `)
       .or('status.eq.active,status.is.null') // Active contracts
-      .gt('end_date', new Date().toISOString()); // Not expired
+      .gt('end_date', new Date().toISOString()) // Not expired
+      .neq('customers.status', 'churned'); // Exclude churned customers
 
     if (contractsError) {
       console.error("Error fetching ARR from contracts:", contractsError);
@@ -169,7 +171,8 @@ export const getActiveContractsValue = async (): Promise<number> => {
     const { data, error } = await supabase
       .from('customers')
       .select('contract_size')
-      .or('status.eq.done,stage.eq.Live');
+      .or('status.eq.done,stage.eq.Live')
+      .neq('status', 'churned'); // Exclude churned customers
 
     if (error) {
       console.error("Error fetching active contracts value:", error);
@@ -192,7 +195,8 @@ export const getConversionRate = async (): Promise<number> => {
     const { data: liveCustomers, error: liveError } = await supabase
       .from('customers')
       .select('id', { count: 'exact' })
-      .or('status.eq.done,stage.eq.Live');
+      .or('status.eq.done,stage.eq.Live')
+      .neq('status', 'churned'); // Exclude churned customers
 
     if (totalError || liveError) {
       console.error("Error calculating conversion rate:", totalError || liveError);

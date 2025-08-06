@@ -193,6 +193,31 @@ const CustomerDetails = () => {
     contract_size: customer.contract_size || undefined
   };
 
+  // Unchurn mutation
+  const unchurnMutation = useMutation({
+    mutationFn: async () => {
+      if (!id) throw new Error("No customer ID");
+      
+      const { error } = await supabase
+        .from('customers')
+        .update({ 
+          status: 'done',
+          churn_date: null
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Customer has been reactivated");
+      queryClient.invalidateQueries({ queryKey: ['customer-details', id] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+    },
+    onError: (error) => {
+      toast.error("Failed to reactivate customer: " + error.message);
+    }
+  });
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "not-started":
@@ -203,6 +228,8 @@ const CustomerDetails = () => {
         return "bg-green-100 text-green-800";
       case "blocked":
         return "bg-red-100 text-red-800";
+      case "churned":
+        return "bg-destructive/10 text-destructive";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -232,7 +259,16 @@ const CustomerDetails = () => {
             </div>
           </div>
           <div className="flex space-x-2">
-            {customer.status !== 'churned' && (
+            {customer.status === 'churned' ? (
+              <Button 
+                variant="outline" 
+                onClick={() => unchurnMutation.mutate()}
+                disabled={unchurnMutation.isPending}
+                className="text-green-600 border-green-600 hover:bg-green-600 hover:text-white"
+              >
+                {unchurnMutation.isPending ? "Reactivating..." : "Reactivate Customer"}
+              </Button>
+            ) : (
               <Button 
                 variant="outline" 
                 onClick={() => setShowChurnDialog(true)}
