@@ -67,10 +67,11 @@ export const syncCustomerPipelineStages = async (): Promise<boolean> => {
   try {
     console.log("Starting customer pipeline stage sync...");
     
-    // Fetch all customers
+    // Fetch all customers, excluding churned customers from pipeline sync
     const { data: customers, error: customersError } = await supabase
       .from('customers')
-      .select('id, name, stage, status');
+      .select('id, name, stage, status')
+      .neq('status', 'churned');
 
     if (customersError) {
       console.error("Error fetching customers:", customersError);
