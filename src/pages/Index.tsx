@@ -194,11 +194,11 @@ const Index = () => {
   }, [customers]);
 
   // Calculate dashboard metrics  
-  const formattedARR = formatCurrency(arrData.totalARR);
-  const formattedDealsPipeline = formatCurrency(metrics.dealsPipeline.value);
-  const formattedActiveContracts = formatCurrency(metrics.activeContractsValue);
-  const formattedAverageDeal = formatCurrency(metrics.averageDealSize, false); // No decimals for average deal size
-  const formattedMRR = formatCurrency(metrics.mrr);
+  const formattedARR = formatCurrency(arrData.totalARR, false);
+  const formattedDealsPipeline = formatCurrency(metrics.dealsPipeline.value, false);
+  const formattedActiveContracts = formatCurrency(metrics.activeContractsValue, false);
+  const formattedAverageDeal = formatCurrency(metrics.averageDealSize, false);
+  const formattedMRR = formatCurrency(metrics.mrr, false);
   
   const getTotalCustomersCount = () => {
     return customers.length;
