@@ -27,6 +27,59 @@ const CustomerDetails = () => {
 
   console.log("CustomerDetails component loaded with ID:", id);
 
+  // ALL HOOKS MUST BE AT THE TOP - BEFORE ANY CONDITIONAL RETURNS
+  
+  // Churn mutation
+  const churnMutation = useMutation({
+    mutationFn: async () => {
+      if (!id) throw new Error("No customer ID");
+      
+      const { error } = await supabase
+        .from('customers')
+        .update({ 
+          status: 'churned',
+          churn_date: new Date().toISOString().split('T')[0]
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Customer marked as churned");
+      setShowChurnDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['customer-details', id] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+    },
+    onError: (error) => {
+      toast.error("Failed to mark customer as churned: " + error.message);
+    }
+  });
+
+  // Unchurn mutation
+  const unchurnMutation = useMutation({
+    mutationFn: async () => {
+      if (!id) throw new Error("No customer ID");
+      
+      const { error } = await supabase
+        .from('customers')
+        .update({ 
+          status: 'done',
+          churn_date: null
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Customer has been reactivated");
+      queryClient.invalidateQueries({ queryKey: ['customer-details', id] });
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+    },
+    onError: (error) => {
+      toast.error("Failed to reactivate customer: " + error.message);
+    }
+  });
+
   const { data: customer, isLoading, error } = useQuery({
     queryKey: ['customer-details', id],
     queryFn: async () => {
@@ -113,32 +166,7 @@ const CustomerDetails = () => {
     setStages(updatedStages);
   };
 
-  // Churn mutation
-  const churnMutation = useMutation({
-    mutationFn: async () => {
-      if (!id) throw new Error("No customer ID");
-      
-      const { error } = await supabase
-        .from('customers')
-        .update({ 
-          status: 'churned',
-          churn_date: new Date().toISOString().split('T')[0]
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Customer marked as churned");
-      setShowChurnDialog(false);
-      queryClient.invalidateQueries({ queryKey: ['customer-details', id] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-    },
-    onError: (error) => {
-      toast.error("Failed to mark customer as churned: " + error.message);
-    }
-  });
-
+  // NOW CONDITIONAL RETURNS CAN HAPPEN AFTER ALL HOOKS
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -192,31 +220,6 @@ const CustomerDetails = () => {
     owner_id: customer.owner_id || undefined,
     contract_size: customer.contract_size || undefined
   };
-
-  // Unchurn mutation
-  const unchurnMutation = useMutation({
-    mutationFn: async () => {
-      if (!id) throw new Error("No customer ID");
-      
-      const { error } = await supabase
-        .from('customers')
-        .update({ 
-          status: 'done',
-          churn_date: null
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Customer has been reactivated");
-      queryClient.invalidateQueries({ queryKey: ['customer-details', id] });
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-    },
-    onError: (error) => {
-      toast.error("Failed to reactivate customer: " + error.message);
-    }
-  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
