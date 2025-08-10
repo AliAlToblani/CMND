@@ -206,6 +206,12 @@ const Index = () => {
   
   const dashboardStats = [
     {
+      title: "Total Revenue",
+      value: formattedActiveContracts,
+      description: "All revenue (current year)",
+      icon: <DollarSign className="h-6 w-6" />
+    },
+    {
       title: "Total ARR",
       value: formattedARR,
       change: { value: 14, type: "increase" as const },
@@ -227,12 +233,6 @@ const Index = () => {
       value: formattedDealsPipeline,
       description: `${metrics.dealsPipeline.count} active deals`,
       icon: <TrendingUp className="h-6 w-6" />
-    },
-    {
-      title: "Total Revenue",
-      value: formattedActiveContracts,
-      description: "All revenue (current year)",
-      icon: <DollarSign className="h-6 w-6" />
     },
     {
       title: "Conversion Rate",
