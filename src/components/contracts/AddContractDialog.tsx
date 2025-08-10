@@ -35,6 +35,9 @@ export interface ContractDialogProps {
     status: string;
     type?: string;
     value: number;
+    setup_fee?: number;
+    annual_rate?: number;
+    payment_frequency?: "annual" | "quarterly" | "semi-annual" | "one-time";
     start_date: string;
     end_date: string;
     contract_number?: string;
@@ -63,6 +66,11 @@ export function AddContractDialog({
     contract?.end_date ? new Date(contract.end_date) : undefined
   );
   const [value, setValue] = useState(contract?.value?.toString() || "");
+  const [setupFee, setSetupFee] = useState(contract?.setup_fee?.toString() || "");
+  const [annualRate, setAnnualRate] = useState(contract?.annual_rate?.toString() || "");
+  const [paymentFrequency, setPaymentFrequency] = useState<"annual" | "quarterly" | "semi-annual" | "one-time">(
+    contract?.payment_frequency || "annual"
+  );
   const [document, setDocument] = useState<File | null>(null);
   const [documentName, setDocumentName] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState(customerId || "");
@@ -126,6 +134,9 @@ export function AddContractDialog({
         contract_number: contractNumber || null,
         status,
         value: value ? parseInt(value, 10) : 0,
+        setup_fee: setupFee ? parseInt(setupFee, 10) : 0,
+        annual_rate: annualRate ? parseInt(annualRate, 10) : 0,
+        payment_frequency: paymentFrequency,
         start_date: startDate ? startDate.toISOString() : null,
         end_date: endDate ? endDate.toISOString() : null,
         terms: type || "Service Agreement"
@@ -179,6 +190,9 @@ export function AddContractDialog({
       setStartDate(undefined);
       setEndDate(undefined);
       setValue("");
+      setSetupFee("");
+      setAnnualRate("");
+      setPaymentFrequency("annual");
       setDocument(null);
       setDocumentName("");
       setSelectedCustomerId("");
@@ -216,10 +230,10 @@ export function AddContractDialog({
             <div className="grid gap-2">
               <Label htmlFor="customer">Customer*</Label>
               <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
-                <SelectTrigger id="customer">
+                <SelectTrigger id="customer" className="bg-background">
                   <SelectValue placeholder="Select a customer" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background border shadow-lg z-50">
                   {customers.map((customer) => (
                     <SelectItem key={customer.id} value={customer.id}>
                       {customer.name}
@@ -253,10 +267,10 @@ export function AddContractDialog({
           <div className="grid gap-2">
             <Label htmlFor="type">Contract Type</Label>
             <Select value={type} onValueChange={setType}>
-              <SelectTrigger id="type">
+              <SelectTrigger id="type" className="bg-background">
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background border shadow-lg z-50">
                 <SelectItem value="Service Agreement">Service Agreement</SelectItem>
                 <SelectItem value="Implementation">Implementation</SelectItem>
                 <SelectItem value="Support">Support</SelectItem>
@@ -268,10 +282,10 @@ export function AddContractDialog({
           <div className="grid gap-2">
             <Label htmlFor="status">Status</Label>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger id="status">
+              <SelectTrigger id="status" className="bg-background">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-background border shadow-lg z-50">
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="expired">Expired</SelectItem>
@@ -296,7 +310,7 @@ export function AddContractDialog({
                     {startDate ? format(startDate, "PPP") : "Select a date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0 bg-background border shadow-lg z-50">
                   <Calendar
                     mode="single"
                     selected={startDate}
@@ -322,7 +336,7 @@ export function AddContractDialog({
                     {endDate ? format(endDate, "PPP") : "Select a date"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0 bg-background border shadow-lg z-50">
                   <Calendar
                     mode="single"
                     selected={endDate}
@@ -335,12 +349,51 @@ export function AddContractDialog({
           </div>
           
           <div className="grid gap-2">
-            <Label htmlFor="value">Contract Value ($)</Label>
+            <Label htmlFor="paymentFrequency">Payment Frequency</Label>
+            <Select value={paymentFrequency} onValueChange={(value) => setPaymentFrequency(value as "annual" | "quarterly" | "semi-annual" | "one-time")}>
+              <SelectTrigger id="paymentFrequency" className="bg-background">
+                <SelectValue placeholder="Select frequency" />
+              </SelectTrigger>
+              <SelectContent className="bg-background border shadow-lg z-50">
+                <SelectItem value="annual">Annual</SelectItem>
+                <SelectItem value="quarterly">Quarterly</SelectItem>
+                <SelectItem value="semi-annual">Semi-Annual</SelectItem>
+                <SelectItem value="one-time">One-Time</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="setupFee">Setup Fee ($)</Label>
+              <Input
+                id="setupFee"
+                value={setupFee}
+                onChange={(e) => setSetupFee(e.target.value.replace(/[^0-9.]/g, ''))}
+                placeholder="Enter setup fee"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="annualRate">
+                {paymentFrequency === "one-time" ? "One-Time Amount ($)" : "Annual Rate ($)"}
+              </Label>
+              <Input
+                id="annualRate"
+                value={annualRate}
+                onChange={(e) => setAnnualRate(e.target.value.replace(/[^0-9.]/g, ''))}
+                placeholder={paymentFrequency === "one-time" ? "Enter one-time amount" : "Enter annual rate"}
+              />
+            </div>
+          </div>
+          
+          <div className="grid gap-2">
+            <Label htmlFor="value">Total Contract Value ($)</Label>
             <Input
               id="value"
               value={value}
               onChange={(e) => setValue(e.target.value.replace(/[^0-9.]/g, ''))}
-              placeholder="Enter contract value"
+              placeholder="Enter total contract value"
             />
           </div>
           
