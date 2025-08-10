@@ -179,24 +179,71 @@ export const useSubscriptionData = () => {
   const processCustomers = (customers: any[]): ProcessedCustomer[] => {
     return customers.map(customer => {
       const today = new Date();
-      // For renewal tracking: prioritize contract end date over next payment date
-      // Contract end date represents when the contract/subscription expires (renewal needed)
-      const renewalDate = customer.effective_end_date ? new Date(customer.effective_end_date) : null;
-      const startDate = customer.effective_start_date ? new Date(customer.effective_start_date) : null;
+      
+      // Find the next payment date across all customer contracts
+      const nextPaymentDate = customer.nextPaymentDate ? new Date(customer.nextPaymentDate) : null;
+      const contractEndDate = customer.effective_end_date ? new Date(customer.effective_end_date) : null;
+      
+      // For tracking, use next payment date for recurring contracts, contract end for one-time
+      let trackingDate: Date | null = null;
+      let trackingType = "";
+      
+      if (nextPaymentDate && customer.payment_frequency !== 'one_time') {
+        trackingDate = nextPaymentDate;
+        trackingType = "payment";
+      } else if (contractEndDate && customer.payment_frequency !== 'one_time') {
+        trackingDate = contractEndDate;
+        trackingType = "renewal";
+      }
+      
+      // One-time contracts shouldn't appear in the tracker unless they're about to expire
+      if (customer.payment_frequency === 'one_time' && contractEndDate) {
+        const daysToExpiry = Math.ceil((contractEndDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysToExpiry > 30) {
+          // Don't track one-time contracts that are far from expiry
+          trackingDate = null;
+        } else {
+          trackingDate = contractEndDate;
+          trackingType = "expiry";
+        }
+      }
       
       let timeLeft = "";
       let status: "active" | "expiring_soon" | "expired" | "missing_date" = "missing_date";
       let delta = 0;
       let progressPercentage = 0;
 
-      if (renewalDate) {
-        delta = Math.ceil((renewalDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (trackingDate) {
+        delta = Math.ceil((trackingDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         
-        if (startDate) {
-          // Progress based on contract period
-          const totalDays = Math.ceil((renewalDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        // Calculate progress based on payment schedule or contract period
+        if (customer.effective_start_date) {
+          const startDate = new Date(customer.effective_start_date);
+          let periodLength = 365; // Default to annual
+          
+          // Adjust period length based on payment frequency
+          switch (customer.payment_frequency) {
+            case 'monthly':
+              periodLength = 30;
+              break;
+            case 'quarterly':
+              periodLength = 90;
+              break;
+            case 'semi_annual':
+              periodLength = 180;
+              break;
+            case 'annual':
+              periodLength = 365;
+              break;
+            default:
+              // For one-time, use full contract period
+              if (contractEndDate) {
+                periodLength = Math.ceil((contractEndDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+              }
+          }
+          
           const elapsedDays = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-          progressPercentage = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+          progressPercentage = Math.min(100, Math.max(0, (elapsedDays % periodLength) / periodLength * 100));
         }
         
         if (delta > 60) {
@@ -212,22 +259,20 @@ export const useSubscriptionData = () => {
           timeLeft = `${delta} days left`;
         } else if (delta === 0) {
           status = "expiring_soon";
-          timeLeft = "Expires today";
+          timeLeft = trackingType === "payment" ? "Payment due today" : "Expires today";
         } else {
           status = "expired";
-          timeLeft = "Contract expired";
+          timeLeft = trackingType === "payment" ? "Payment overdue" : "Contract expired";
         }
       } else {
-        timeLeft = "No contract end date";
+        timeLeft = "No tracking date";
         delta = -999999;
       }
 
       return {
         ...customer,
-        // Use effective values from contracts
         annual_rate: customer.effective_annual_rate,
-        // Show the contract end date as the renewal/subscription end date
-        subscription_end_date: customer.effective_end_date,
+        subscription_end_date: trackingDate ? trackingDate.toISOString().split('T')[0] : customer.effective_end_date,
         timeLeft,
         status,
         delta,

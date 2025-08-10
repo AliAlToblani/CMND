@@ -37,7 +37,7 @@ export interface ContractDialogProps {
     value: number;
     setup_fee?: number;
     annual_rate?: number;
-    payment_frequency?: "annual" | "quarterly" | "semi-annual" | "one-time";
+    payment_frequency?: "annual" | "quarterly" | "semi-annual" | "monthly" | "one-time";
     start_date: string;
     end_date: string;
     contract_number?: string;
@@ -68,7 +68,7 @@ export function AddContractDialog({
   const [value, setValue] = useState(contract?.value?.toString() || "");
   const [setupFee, setSetupFee] = useState(contract?.setup_fee?.toString() || "");
   const [annualRate, setAnnualRate] = useState(contract?.annual_rate?.toString() || "");
-  const [paymentFrequency, setPaymentFrequency] = useState<"annual" | "quarterly" | "semi-annual" | "one-time">(
+  const [paymentFrequency, setPaymentFrequency] = useState<"annual" | "quarterly" | "semi-annual" | "monthly" | "one-time">(
     contract?.payment_frequency || "annual"
   );
   const [document, setDocument] = useState<File | null>(null);
@@ -350,7 +350,7 @@ export function AddContractDialog({
           
           <div className="grid gap-2">
             <Label htmlFor="paymentFrequency">Payment Frequency</Label>
-            <Select value={paymentFrequency} onValueChange={(value) => setPaymentFrequency(value as "annual" | "quarterly" | "semi-annual" | "one-time")}>
+            <Select value={paymentFrequency} onValueChange={(value) => setPaymentFrequency(value as "annual" | "quarterly" | "semi-annual" | "monthly" | "one-time")}>
               <SelectTrigger id="paymentFrequency" className="bg-background">
                 <SelectValue placeholder="Select frequency" />
               </SelectTrigger>
@@ -358,6 +358,7 @@ export function AddContractDialog({
                 <SelectItem value="annual">Annual</SelectItem>
                 <SelectItem value="quarterly">Quarterly</SelectItem>
                 <SelectItem value="semi-annual">Semi-Annual</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
                 <SelectItem value="one-time">One-Time</SelectItem>
               </SelectContent>
             </Select>
