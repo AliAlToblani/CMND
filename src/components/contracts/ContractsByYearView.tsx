@@ -115,49 +115,31 @@ const ContractsByYearView: React.FC = () => {
   const monthlyData: MonthData[] = useMemo(() => {
     const data: MonthData[] = [];
 
-    for (let m = 0; m < 12; m++) {
-      const monthStart = new Date(selectedYear, m, 1);
-      const monthEnd = new Date(selectedYear, m + 1, 0, 23, 59, 59, 999);
+      for (let m = 0; m < 12; m++) {
+        const rows = contracts.filter(c => {
+          const s = parseISO(c.start_date);
+          return !!(s && isSameMonth(s, selectedYear, m));
+        });
 
-      const rows = contracts.filter(c => {
-        const s = parseISO(c.start_date);
-        const e = parseISO(c.end_date);
-        if (!s) return false;
+        const monthlyARR = rows.reduce((sum, c) => {
+          const freq = (c.payment_frequency || "annual").toLowerCase();
+          if (freq === "one_time") return sum; // no recurring
+          const annual = (c.annual_rate ?? c.value ?? 0);
+          return sum + annual / 12;
+        }, 0);
 
-        const freq = (c.payment_frequency || "annual").toLowerCase();
-        if (freq === "one_time") {
-          return isSameMonth(s, selectedYear, m);
-        }
+        const setupFeesThisMonth = rows.reduce((sum, c) => sum + (c.setup_fee || 0), 0);
+        const monthlyRevenue = monthlyARR + setupFeesThisMonth;
 
-        const startsBeforeEnd = s <= monthEnd;
-        const endsAfterStart = !e || e >= monthStart;
-        return startsBeforeEnd && endsAfterStart;
-      });
-
-      const activatedThisMonth = contracts.filter(c => {
-        const s = parseISO(c.start_date);
-        return !!(s && isSameMonth(s, selectedYear, m));
-      });
-
-      const monthlyARR = rows.reduce((sum, c) => {
-        const freq = (c.payment_frequency || "annual").toLowerCase();
-        if (freq === "one_time") return sum; // no recurring
-        const annual = (c.annual_rate ?? c.value ?? 0);
-        return sum + annual / 12;
-      }, 0);
-
-      const setupFeesThisMonth = activatedThisMonth.reduce((sum, c) => sum + (c.setup_fee || 0), 0);
-      const monthlyRevenue = monthlyARR + setupFeesThisMonth;
-
-      data.push({
-        monthIndex: m,
-        monthlyARR,
-        monthlyRevenue,
-        activatedCount: activatedThisMonth.length,
-        activeCount: rows.length,
-        rows
-      });
-    }
+        data.push({
+          monthIndex: m,
+          monthlyARR,
+          monthlyRevenue,
+          activatedCount: rows.length,
+          activeCount: rows.length,
+          rows
+        });
+      }
 
     return data;
   }, [contracts, selectedYear]);
@@ -203,8 +185,7 @@ const ContractsByYearView: React.FC = () => {
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg">{monthNames[monthIndex]} {selectedYear}</CardTitle>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Badge variant="outline">Active: {activeCount}</Badge>
-                <Badge variant="outline">Activated: {activatedCount}</Badge>
+                <Badge variant="outline">Started: {activatedCount}</Badge>
                 <span className="ml-2">ARR: <strong>{formatCurrency(Math.round(monthlyARR))}</strong></span>
                 <span className="ml-4">Revenue: <strong>{formatCurrency(Math.round(monthlyRevenue))}</strong></span>
               </div>
@@ -212,7 +193,7 @@ const ContractsByYearView: React.FC = () => {
           </CardHeader>
           <CardContent>
             {rows.length === 0 ? (
-              <div className="text-sm text-muted-foreground py-6">No active contracts this month.</div>
+              <div className="text-sm text-muted-foreground py-6">No contracts started this month.</div>
             ) : (
               <div className="rounded-md border">
                 <Table>
@@ -230,17 +211,13 @@ const ContractsByYearView: React.FC = () => {
                   <TableBody>
                     {rows.map((c) => {
                       const s = parseISO(c.start_date);
-                      const activated = !!(s && isSameMonth(s, selectedYear, monthIndex));
                       const customerName = (c.customer_id && customerMap.get(c.customer_id)) || "Unknown Customer";
                       const annual = c.annual_rate ?? c.value ?? 0;
                       const freq = (c.payment_frequency || "annual").replace("_", "-");
                       const dateRange = `${s ? s.toISOString().slice(0,10) : "-"} → ${parseISO(c.end_date)?.toISOString().slice(0,10) || "-"}`;
                       return (
                         <TableRow key={c.id}>
-                          <TableCell className="font-medium">
-                            {customerName}
-                            {activated && <span className="ml-2 text-xs text-muted-foreground">(Activated this month)</span>}
-                          </TableCell>
+                          <TableCell className="font-medium">{customerName}</TableCell>
                           <TableCell>{c.name || "Service Agreement"}</TableCell>
                           <TableCell>{statusBadge(c.status)}</TableCell>
                           <TableCell>{dateRange}</TableCell>
