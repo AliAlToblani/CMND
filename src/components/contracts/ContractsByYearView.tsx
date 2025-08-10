@@ -186,8 +186,6 @@ const ContractsByYearView: React.FC = () => {
               <CardTitle className="text-lg">{monthNames[monthIndex]} {selectedYear}</CardTitle>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Badge variant="outline">Started: {activatedCount}</Badge>
-                <span className="ml-2">ARR: <strong>{formatCurrency(Math.round(monthlyARR))}</strong></span>
-                <span className="ml-4">Revenue: <strong>{formatCurrency(Math.round(monthlyRevenue))}</strong></span>
               </div>
             </div>
           </CardHeader>
