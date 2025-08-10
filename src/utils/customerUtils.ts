@@ -17,8 +17,8 @@ export const getLiveCustomers = async (): Promise<CustomerData[]> => {
     const { data, error } = await supabase
       .from('customers')
       .select('*')
-      .or('status.eq.done,stage.eq.Live') // Check both status and stage for live customers
-      .neq('status', 'churned'); // Exclude churned customers
+      .or('status.eq.done,stage.eq.Live')
+      .neq('status', 'churned');
 
     if (error) {
       console.error("Error fetching live customers:", error);
@@ -48,7 +48,6 @@ export const getLiveCustomers = async (): Promise<CustomerData[]> => {
 
 export const getCustomerARRData = async (customers: CustomerData[]) => {
   try {
-    // Get ARR from active contracts (more accurate)
     const { data: contractsData, error: contractsError } = await supabase
       .from('contracts')
       .select(`
@@ -65,16 +64,15 @@ export const getCustomerARRData = async (customers: CustomerData[]) => {
           stage
         )
       `)
-      .or('status.eq.active,status.is.null') // Active contracts
-      .gt('end_date', new Date().toISOString()) // Not expired
-      .neq('customers.status', 'churned'); // Exclude churned customers
+      .or('status.eq.active,status.is.null')
+      .gt('end_date', new Date().toISOString())
+      .neq('customers.status', 'churned');
 
     if (contractsError) {
       console.error("Error fetching ARR from contracts:", contractsError);
       return { totalARR: 0, liveCustomers: [], growthRate: 0 };
     }
 
-    // Group contracts by customer and sum ARR
     const customerARRMap = new Map();
     (contractsData || []).forEach(contract => {
       const customer = contract.customers;
@@ -99,6 +97,7 @@ export const getCustomerARRData = async (customers: CustomerData[]) => {
       }
       
       const existingCustomer = customerARRMap.get(customerId);
+      // ARR excludes setup fees and one-time payments
       existingCustomer.contractSize += contract.annual_rate || 0;
     });
 
@@ -108,7 +107,7 @@ export const getCustomerARRData = async (customers: CustomerData[]) => {
     return {
       totalARR,
       liveCustomers,
-      growthRate: 14 // Placeholder growth rate - could be calculated based on historical data
+      growthRate: 14
     };
   } catch (error) {
     console.error("Error in getCustomerARRData:", error);
@@ -168,20 +167,25 @@ export const getTotalPipelineValue = async (): Promise<number> => {
 
 export const getActiveContractsValue = async (): Promise<number> => {
   try {
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
+    const startOfNextYear = new Date(now.getFullYear() + 1, 0, 1).toISOString();
+
     const { data, error } = await supabase
-      .from('customers')
-      .select('contract_size')
-      .or('status.eq.done,stage.eq.Live')
-      .neq('status', 'churned'); // Exclude churned customers
+      .from('payments')
+      .select('amount, due_date, payment_type, status')
+      .gte('due_date', startOfYear)
+      .lt('due_date', startOfNextYear);
 
     if (error) {
-      console.error("Error fetching active contracts value:", error);
+      console.error("Error fetching total revenue:", error);
       return 0;
     }
 
-    return (data || []).reduce((sum, customer) => sum + (customer.contract_size || 0), 0);
+    const totalRevenue = (data || []).reduce((sum, p: any) => sum + (p.amount || 0), 0);
+    return totalRevenue;
   } catch (error) {
-    console.error("Error in getActiveContractsValue:", error);
+    console.error("Error in getActiveContractsValue (Total Revenue):", error);
     return 0;
   }
 };
@@ -196,7 +200,7 @@ export const getConversionRate = async (): Promise<number> => {
       .from('customers')
       .select('id', { count: 'exact' })
       .or('status.eq.done,stage.eq.Live')
-      .neq('status', 'churned'); // Exclude churned customers
+      .neq('status', 'churned');
 
     if (totalError || liveError) {
       console.error("Error calculating conversion rate:", totalError || liveError);
@@ -242,12 +246,11 @@ export const getAverageDealSize = async (): Promise<number> => {
 
 export const getMRR = async (): Promise<number> => {
   try {
-    // Get MRR from active contracts only (more accurate than customer-level data)
     const { data, error } = await supabase
       .from('contracts')
       .select('annual_rate, end_date, status')
-      .or('status.eq.active,status.is.null') // Include contracts without status (assuming active)
-      .gt('end_date', new Date().toISOString()); // Only contracts that haven't expired
+      .or('status.eq.active,status.is.null')
+      .gt('end_date', new Date().toISOString());
 
     if (error) {
       console.error("Error fetching MRR from contracts:", error);
@@ -255,7 +258,7 @@ export const getMRR = async (): Promise<number> => {
     }
 
     const totalAnnualRevenue = (data || []).reduce((sum, contract) => 
-      sum + (contract.annual_rate || 0), 0 // Only use annual_rate, exclude setup fees
+      sum + (contract.annual_rate || 0), 0
     );
 
     return Math.round(totalAnnualRevenue / 12);
@@ -287,7 +290,6 @@ export const getDealsAtRisk = async (): Promise<number> => {
 
 export const calculateAverageGoLiveTime = async (): Promise<number> => {
   try {
-    // Fetch all customers who have reached the "Go Live" stage
     const { data, error } = await supabase
       .from('lifecycle_stages')
       .select('customer_id, created_at')
@@ -304,10 +306,8 @@ export const calculateAverageGoLiveTime = async (): Promise<number> => {
       return 0;
     }
 
-    // Calculate the time difference between the customer's creation date and Go Live date
     let totalTime = 0;
     for (const goLive of data) {
-      // Fetch the customer's creation date
       const { data: customerData, error: customerError } = await supabase
         .from('customers')
         .select('created_at')
@@ -316,24 +316,24 @@ export const calculateAverageGoLiveTime = async (): Promise<number> => {
 
       if (customerError) {
         console.error(`Error fetching customer creation date for ${goLive.customer_id}:`, customerError);
-        continue; // Skip this customer if there's an error
+        continue;
       }
 
       if (!customerData || !customerData.created_at) {
         console.warn(`Customer creation date not found for ${goLive.customer_id}.`);
-        continue; // Skip this customer if creation date is missing
+        continue;
       }
 
       const startDate = new Date(customerData.created_at);
-      const endDate = new Date(goLive.created_at); // Use the lifecycle stage creation date
-      const timeDiff = endDate.getTime() - startDate.getTime(); // Difference in milliseconds
+      const endDate = new Date(goLive.created_at);
+      const timeDiff = endDate.getTime() - startDate.getTime();
       totalTime += timeDiff;
     }
 
     const averageTimeMs = totalTime / data.length;
-    const averageTimeDays = averageTimeMs / (1000 * 3600 * 24); // Convert milliseconds to days
+    const averageTimeDays = averageTimeMs / (1000 * 3600 * 24);
 
-    return Math.round(averageTimeDays); // Return average time in days
+    return Math.round(averageTimeDays);
   } catch (error) {
     console.error("Error calculating average Go Live time:", error);
     return 0;
@@ -342,7 +342,6 @@ export const calculateAverageGoLiveTime = async (): Promise<number> => {
 
 export const calculateSalesLifecycle = async (): Promise<number> => {
   try {
-    // Fetch all customers with their creation date and contract signed date
     const { data, error } = await supabase
       .from('customers')
       .select(`
@@ -363,7 +362,6 @@ export const calculateSalesLifecycle = async (): Promise<number> => {
     let validCustomerCount = 0;
 
     for (const customer of data) {
-      // Find the 'Contract Signed' lifecycle stage
       const contractSignedStage = customer.lifecycle_stages?.find(
         (stage: any) => stage.name === 'Contract Signed'
       );
@@ -397,14 +395,12 @@ export const calculateChurnRate = async (periodDays: number = 30): Promise<strin
     const periodStartDate = new Date();
     periodStartDate.setDate(periodStartDate.getDate() - periodDays);
     
-    // Get customers who were live at the start of the period (traditional method)
     const { data: liveCustomersAtStart, error: liveStartError } = await supabase
       .from('customers')
       .select('id', { count: 'exact' })
       .or('status.eq.done,stage.eq.Live')
       .lt('created_at', periodStartDate.toISOString());
 
-    // Get customers who churned during the period
     const { data: churnedCustomers, error: churnError } = await supabase
       .from('customers')
       .select('id', { count: 'exact' })
@@ -412,7 +408,6 @@ export const calculateChurnRate = async (periodDays: number = 30): Promise<strin
       .gte('churn_date', periodStartDate.toISOString())
       .lte('churn_date', new Date().toISOString());
 
-    // Get total customers at end of period (for simple ratio method)
     const { data: totalCustomers, error: totalError } = await supabase
       .from('customers')
       .select('id', { count: 'exact' })
@@ -427,18 +422,12 @@ export const calculateChurnRate = async (periodDays: number = 30): Promise<strin
     const churnedCount = churnedCustomers?.length || 0;
     const totalCount = totalCustomers?.length || 0;
 
-    // Use simple ratio method for new businesses (when few historical customers)
-    // Traditional method for established businesses
     let churnRate: number;
     
     if (liveCount < 3) {
-      // Simple ratio: churned customers / total active customers
-      // Better for new businesses with limited historical data
       churnRate = totalCount > 0 ? (churnedCount / (totalCount + churnedCount)) * 100 : 0;
       console.log(`Using simple ratio method: ${churnedCount} churned / ${totalCount + churnedCount} total = ${churnRate.toFixed(1)}%`);
     } else {
-      // Traditional cohort method: churned customers / customers at period start
-      // Better for established businesses with historical data
       churnRate = liveCount > 0 ? (churnedCount / liveCount) * 100 : 0;
       console.log(`Using traditional method: ${churnedCount} churned / ${liveCount} at period start = ${churnRate.toFixed(1)}%`);
     }
@@ -450,17 +439,14 @@ export const calculateChurnRate = async (periodDays: number = 30): Promise<strin
   }
 };
 
-// Monthly Churn Rate (more specific)
 export const getMonthlyChurnRate = async (): Promise<string> => {
   return calculateChurnRate(30);
 };
 
-// Quarterly Churn Rate
 export const getQuarterlyChurnRate = async (): Promise<string> => {
   return calculateChurnRate(90);
 };
 
-// Update customer churn status based on expired contracts
 export const updateCustomerChurnStatus = async (): Promise<void> => {
   try {
     const { error } = await supabase.rpc('update_customer_churn_status');
@@ -477,18 +463,17 @@ export const updateCustomerChurnStatus = async (): Promise<void> => {
   }
 };
 
-// Get better conversion rate (excluding churned customers)
 export const getImprovedConversionRate = async (): Promise<number> => {
   try {
     const { data: totalCustomers, error: totalError } = await supabase
       .from('customers')
       .select('id', { count: 'exact' })
-      .neq('status', 'churned'); // Exclude churned customers
+      .neq('status', 'churned');
 
     const { data: liveCustomers, error: liveError } = await supabase
       .from('customers')
       .select('id', { count: 'exact' })
-      .eq('status', 'done'); // Only truly live customers
+      .eq('status', 'done');
 
     if (totalError || liveError) {
       console.error("Error calculating improved conversion rate:", totalError || liveError);

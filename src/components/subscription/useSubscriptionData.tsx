@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -65,7 +64,19 @@ export const useSubscriptionData = () => {
         .eq('status', 'active');
       
       if (contractsError) throw contractsError;
-      
+
+      // Fetch next pending payment for each customer (subscription tracker = next payment only)
+      const todayIso = new Date().toISOString();
+      const { data: nextPaymentsData, error: nextPaymentsError } = await supabase
+        .from('payments')
+        .select('customer_id, due_date, amount, payment_type, status')
+        .in('customer_id', customerIds)
+        .eq('status', 'pending')
+        .gte('due_date', todayIso)
+        .order('due_date', { ascending: true });
+
+      if (nextPaymentsError) throw nextPaymentsError;
+
       // Group contracts by customer
       const contractsByCustomer = contractsData?.reduce((acc, contract) => {
         if (!acc[contract.customer_id]) {
@@ -74,8 +85,21 @@ export const useSubscriptionData = () => {
         acc[contract.customer_id].push(contract);
         return acc;
       }, {} as Record<string, any[]>) || {};
+
+      // Map earliest payment per customer
+      const nextPaymentByCustomer: Record<string, { due_date: string; amount: number; payment_type: string; status: string }> = {};
+      (nextPaymentsData || []).forEach(p => {
+        if (!nextPaymentByCustomer[p.customer_id]) {
+          nextPaymentByCustomer[p.customer_id] = {
+            due_date: p.due_date,
+            amount: p.amount || 0,
+            payment_type: p.payment_type,
+            status: p.status
+          };
+        }
+      });
       
-      // Merge customer data with contract data
+      // Merge customer data with contract and next payment data
       const customersWithContracts = customersData?.map(customer => {
         const customerContracts = contractsByCustomer[customer.id] || [];
         
@@ -83,17 +107,23 @@ export const useSubscriptionData = () => {
         const totalLifetimeValue = calculateLifetimeValue(customerContracts);
         const latestEndDate = getLatestContractEndDate(customerContracts);
         const effectiveAnnualRate = calculateEffectiveAnnualRate(customerContracts);
+
+        const nextPayment = nextPaymentByCustomer[customer.id] || null;
         
         return {
           ...customer,
           contracts: customerContracts,
           contractCount: customerContracts.length,
           lifetimeValue: totalLifetimeValue,
-          // Use ONLY contract dates for active contracts
+          // Keep effective end date from contracts for reference
           effective_end_date: latestEndDate,
           effective_start_date: customerContracts.length > 0 ? customerContracts[0].start_date : null,
           // Use calculated annual rate from active contracts only
-          effective_annual_rate: effectiveAnnualRate || 0
+          effective_annual_rate: effectiveAnnualRate || 0,
+          // Next payment tracking
+          next_payment_date: nextPayment ? nextPayment.due_date : null,
+          next_payment_amount: nextPayment ? nextPayment.amount : 0,
+          next_payment_type: nextPayment ? nextPayment.payment_type : null
         };
       }) || [];
       
@@ -103,7 +133,10 @@ export const useSubscriptionData = () => {
         lifetimeValue: number,
         effective_end_date: string | null,
         effective_start_date: string | null,
-        effective_annual_rate: number
+        effective_annual_rate: number,
+        next_payment_date: string | null,
+        next_payment_amount: number,
+        next_payment_type: string | null
       })[];
     }
   });
@@ -124,6 +157,18 @@ export const useSubscriptionData = () => {
           refetch();
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'payments'
+        },
+        () => {
+          console.log('Payment change detected, refetching subscription data');
+          refetch();
+        }
+      )
       .subscribe();
 
     return () => {
@@ -134,7 +179,8 @@ export const useSubscriptionData = () => {
   const processCustomers = (customers: any[]): ProcessedCustomer[] => {
     return customers.map(customer => {
       const today = new Date();
-      const endDate = customer.effective_end_date ? new Date(customer.effective_end_date) : null;
+      // Subscription tracker now uses NEXT PAYMENT, not contract end date
+      const paymentDate = customer.next_payment_date ? new Date(customer.next_payment_date) : null;
       const startDate = customer.effective_start_date ? new Date(customer.effective_start_date) : null;
       
       let timeLeft = "";
@@ -142,13 +188,17 @@ export const useSubscriptionData = () => {
       let delta = 0;
       let progressPercentage = 0;
 
-      if (endDate) {
-        delta = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (paymentDate) {
+        delta = Math.ceil((paymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         
         if (startDate) {
-          const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-          const elapsedDays = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-          progressPercentage = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+          // Keep progress based on contract period if known
+          const endDateForProgress = customer.effective_end_date ? new Date(customer.effective_end_date) : null;
+          if (endDateForProgress) {
+            const totalDays = Math.ceil((endDateForProgress.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+            const elapsedDays = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+            progressPercentage = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+          }
         }
         
         if (delta > 60) {
@@ -164,13 +214,13 @@ export const useSubscriptionData = () => {
           timeLeft = `${delta} days left`;
         } else if (delta === 0) {
           status = "expiring_soon";
-          timeLeft = "Renew today";
+          timeLeft = "Due today";
         } else {
           status = "expired";
-          timeLeft = "To Be Renewed";
+          timeLeft = "Payment overdue";
         }
       } else {
-        timeLeft = "End date not set";
+        timeLeft = "No upcoming payment";
         delta = -999999;
       }
 
@@ -178,7 +228,8 @@ export const useSubscriptionData = () => {
         ...customer,
         // Use effective values from contracts
         annual_rate: customer.effective_annual_rate,
-        subscription_end_date: customer.effective_end_date,
+        // Show the next payment date in the tracker
+        subscription_end_date: customer.next_payment_date,
         timeLeft,
         status,
         delta,
@@ -240,30 +291,42 @@ export const useSubscriptionData = () => {
     }
   };
 
-  // Handle update subscription date - only update active contracts
+  // Handle update date - now updates the next pending payment's due_date
   const handleUpdateDate = async (customerId: string, newDate: string, customerName: string) => {
     try {
-      // Update the end date of the customer's active contracts only
-      const { error: contractError } = await supabase
-        .from('contracts')
-        .update({ 
-          end_date: newDate,
-          renewal_date: newDate 
-        })
+      // Find the next pending payment for this customer (future-dated)
+      const { data: nextPayment, error: fetchError } = await supabase
+        .from('payments')
+        .select('id, due_date')
         .eq('customer_id', customerId)
-        .eq('status', 'active');
+        .eq('status', 'pending')
+        .gte('due_date', new Date().toISOString())
+        .order('due_date', { ascending: true })
+        .limit(1)
+        .maybeSingle();
 
-      if (contractError) throw contractError;
+      if (fetchError) throw fetchError;
+
+      if (nextPayment?.id) {
+        const { error: updateError } = await supabase
+          .from('payments')
+          .update({ due_date: newDate })
+          .eq('id', nextPayment.id);
+
+        if (updateError) throw updateError;
+      } else {
+        console.log('No upcoming pending payment found. Skipping update.');
+      }
 
       // Refresh the data
       refetch();
 
       toast({
         title: "Date Updated",
-        description: `Contract renewal date updated for ${customerName}`,
+        description: `Next payment date updated for ${customerName}`,
       });
 
-      console.log(`Updated contract renewal date for ${customerId} to ${newDate}`);
+      console.log(`Updated next payment date for ${customerId} to ${newDate}`);
     } catch (error) {
       toast({
         title: "Error",
