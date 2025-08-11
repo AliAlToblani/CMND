@@ -56,12 +56,12 @@ export const useSubscriptionData = () => {
       
       if (error) throw error;
       
-      // Fetch ONLY active contracts for these customers
+      // Fetch active and pending contracts for these customers (include one-time contracts)
       const { data: contractsData, error: contractsError } = await supabase
         .from('contracts')
         .select('*')
         .in('customer_id', customerIds)
-        .eq('status', 'active');
+        .in('status', ['active', 'pending']);
       
       if (contractsError) throw contractsError;
 

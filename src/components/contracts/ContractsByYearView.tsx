@@ -121,6 +121,7 @@ const ContractsByYearView: React.FC = () => {
           return !!(s && isSameMonth(s, selectedYear, m));
         });
 
+        // Calculate monthly ARR (recurring revenue)
         const monthlyARR = rows.reduce((sum, c) => {
           const freq = (c.payment_frequency || "annual").toLowerCase();
           if (freq === "one_time") return sum; // no recurring
@@ -128,8 +129,17 @@ const ContractsByYearView: React.FC = () => {
           return sum + annual / 12;
         }, 0);
 
+        // Calculate one-time revenue for this month (setup fees + one-time contracts)
         const setupFeesThisMonth = rows.reduce((sum, c) => sum + (c.setup_fee || 0), 0);
-        const monthlyRevenue = monthlyARR + setupFeesThisMonth;
+        const oneTimeRevenueThisMonth = rows.reduce((sum, c) => {
+          const freq = (c.payment_frequency || "annual").toLowerCase();
+          if (freq === "one_time") {
+            return sum + (c.annual_rate ?? c.value ?? 0);
+          }
+          return sum;
+        }, 0);
+        
+        const monthlyRevenue = monthlyARR + setupFeesThisMonth + oneTimeRevenueThisMonth;
 
         data.push({
           monthIndex: m,
@@ -202,28 +212,32 @@ const ContractsByYearView: React.FC = () => {
                       <TableHead>Status</TableHead>
                       <TableHead>Dates</TableHead>
                       <TableHead>Frequency</TableHead>
-                      <TableHead>Annual Rate</TableHead>
-                      <TableHead>Setup Fee</TableHead>
+                       <TableHead>Rate/Amount</TableHead>
+                       <TableHead>Setup Fee</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {rows.map((c) => {
                       const s = parseISO(c.start_date);
                       const customerName = (c.customer_id && customerMap.get(c.customer_id)) || "Unknown Customer";
-                      const annual = c.annual_rate ?? c.value ?? 0;
-                      const freq = (c.payment_frequency || "annual").replace("_", "-");
-                      const dateRange = `${s ? s.toISOString().slice(0,10) : "-"} → ${parseISO(c.end_date)?.toISOString().slice(0,10) || "-"}`;
-                      return (
-                        <TableRow key={c.id}>
-                          <TableCell className="font-medium">{customerName}</TableCell>
-                          <TableCell>{c.name || "Service Agreement"}</TableCell>
-                          <TableCell>{statusBadge(c.status)}</TableCell>
-                          <TableCell>{dateRange}</TableCell>
-                          <TableCell className="capitalize">{freq.replace("_", "-")}</TableCell>
-                          <TableCell>{formatCurrency(annual)}</TableCell>
-                          <TableCell>{formatCurrency(c.setup_fee || 0)}</TableCell>
-                        </TableRow>
-                      );
+                       const annual = c.annual_rate ?? c.value ?? 0;
+                       const freq = (c.payment_frequency || "annual").replace("_", "-");
+                       const dateRange = `${s ? s.toISOString().slice(0,10) : "-"} → ${parseISO(c.end_date)?.toISOString().slice(0,10) || "-"}`;
+                       const isOneTime = freq === "one-time";
+                       return (
+                         <TableRow key={c.id}>
+                           <TableCell className="font-medium">{customerName}</TableCell>
+                           <TableCell>{c.name || "Service Agreement"}</TableCell>
+                           <TableCell>{statusBadge(c.status)}</TableCell>
+                           <TableCell>{dateRange}</TableCell>
+                           <TableCell className="capitalize">
+                             {freq.replace("_", "-")}
+                             {isOneTime && <Badge variant="secondary" className="ml-2">One-time</Badge>}
+                           </TableCell>
+                           <TableCell>{formatCurrency(annual)}</TableCell>
+                           <TableCell>{formatCurrency(c.setup_fee || 0)}</TableCell>
+                         </TableRow>
+                       );
                     })}
                   </TableBody>
                 </Table>
