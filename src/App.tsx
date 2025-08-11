@@ -26,6 +26,7 @@ import {
   LazySettings,
   LazyNotFound,
   LazyAcceptInvite,
+  LazyAnalyticsDetail,
 } from "@/components/routing/LazyRoutes";
 
 // Create a client with optimized settings
@@ -86,6 +87,7 @@ const App = () => {
                   <Route path="/lifecycle/:customerId" element={<ProtectedRoute><LazyLifecycle /></ProtectedRoute>} />
                   <Route path="/contracts" element={<ProtectedRoute><LazyContracts /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><LazySettings /></ProtectedRoute>} />
+                  <Route path="/analytics/:metric" element={<ProtectedRoute><LazyAnalyticsDetail /></ProtectedRoute>} />
                   
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<LazyNotFound />} />

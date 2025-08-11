@@ -20,3 +20,4 @@ export const LazyContracts = lazy(() => import('@/pages/Contracts'));
 export const LazySettings = lazy(() => import('@/pages/Settings'));
 export const LazyNotFound = lazy(() => import('@/pages/NotFound'));
 export const LazyAcceptInvite = lazy(() => import('@/pages/AcceptInvite'));
+export const LazyAnalyticsDetail = lazy(() => import('@/pages/AnalyticsDetail'));

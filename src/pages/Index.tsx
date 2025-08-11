@@ -285,9 +285,16 @@ const Index = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-          {dashboardStats.map((stat, index) => (
-            <StatCard key={index} {...stat} />
-          ))}
+          {dashboardStats.map((stat, index) => {
+            const metricKeys = ["total-revenue", "total-arr", "live-customers", "total-customers", "deals-pipeline", "conversion-rate", "average-deal-size", "mrr", "deals-at-risk", "churn-rate"];
+            return (
+              <StatCard 
+                key={index} 
+                {...stat} 
+                onClick={() => navigate(`/analytics/${metricKeys[index]}`)}
+              />
+            );
+          })}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
