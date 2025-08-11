@@ -48,7 +48,7 @@ export const CustomerDocuments = ({ customerId }: CustomerDocumentsProps) => {
       console.log('CustomerDocuments: Downloading document:', document.file_path);
       
       const { data, error } = await supabase.storage
-        .from('Customer Documents')
+        .from('documents')
         .download(document.file_path);
 
       if (error) {
