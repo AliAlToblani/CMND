@@ -13,7 +13,7 @@ export interface Contract {
   value: number;
   setup_fee: number;
   annual_rate: number;
-  payment_frequency?: "annual" | "quarterly" | "semi-annual" | "one-time";
+  payment_frequency?: "annual" | "quarterly" | "semi_annual" | "one_time";
   start_date: string;
   end_date: string;
   status: "active" | "pending" | "expired" | "draft";
@@ -671,9 +671,9 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
             >
               <option value="annual">Annual</option>
               <option value="quarterly">Quarterly</option>
-              <option value="semi-annual">Semi-Annual</option>
+              <option value="semi_annual">Semi-Annual</option>
               <option value="monthly">Monthly</option>
-              <option value="one-time">One-Time</option>
+              <option value="one_time">One-Time</option>
             </select>
           </div>
           
