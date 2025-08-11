@@ -4,6 +4,7 @@ import { ProcessedCustomer } from "../types";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, Calendar } from "lucide-react";
 import { formatCurrency } from "@/utils/contractUtils";
+import { getCountryFlag } from "@/utils/flagUtils";
 
 interface CustomerTimelineProps {
   customer: ProcessedCustomer;
@@ -50,7 +51,10 @@ export const CustomerTimeline: React.FC<CustomerTimelineProps> = ({ customer }) 
           <div>
             <h3 className="font-semibold text-gray-900 dark:text-gray-100">{customer.name}</h3>
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-              <span>{customer.country || 'Global'}</span>
+              <span className="flex items-center gap-1">
+                {getCountryFlag(customer.country)}
+                {customer.country || 'Global'}
+              </span>
               {customer.segment && <span>• {customer.segment}</span>}
             </div>
           </div>
