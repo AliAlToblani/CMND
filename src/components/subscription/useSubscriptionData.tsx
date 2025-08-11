@@ -88,16 +88,20 @@ export const useSubscriptionData = () => {
         return acc;
       }, {} as Record<string, any[]>) || {};
 
-      // Map earliest payment per customer
+      // Map earliest payment per customer - sum all payments with same due date
       const nextPaymentByCustomer: Record<string, { due_date: string; amount: number; payment_type: string; status: string }> = {};
       (nextPaymentsData || []).forEach(p => {
         if (!nextPaymentByCustomer[p.customer_id]) {
+          // First payment for this customer
           nextPaymentByCustomer[p.customer_id] = {
             due_date: p.due_date,
             amount: p.amount || 0,
             payment_type: p.payment_type,
             status: p.status
           };
+        } else if (nextPaymentByCustomer[p.customer_id].due_date === p.due_date) {
+          // Same due date - sum the amounts (handles combined setup + recurring payments)
+          nextPaymentByCustomer[p.customer_id].amount += p.amount || 0;
         }
       });
       
