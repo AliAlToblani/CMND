@@ -49,8 +49,10 @@ const SubscriptionTracker = () => {
           </div>
           <Button
             onClick={async () => {
-              console.log('Refresh button clicked');
+              console.log('Refresh button clicked - invalidating cache');
               await refetch();
+              // Force a complete page reload to ensure latest data
+              window.location.reload();
             }}
             variant="outline"
             size="sm"
