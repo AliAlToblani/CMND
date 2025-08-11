@@ -12,9 +12,10 @@ interface StatCardProps {
   };
   icon?: React.ReactNode;
   description?: string;
+  onClick?: () => void;
 }
 
-export function StatCard({ title, value, change, icon, description }: StatCardProps & { onClick?: () => void }) {
+export function StatCard({ title, value, change, icon, description, onClick }: StatCardProps) {
   return (
     <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={onClick}>
       <CardContent className="p-6">
