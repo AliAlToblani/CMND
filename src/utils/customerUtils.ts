@@ -173,7 +173,7 @@ export const getActiveContractsValue = async (): Promise<number> => {
 
     const { data, error } = await supabase
       .from('payments')
-      .select('amount, due_date, payment_type, status')
+      .select('customer_id, contract_id, amount, due_date, payment_type, status')
       .gte('due_date', startOfYear)
       .lt('due_date', startOfNextYear);
 
@@ -182,7 +182,16 @@ export const getActiveContractsValue = async (): Promise<number> => {
       return 0;
     }
 
-    const totalRevenue = (data || []).reduce((sum, p: any) => sum + (p.amount || 0), 0);
+    // Remove duplicates by creating unique key from customer_id, contract_id, amount, due_date, payment_type
+    const uniquePayments = new Map();
+    (data || []).forEach(payment => {
+      const key = `${payment.customer_id}-${payment.contract_id}-${payment.amount}-${payment.due_date}-${payment.payment_type}`;
+      if (!uniquePayments.has(key)) {
+        uniquePayments.set(key, payment);
+      }
+    });
+
+    const totalRevenue = Array.from(uniquePayments.values()).reduce((sum, p: any) => sum + (p.amount || 0), 0);
     return totalRevenue;
   } catch (error) {
     console.error("Error in getActiveContractsValue (Total Revenue):", error);
