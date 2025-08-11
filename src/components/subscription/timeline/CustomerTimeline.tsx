@@ -52,8 +52,8 @@ export const CustomerTimeline: React.FC<CustomerTimelineProps> = ({ customer }) 
             <h3 className="font-semibold text-gray-900 dark:text-gray-100">{customer.name}</h3>
             <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
               <span className="flex items-center gap-1">
-                {getCountryFlag(customer.country)}
                 {customer.country || 'Global'}
+                {getCountryFlag(customer.country)}
               </span>
               {customer.segment && <span>• {customer.segment}</span>}
             </div>
