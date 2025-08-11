@@ -30,64 +30,66 @@ export const LiveCustomersDetail = () => {
   useEffect(() => {
     const fetchLiveCustomers = async () => {
       try {
-        // Get customers with active contracts
-        const { data, error } = await supabase
-          .from('customers')
+        // Use the same logic as dashboard - get ARR data from contracts
+        const { data: contractsData, error } = await supabase
+          .from('contracts')
           .select(`
-            id,
-            name,
-            logo,
-            segment,
-            country,
-            go_live_date,
-            contracts!inner(
+            annual_rate,
+            setup_fee,
+            value,
+            customer_id,
+            status,
+            end_date,
+            customers!inner(
               id,
-              value,
-              setup_fee,
-              annual_rate,
+              name,
+              logo,
+              segment,
+              country,
+              go_live_date,
               status,
-              end_date
+              stage
             )
           `)
-          .neq('status', 'churned');
+          .or('status.eq.active,status.eq.pending,status.is.null')
+          .gt('end_date', new Date().toISOString());
 
         if (error) throw error;
 
-        // Process customers with active contracts
-        const liveCustomers = (data || []).map(customer => {
-          const activeContracts = (customer.contracts as any[]).filter(contract => 
-            ['active', 'pending'].includes(contract.status) && 
-            new Date(contract.end_date) > new Date()
-          );
+        const customerARRMap = new Map();
+        (contractsData || []).forEach(contract => {
+          const customer = contract.customers;
+          const customerId = customer.id;
+          
+          // Skip churned customers
+          if (customer.status === 'churned') {
+            return;
+          }
+          
+          if (!customerARRMap.has(customerId)) {
+            customerARRMap.set(customerId, {
+              id: customer.id,
+              name: customer.name,
+              logo: customer.logo,
+              segment: customer.segment,
+              country: customer.country,
+              go_live_date: customer.go_live_date,
+              contract_count: 0,
+              total_value: 0,
+              annual_rate: 0,
+              setup_fee: 0
+            });
+          }
+          
+          const existingCustomer = customerARRMap.get(customerId);
+          existingCustomer.contract_count += 1;
+          existingCustomer.annual_rate += contract.annual_rate || 0;
+          existingCustomer.setup_fee += contract.setup_fee || 0;
+          existingCustomer.total_value += (contract.setup_fee || 0) + (contract.annual_rate || contract.value || 0);
+        });
 
-          if (activeContracts.length === 0) return null;
-
-          const totalValue = activeContracts.reduce((sum, contract) => {
-            return sum + (contract.setup_fee + contract.annual_rate || contract.value || 0);
-          }, 0);
-
-          const totalAnnual = activeContracts.reduce((sum, contract) => {
-            return sum + (contract.annual_rate || 0);
-          }, 0);
-
-          const totalSetup = activeContracts.reduce((sum, contract) => {
-            return sum + (contract.setup_fee || 0);
-          }, 0);
-
-          return {
-            id: customer.id,
-            name: customer.name,
-            logo: customer.logo,
-            segment: customer.segment,
-            country: customer.country,
-            go_live_date: customer.go_live_date,
-            contract_count: activeContracts.length,
-            total_value: totalValue,
-            annual_rate: totalAnnual,
-            setup_fee: totalSetup
-          };
-        }).filter(Boolean) as LiveCustomer[];
-
+        const liveCustomers = Array.from(customerARRMap.values());
+        
         // Sort by total value descending
         liveCustomers.sort((a, b) => b.total_value - a.total_value);
         
