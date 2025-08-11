@@ -85,7 +85,9 @@ export const LiveCustomersDetail = () => {
           existingCustomer.contract_count += 1;
           existingCustomer.annual_rate += contract.annual_rate || 0;
           existingCustomer.setup_fee += contract.setup_fee || 0;
-          existingCustomer.total_value += (contract.setup_fee || 0) + (contract.annual_rate || contract.value || 0);
+          existingCustomer.total_value += (contract.setup_fee > 0 || contract.annual_rate > 0) 
+            ? (contract.setup_fee || 0) + (contract.annual_rate || 0)
+            : (contract.value || 0);
         });
 
         const liveCustomers = Array.from(customerARRMap.values());

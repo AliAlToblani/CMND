@@ -193,7 +193,9 @@ export const getActiveContractsValue = async (): Promise<number> => {
       setup_fee: c.setup_fee,
       annual_rate: c.annual_rate,
       value: c.value,
-      calculated: (c.setup_fee || 0) + (c.annual_rate || c.value || 0)
+      calculated: (c.setup_fee > 0 || c.annual_rate > 0) 
+        ? (c.setup_fee || 0) + (c.annual_rate || 0)
+        : (c.value || 0)
     })));
 
     const totalRevenue = (data || []).reduce((sum, contract) => {
