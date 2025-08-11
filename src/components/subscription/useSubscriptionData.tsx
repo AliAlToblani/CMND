@@ -32,6 +32,7 @@ export const useSubscriptionData = () => {
   const { data: customers = [], isLoading, refetch } = useQuery({
     queryKey: contractQueryKeys.subscription(),
     queryFn: async () => {
+      console.log('Fetching subscription data...');
       // Get customer IDs who have active contracts (exclude one-time contracts for subscription tracker)
       const { data: activeContracts, error: contractError } = await supabase
         .from('contracts')
@@ -79,6 +80,8 @@ export const useSubscriptionData = () => {
 
       if (nextPaymentsError) throw nextPaymentsError;
 
+      console.log('Fetched payments:', nextPaymentsData);
+
       // Group contracts by customer
       const contractsByCustomer = contractsData?.reduce((acc, contract) => {
         if (!acc[contract.customer_id]) {
@@ -114,6 +117,8 @@ export const useSubscriptionData = () => {
 
         const nextPayment = nextPaymentByCustomer[customer.id] || null;
         
+        console.log(`Customer ${customer.name}: next payment`, nextPayment);
+        
         return {
           ...customer,
           contracts: customerContracts,
@@ -147,7 +152,11 @@ export const useSubscriptionData = () => {
         next_payment_amount: number,
         next_payment_type: string | null
       })[];
-    }
+    },
+    // Reduce cache time to ensure fresh data
+    staleTime: 0,
+    gcTime: 1000 * 60, // 1 minute
+    refetchOnWindowFocus: true
   });
 
   // Add real-time subscription for contract changes
