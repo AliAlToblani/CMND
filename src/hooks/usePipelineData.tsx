@@ -88,23 +88,26 @@ export const usePipelineData = () => {
         throw fetchError;
       }
 
-      // Fetch all completed lifecycle stages
+      // Fetch all lifecycle stages (not just completed ones)
       const { data: lifecycleStages, error: stagesError } = await supabase
         .from('lifecycle_stages')
-        .select('customer_id, name, status')
-        .eq('status', 'done');
+        .select('customer_id, name, status');
 
       if (stagesError) {
         throw stagesError;
       }
 
-      // Group lifecycle stages by customer ID
+      console.log('Lifecycle stages fetched:', lifecycleStages);
+
+      // Group lifecycle stages by customer ID (only count completed stages for pipeline positioning)
       const stagesByCustomer: Record<string, string[]> = {};
       lifecycleStages?.forEach(stage => {
-        if (!stagesByCustomer[stage.customer_id]) {
-          stagesByCustomer[stage.customer_id] = [];
+        if (stage.status === 'done') { // Only use completed stages for pipeline positioning
+          if (!stagesByCustomer[stage.customer_id]) {
+            stagesByCustomer[stage.customer_id] = [];
+          }
+          stagesByCustomer[stage.customer_id].push(stage.name);
         }
-        stagesByCustomer[stage.customer_id].push(stage.name);
       });
 
       // Transform customers to CustomerData format with pipeline stage determination
@@ -156,6 +159,11 @@ export const usePipelineData = () => {
           customerCount: customers.length,
           customers
         };
+      });
+
+      console.log('Pipeline data with all customers:', {
+        totalCustomers: transformedCustomers.length,
+        stageDistribution: pipelineStages.map(s => `${s.stageName}: ${s.customerCount}`).join(', ')
       });
 
       setPipelineData(pipelineStages);
