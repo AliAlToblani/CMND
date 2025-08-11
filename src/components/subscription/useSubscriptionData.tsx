@@ -68,7 +68,7 @@ export const useSubscriptionData = () => {
       if (contractsError) throw contractsError;
 
       // Fetch next pending payment for each customer (subscription tracker = next payment only)
-      const todayIso = new Date().toISOString();
+      const todayIso = new Date().toISOString().split('T')[0]; // Use date only for comparison
       const { data: nextPaymentsData, error: nextPaymentsError } = await supabase
         .from('payments')
         .select('customer_id, due_date, amount, payment_type, status')
