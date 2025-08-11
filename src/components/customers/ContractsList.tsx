@@ -589,6 +589,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
   // CRITICAL: Prevent any form submission events from bubbling up
   const handleSubmit = (e: React.FormEvent) => {
     console.log('ContractEditDialog: ISOLATED form submission - preventing all bubbling');
+    console.log('ContractEditDialog: Form data being submitted:', formData);
     e.preventDefault();
     e.stopPropagation();
     
@@ -596,6 +597,16 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
     if (!formData.name.trim()) {
       alert('Contract name is required');
       return;
+    }
+    
+    // For one-time contracts, ensure we have either setup_fee or annual_rate
+    if (formData.payment_frequency === 'one_time') {
+      const setupFee = Number(formData.setup_fee) || 0;
+      const annualRate = Number(formData.annual_rate) || 0;
+      if (setupFee === 0 && annualRate === 0) {
+        alert('One-time contracts must have a setup fee or annual rate greater than 0');
+        return;
+      }
     }
     
     // Ensure numeric fields are numbers, not empty strings
@@ -607,7 +618,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
       value: (Number(formData.setup_fee) || 0) + (Number(formData.annual_rate) || 0)
     };
     
-    console.log('ContractEditDialog: Saving contract with isolated state:', contractToSave.name);
+    console.log('ContractEditDialog: Saving contract with isolated state:', contractToSave);
     onSave(contractToSave);
   };
 
