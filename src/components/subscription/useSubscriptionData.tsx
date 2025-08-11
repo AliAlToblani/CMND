@@ -425,6 +425,7 @@ export const useSubscriptionData = () => {
     uniqueCountries,
     handleRemindCustomer,
     handleUpdateDate,
-    handleMarkAsPaid
+    handleMarkAsPaid,
+    refetch
   };
 };

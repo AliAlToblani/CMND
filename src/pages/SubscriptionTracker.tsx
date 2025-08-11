@@ -2,8 +2,9 @@
 import React, { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Clock, Calendar, BarChart3 } from "lucide-react";
+import { Clock, Calendar, BarChart3, RefreshCw } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { useSubscriptionData } from "@/components/subscription/useSubscriptionData";
 import { CustomerFilters } from "@/components/subscription/CustomerFilters";
 import { TimelineView } from "@/components/subscription/timeline/TimelineView";
@@ -28,7 +29,8 @@ const SubscriptionTracker = () => {
     uniqueCountries,
     handleRemindCustomer,
     handleUpdateDate,
-    handleMarkAsPaid
+    handleMarkAsPaid,
+    refetch
   } = useSubscriptionData();
 
   return (
@@ -45,6 +47,16 @@ const SubscriptionTracker = () => {
               Monitor customers who have completed their Go Live stage
             </p>
           </div>
+          <Button
+            onClick={() => refetch()}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
 
         {/* Filters */}
