@@ -67,7 +67,8 @@ export const TotalRevenueDetail = () => {
         }));
 
         const total = formattedContracts.reduce((sum, contract) => {
-          const contractValue = contract.setup_fee + contract.annual_rate || contract.value;
+          // Use the same calculation as the main dashboard
+          const contractValue = (contract.setup_fee || 0) + (contract.annual_rate || contract.value || 0);
           return sum + contractValue;
         }, 0);
 
@@ -125,7 +126,7 @@ export const TotalRevenueDetail = () => {
       {/* Contracts List */}
       <div className="grid gap-4">
         {contracts.map((contract) => {
-          const contractValue = contract.setup_fee + contract.annual_rate || contract.value;
+          const contractValue = (contract.setup_fee || 0) + (contract.annual_rate || contract.value || 0);
           
           return (
             <Card key={contract.id} className="hover:shadow-md transition-shadow">
