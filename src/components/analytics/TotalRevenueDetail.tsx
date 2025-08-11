@@ -26,59 +26,50 @@ export const TotalRevenueDetail = () => {
   const [totalRevenue, setTotalRevenue] = useState(0);
 
   useEffect(() => {
-    const fetchRevenue = async () => {
+    const fetchContracts = async () => {
       try {
-        const now = new Date();
-        const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
-        const startOfNextYear = new Date(now.getFullYear() + 1, 0, 1).toISOString();
+        const currentYear = new Date().getFullYear();
+        const yearStart = `${currentYear}-01-01`;
+        const yearEnd = `${currentYear}-12-31`;
 
-        // Use the same logic as dashboard - get payments for current year
-        const { data: paymentsData, error: paymentsError } = await supabase
-          .from('payments')
+        const { data, error } = await supabase
+          .from('contracts')
           .select(`
             id,
-            customer_id,
-            contract_id,
-            amount,
-            due_date,
-            payment_type,
+            name,
+            value,
+            setup_fee,
+            annual_rate,
+            start_date,
+            end_date,
             status,
-            contracts!inner(
-              id,
-              name,
-              payment_frequency,
-              customers!inner(id, name)
-            )
+            payment_frequency,
+            customers!inner(id, name)
           `)
-          .gte('due_date', startOfYear)
-          .lt('due_date', startOfNextYear);
+          .or('status.eq.active,status.eq.pending,status.is.null')
+          .gte('end_date', yearStart)
+          .lte('start_date', yearEnd);
 
-        if (paymentsError) throw paymentsError;
+        if (error) throw error;
 
-        // Remove duplicates by creating unique key
-        const uniquePayments = new Map();
-        (paymentsData || []).forEach(payment => {
-          const key = `${payment.customer_id}-${payment.contract_id}-${payment.amount}-${payment.due_date}-${payment.payment_type}`;
-          if (!uniquePayments.has(key)) {
-            uniquePayments.set(key, payment);
-          }
-        });
-
-        const formattedContracts = Array.from(uniquePayments.values()).map(payment => ({
-          id: payment.id,
-          name: (payment.contracts as any).name,
-          customer_name: (payment.contracts as any).customers.name,
-          customer_id: payment.customer_id,
-          value: payment.amount,
-          setup_fee: 0, // Payment amount already includes setup fee
-          annual_rate: payment.amount,
-          start_date: payment.due_date,
-          end_date: payment.due_date,
-          status: payment.status || 'pending',
-          payment_frequency: (payment.contracts as any).payment_frequency || 'annual'
+        const formattedContracts = (data || []).map(contract => ({
+          id: contract.id,
+          name: contract.name,
+          customer_name: (contract.customers as any).name,
+          customer_id: (contract.customers as any).id,
+          value: contract.value || 0,
+          setup_fee: contract.setup_fee || 0,
+          annual_rate: contract.annual_rate || 0,
+          start_date: contract.start_date,
+          end_date: contract.end_date,
+          status: contract.status || 'active',
+          payment_frequency: contract.payment_frequency || 'annual'
         }));
 
-        const total = Array.from(uniquePayments.values()).reduce((sum, payment) => sum + (payment.amount || 0), 0);
+        const total = formattedContracts.reduce((sum, contract) => {
+          const contractValue = contract.setup_fee + contract.annual_rate || contract.value;
+          return sum + contractValue;
+        }, 0);
 
         setContracts(formattedContracts);
         setTotalRevenue(total);
@@ -89,7 +80,7 @@ export const TotalRevenueDetail = () => {
       }
     };
 
-    fetchRevenue();
+    fetchContracts();
   }, []);
 
   if (loading) {

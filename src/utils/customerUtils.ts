@@ -171,31 +171,27 @@ export const getTotalPipelineValue = async (): Promise<number> => {
 
 export const getActiveContractsValue = async (): Promise<number> => {
   try {
-    const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString();
-    const startOfNextYear = new Date(now.getFullYear() + 1, 0, 1).toISOString();
+    const currentYear = new Date().getFullYear();
+    const yearStart = `${currentYear}-01-01`;
+    const yearEnd = `${currentYear}-12-31`;
 
     const { data, error } = await supabase
-      .from('payments')
-      .select('customer_id, contract_id, amount, due_date, payment_type, status')
-      .gte('due_date', startOfYear)
-      .lt('due_date', startOfNextYear);
+      .from('contracts')
+      .select('setup_fee, annual_rate, value, start_date, end_date, status')
+      .or('status.eq.active,status.eq.pending,status.is.null')
+      .gte('end_date', yearStart)
+      .lte('start_date', yearEnd);
 
     if (error) {
       console.error("Error fetching total revenue:", error);
       return 0;
     }
 
-    // Remove duplicates by creating unique key from customer_id, contract_id, amount, due_date, payment_type
-    const uniquePayments = new Map();
-    (data || []).forEach(payment => {
-      const key = `${payment.customer_id}-${payment.contract_id}-${payment.amount}-${payment.due_date}-${payment.payment_type}`;
-      if (!uniquePayments.has(key)) {
-        uniquePayments.set(key, payment);
-      }
-    });
+    const totalRevenue = (data || []).reduce((sum, contract) => {
+      const contractValue = (contract.setup_fee || 0) + (contract.annual_rate || contract.value || 0);
+      return sum + contractValue;
+    }, 0);
 
-    const totalRevenue = Array.from(uniquePayments.values()).reduce((sum, p: any) => sum + (p.amount || 0), 0);
     return totalRevenue;
   } catch (error) {
     console.error("Error in getActiveContractsValue (Total Revenue):", error);
