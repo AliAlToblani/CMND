@@ -92,26 +92,50 @@ export const CustomerTimeline: React.FC<CustomerTimelineProps> = ({ customer }) 
       </div>
 
       {/* Financial Info */}
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center gap-4">
-          {formattedAnnualRate && (
-            <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
-              <DollarSign className="h-3 w-3" />
-              <span className="font-medium">{formattedAnnualRate}/year</span>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-4">
+            {formattedAnnualRate && (
+              <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
+                <DollarSign className="h-3 w-3" />
+                <span className="font-medium">{formattedAnnualRate}/year</span>
+              </div>
+            )}
+          </div>
+          <div className="text-gray-600 dark:text-gray-400">
+            {customer.delta > 0 ? (
+              <span className="font-medium">{customer.delta} days left</span>
+            ) : customer.delta === 0 ? (
+              <span className="font-medium text-orange-600">Renews today</span>
+            ) : customer.status !== 'missing_date' ? (
+              <span className="font-medium text-red-600">Overdue</span>
+            ) : (
+              <span>No end date</span>
+            )}
+          </div>
+        </div>
+
+        {/* Next Payment Info */}
+        {customer.nextPayment && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 border-l-4 border-blue-400">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  Next {customer.nextPayment.payment_type} payment
+                </span>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-bold text-blue-900 dark:text-blue-100">
+                  {formatCurrency(customer.nextPayment.amount)}
+                </div>
+                <div className="text-xs text-blue-700 dark:text-blue-300">
+                  Due: {new Date(customer.nextPayment.due_date).toLocaleDateString()}
+                </div>
+              </div>
             </div>
-          )}
-        </div>
-        <div className="text-gray-600 dark:text-gray-400">
-          {customer.delta > 0 ? (
-            <span className="font-medium">{customer.delta} days left</span>
-          ) : customer.delta === 0 ? (
-            <span className="font-medium text-orange-600">Renews today</span>
-          ) : customer.status !== 'missing_date' ? (
-            <span className="font-medium text-red-600">Overdue</span>
-          ) : (
-            <span>No end date</span>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

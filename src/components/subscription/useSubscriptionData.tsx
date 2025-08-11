@@ -117,15 +117,20 @@ export const useSubscriptionData = () => {
           contracts: customerContracts,
           contractCount: customerContracts.length,
           lifetimeValue: totalLifetimeValue,
+          // Override go_live_date with contract start date if available
+          go_live_date: customerContracts.length > 0 ? customerContracts[0].start_date : customer.go_live_date,
           // Keep effective end date from contracts for reference
           effective_end_date: latestEndDate,
           effective_start_date: customerContracts.length > 0 ? customerContracts[0].start_date : null,
           // Use calculated annual rate from active contracts only
           effective_annual_rate: effectiveAnnualRate || 0,
           // Next payment tracking
+          nextPayment: nextPayment,
+          nextPaymentDate: nextPayment ? nextPayment.due_date : null,
           next_payment_date: nextPayment ? nextPayment.due_date : null,
           next_payment_amount: nextPayment ? nextPayment.amount : 0,
-          next_payment_type: nextPayment ? nextPayment.payment_type : null
+          next_payment_type: nextPayment ? nextPayment.payment_type : null,
+          payment_frequency: customerContracts[0]?.payment_frequency || 'annual'
         };
       }) || [];
       

@@ -17,6 +17,12 @@ export interface ProcessedCustomer {
   contractCount: number;
   lifetimeValue: number;
   contracts: any[];
+  nextPayment?: {
+    due_date: string;
+    amount: number;
+    payment_type: string;
+    status: string;
+  } | null;
 }
 
 export type ViewMode = "timeline" | "renewals";
