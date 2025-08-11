@@ -78,11 +78,11 @@ export const usePipelineData = () => {
       setIsLoading(true);
       setError(null);
 
-      // Fetch all customers with estimated deal values, excluding churned customers
+      // Fetch all customers with estimated deal values, excluding churned customers (include NULL status)
       const { data: customers, error: fetchError } = await supabase
         .from('customers')
         .select('*')
-        .neq('status', 'churned');
+        .or('status.neq.churned,status.is.null');
 
       if (fetchError) {
         throw fetchError;
