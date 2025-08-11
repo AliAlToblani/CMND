@@ -32,11 +32,12 @@ export const useSubscriptionData = () => {
   const { data: customers = [], isLoading, refetch } = useQuery({
     queryKey: contractQueryKeys.subscription(),
     queryFn: async () => {
-      // Get customer IDs who have active contracts only
+      // Get customer IDs who have active contracts (exclude one-time contracts for subscription tracker)
       const { data: activeContracts, error: contractError } = await supabase
         .from('contracts')
         .select('customer_id')
-        .eq('status', 'active');
+        .eq('status', 'active')
+        .neq('payment_frequency', 'one_time');
       
       if (contractError) throw contractError;
       
@@ -56,12 +57,13 @@ export const useSubscriptionData = () => {
       
       if (error) throw error;
       
-      // Fetch active and pending contracts for these customers (include one-time contracts)
+      // Fetch active contracts for these customers (exclude one-time contracts)
       const { data: contractsData, error: contractsError } = await supabase
         .from('contracts')
         .select('*')
         .in('customer_id', customerIds)
-        .in('status', ['active', 'pending']);
+        .eq('status', 'active')
+        .neq('payment_frequency', 'one_time');
       
       if (contractsError) throw contractsError;
 
