@@ -65,8 +65,7 @@ export const getCustomerARRData = async (customers: CustomerData[]) => {
         )
       `)
       .or('status.eq.active,status.eq.pending,status.is.null')
-      .gt('end_date', new Date().toISOString())
-      .or('customers.status.is.null,customers.status.neq.churned');
+      .gt('end_date', new Date().toISOString());
 
     if (contractsError) {
       console.error("Error fetching ARR from contracts:", contractsError);
@@ -77,6 +76,11 @@ export const getCustomerARRData = async (customers: CustomerData[]) => {
     (contractsData || []).forEach(contract => {
       const customer = contract.customers;
       const customerId = customer.id;
+      
+      // Skip churned customers
+      if (customer.status === 'churned') {
+        return;
+      }
       
       if (!customerARRMap.has(customerId)) {
         customerARRMap.set(customerId, {
