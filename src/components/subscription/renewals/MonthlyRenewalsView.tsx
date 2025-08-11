@@ -67,7 +67,7 @@ export const MonthlyRenewalsView: React.FC<MonthlyRenewalsViewProps> = ({
     if (!customer.subscription_end_date) return groups;
     
     const date = new Date(customer.subscription_end_date);
-    const monthYear = date.toLocaleDateString('en-US', { 
+    const monthYear = date.toLocaleDateString('en-GB', { 
       year: 'numeric', 
       month: 'long' 
     });

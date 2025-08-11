@@ -97,7 +97,11 @@ export const MonthlyRenewalBlock: React.FC<MonthlyRenewalBlockProps> = ({
                     <div className="text-sm text-gray-500">
                       Owner: {customer.owner_id || 'Unassigned'} • 
                       Renewal: {customer.subscription_end_date ? 
-                        new Date(customer.subscription_end_date).toLocaleDateString() : 
+                        new Date(customer.subscription_end_date).toLocaleDateString('en-GB', {
+                          day: 'numeric',
+                          month: 'numeric',
+                          year: 'numeric'
+                        }) : 
                         'Not set'
                       }
                     </div>

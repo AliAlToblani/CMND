@@ -68,10 +68,14 @@ export const CustomerTimeline: React.FC<CustomerTimelineProps> = ({ customer }) 
         <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
-            {customer.go_live_date ? new Date(customer.go_live_date).toLocaleDateString() : 'No start date'}
+            {customer.go_live_date ? new Date(customer.go_live_date).toLocaleDateString('en-GB', {
+              day: 'numeric', month: 'numeric', year: 'numeric'
+            }) : 'No start date'}
           </span>
           <span>
-            {customer.subscription_end_date ? new Date(customer.subscription_end_date).toLocaleDateString() : 'No end date'}
+            {customer.subscription_end_date ? new Date(customer.subscription_end_date).toLocaleDateString('en-GB', {
+              day: 'numeric', month: 'numeric', year: 'numeric'
+            }) : 'No end date'}
           </span>
         </div>
         
@@ -133,7 +137,9 @@ export const CustomerTimeline: React.FC<CustomerTimelineProps> = ({ customer }) 
                   {formatCurrency(customer.nextPayment.amount)}
                 </div>
                 <div className="text-xs text-blue-700 dark:text-blue-300">
-                  Due: {new Date(customer.nextPayment.due_date).toLocaleDateString()}
+                  Due: {new Date(customer.nextPayment.due_date).toLocaleDateString('en-GB', {
+                    day: 'numeric', month: 'numeric', year: 'numeric'
+                  })}
                 </div>
               </div>
             </div>

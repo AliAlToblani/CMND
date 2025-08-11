@@ -42,10 +42,10 @@ export const EditRenewalDialog: React.FC<EditRenewalDialogProps> = ({
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "Not set";
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    return new Date(dateString).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'numeric',
+      year: 'numeric'
     });
   };
 
