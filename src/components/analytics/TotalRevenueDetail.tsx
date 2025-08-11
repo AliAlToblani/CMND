@@ -66,12 +66,22 @@ export const TotalRevenueDetail = () => {
           payment_frequency: contract.payment_frequency || 'annual'
         }));
 
+        console.log('TotalRevenueDetail: Fetched contracts:', formattedContracts.length);
+        console.log('TotalRevenueDetail: Contract details:', formattedContracts.map(c => ({
+          name: c.name,
+          customer: c.customer_name,
+          setup_fee: c.setup_fee,
+          annual_rate: c.annual_rate,
+          calculated: (c.setup_fee || 0) + (c.annual_rate || c.value || 0)
+        })));
+
         const total = formattedContracts.reduce((sum, contract) => {
           // Use the same calculation as the main dashboard
           const contractValue = (contract.setup_fee || 0) + (contract.annual_rate || contract.value || 0);
           return sum + contractValue;
         }, 0);
 
+        console.log('TotalRevenueDetail: Calculated total:', total);
         setContracts(formattedContracts);
         setTotalRevenue(total);
       } catch (error) {
