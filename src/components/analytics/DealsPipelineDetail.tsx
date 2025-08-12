@@ -36,12 +36,11 @@ export const DealsPipelineDetail = () => {
   useEffect(() => {
     const fetchPipelineCustomers = async () => {
       try {
-        // Get customers that are not churned (include NULL status) and exclude 'done' status
+        // Get customers that are not churned and not done (include NULL status)
         const { data, error } = await supabase
           .from('customers')
           .select('*')
-          .or('status.neq.churned,status.is.null')
-          .neq('status', 'done')
+          .or('status.is.null,status.neq.churned.and.status.neq.done')
           .order('estimated_deal_value', { ascending: false });
 
         if (error) throw error;
