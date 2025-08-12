@@ -86,13 +86,16 @@ export const DealsPipelineDetail = () => {
   }, []);
 
   const getStatusBadge = (status: string | null) => {
-    const statusConfig: Record<string, { variant: any; label: string }> = {
+    const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
       'not-started': { variant: 'outline', label: 'Not Started' },
       'in-progress': { variant: 'default', label: 'In Progress' },
       'blocked': { variant: 'destructive', label: 'Blocked' },
     };
     
     const config = statusConfig[status || 'not-started'];
+    if (!config) {
+      return <Badge variant="outline">{status || 'Unknown'}</Badge>;
+    }
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
