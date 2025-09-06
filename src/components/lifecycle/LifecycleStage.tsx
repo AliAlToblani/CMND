@@ -66,6 +66,12 @@ export function LifecycleStageComponent({
   customerName,
   onUpdate,
 }: LifecycleStageComponentProps) {
+  const [localNotes, setLocalNotes] = React.useState<string>(notes || "");
+
+  React.useEffect(() => {
+    setLocalNotes(notes || "");
+  }, [notes, id]);
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "not-started":
@@ -221,10 +227,12 @@ ${category ? `Category: ${category}` : ''}`;
             <p className="text-muted-foreground font-medium">Notes:</p>
             <Textarea
               placeholder="Add notes..."
-              value={notes || ""}
-              onChange={(e) => {
+              value={localNotes}
+              onChange={(e) => setLocalNotes(e.target.value)}
+              onBlur={() => {
                 if (onUpdate) {
-                  onUpdate(id, { notes: e.target.value });
+                  onUpdate(id, { notes: localNotes });
+                  toast.success("Notes saved");
                 }
               }}
               className="min-h-[60px] text-xs resize-none"
