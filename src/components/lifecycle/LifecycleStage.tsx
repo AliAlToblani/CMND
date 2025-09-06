@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface LifecycleStageProps {
@@ -216,12 +217,19 @@ ${category ? `Category: ${category}` : ''}`;
               </PopoverContent>
             </Popover>
           </div>
-          {notes && (
-            <div className="text-xs space-y-1">
-              <p className="text-muted-foreground font-medium">Notes:</p>
-              <p className="break-words leading-relaxed">{notes}</p>
-            </div>
-          )}
+          <div className="text-xs space-y-1">
+            <p className="text-muted-foreground font-medium">Notes:</p>
+            <Textarea
+              placeholder="Add notes..."
+              value={notes || ""}
+              onChange={(e) => {
+                if (onUpdate) {
+                  onUpdate(id, { notes: e.target.value });
+                }
+              }}
+              className="min-h-[60px] text-xs resize-none"
+            />
+          </div>
         </div>
       </CardContent>
       
