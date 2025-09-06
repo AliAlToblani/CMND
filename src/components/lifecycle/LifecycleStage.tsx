@@ -229,9 +229,10 @@ ${category ? `Category: ${category}` : ''}`;
               placeholder="Add notes..."
               value={localNotes}
               onChange={(e) => setLocalNotes(e.target.value)}
-              onBlur={() => {
+              onBlur={(e) => {
+                const value = e.target.value;
                 if (onUpdate) {
-                  onUpdate(id, { notes: localNotes });
+                  onUpdate(id, { notes: value });
                   toast.success("Notes saved");
                 }
               }}
