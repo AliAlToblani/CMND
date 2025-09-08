@@ -20,39 +20,41 @@ const PIPELINE_STAGES = [
   "Live"
 ];
 
-// Map completed lifecycle stages to pipeline stages
+// Map completed lifecycle stages to pipeline stages (normalized keys)
 const LIFECYCLE_TO_PIPELINE_MAPPING: Record<string, string> = {
   // Lead stage
-  "Prospect": "Lead",
-  "Meeting Set": "Lead",
+  "prospect": "Lead",
+  "meeting set": "Lead",
   // Qualified stage
-  "Qualified Lead": "Qualified",
-  "Discovery Call": "Qualified",
+  "qualified lead": "Qualified",
+  "discovery call": "Qualified",
   // Demo stage
-  "Demo": "Demo",
+  "demo": "Demo",
   // Proposal stage
-  "Proposal Sent": "Proposal",
-  "Proposal Approved": "Proposal",
+  "proposal sent": "Proposal",
+  "proposal approved": "Proposal",
   // Contract stage
-  "Contract Sent": "Contract",
-  "Contract Signed": "Contract",
+  "contract sent": "Contract",
+  "contract signed": "Contract",
   // Implementation stage
-  "Onboarding": "Implementation",
-  "Technical Setup": "Implementation",
-  "Training": "Implementation",
+  "onboarding": "Implementation",
+  "technical setup": "Implementation",
+  "training": "Implementation",
   // Live stage
-  "Go Live": "Live",
-  "Payment Processed": "Live"
+  "go live": "Live",
+  "payment processed": "Live"
 };
 
 // Define pipeline stage order for determining furthest stage
 const PIPELINE_STAGE_ORDER = ["Lead", "Qualified", "Demo", "Proposal", "Contract", "Implementation", "Live"];
 
+const normalize = (s?: string) => (s || "").trim().toLowerCase();
+
 // Function to determine the furthest pipeline stage based on completed lifecycle stages
 const getFurthestPipelineStage = (completedStages: string[]): string => {
   const pipelineStages = completedStages
-    .map(stage => LIFECYCLE_TO_PIPELINE_MAPPING[stage])
-    .filter(Boolean);
+    .map(stage => LIFECYCLE_TO_PIPELINE_MAPPING[normalize(stage)])
+    .filter(Boolean) as string[];
   
   if (pipelineStages.length === 0) return "Lead";
   
