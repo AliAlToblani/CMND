@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { CustomerCard } from "@/components/customers/CustomerCard";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, ArrowUpDown, RefreshCw, Download } from "lucide-react";
+import { Plus, Search, ArrowUpDown, RefreshCw, Download, Upload, FileDown } from "lucide-react";
 import { 
   Select,
   SelectContent,
@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CustomerData } from "@/types/customers";
 import { toast } from "sonner";
 import { syncCustomersToDatabase } from "@/utils/customerDataSync";
+import { exportCustomersToExcel } from "@/utils/excelExport";
 
 import { sortStagesByOrder } from "@/utils/stageOrdering";
 
@@ -249,6 +250,21 @@ const Customers = () => {
     }
   };
 
+  const handleExportToExcel = async () => {
+    try {
+      if (customers.length === 0) {
+        toast.error("No customers to export");
+        return;
+      }
+      
+      exportCustomersToExcel(customers);
+      toast.success(`Exported ${customers.length} customers to Excel`);
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error("Failed to export customers to Excel");
+    }
+  };
+
   useEffect(() => {
     // Only fetch from database, no automatic sync
     fetchCustomers();
@@ -345,6 +361,15 @@ const Customers = () => {
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               Refresh
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleExportToExcel}
+              disabled={isLoading || customers.length === 0}
+            >
+              <FileDown className="mr-2 h-4 w-4" />
+              Export to Excel
             </Button>
             {customers.length === 0 && !isLoading && (
               <Button 
