@@ -108,7 +108,7 @@ export const usePipelineData = () => {
       // Group lifecycle stages by customer ID (only count completed stages for pipeline positioning)
       const stagesByCustomer: Record<string, string[]> = {};
       lifecycleStages?.forEach(stage => {
-        if (stage.status === 'done') { // Only use completed stages for pipeline positioning
+        if ((stage.status || '').toLowerCase() === 'done') { // Only use completed stages for pipeline positioning
           if (!stagesByCustomer[stage.customer_id]) {
             stagesByCustomer[stage.customer_id] = [];
           }
@@ -120,6 +120,7 @@ export const usePipelineData = () => {
       const transformedCustomers: CustomerData[] = (customers || []).map(customer => {
         const completedStages = stagesByCustomer[customer.id] || [];
         const pipelineStage = getFurthestPipelineStage(completedStages);
+        const finalStage = (pipelineStage === 'Lead' && customer.go_live_date) ? 'Live' : pipelineStage;
         
         return {
           id: customer.id,
@@ -127,7 +128,7 @@ export const usePipelineData = () => {
           logo: customer.logo || undefined,
           segment: customer.segment || "Unknown Segment",
           country: customer.country || "Unknown Country",
-          stage: pipelineStage,
+          stage: finalStage,
           status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
           contractSize: customer.estimated_deal_value || 0,
           owner: {
