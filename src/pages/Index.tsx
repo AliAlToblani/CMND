@@ -22,7 +22,8 @@ import {
   getConversionRate,
   getAverageDealSize,
   getMRR,
-  getDealsAtRisk,
+  calculatePitchToPayTime,
+  calculatePayToLiveTime,
   calculateAverageGoLiveTime,
   calculateChurnRate,
   calculateSalesLifecycle,
@@ -43,7 +44,8 @@ const Index = () => {
     conversionRate: 0,
     averageDealSize: 0,
     mrr: 0,
-    dealsAtRisk: 0
+    pitchToPayDays: 0,
+    payToLiveDays: 0
   });
   const [arrData, setArrData] = useState({ totalARR: 0, liveCustomers: [], growthRate: 0 });
   const [churnRate, setChurnRate] = useState("0.0%");
@@ -57,7 +59,8 @@ const Index = () => {
         conversionRate,
         averageDealSize,
         mrr,
-        dealsAtRisk,
+        pitchToPayDays,
+        payToLiveDays,
         arrDataResult,
         churnRateResult
       ] = await Promise.all([
@@ -67,7 +70,8 @@ const Index = () => {
         getConversionRate(),
         getAverageDealSize(),
         getMRR(),
-        getDealsAtRisk(),
+        calculatePitchToPayTime(),
+        calculatePayToLiveTime(),
         getCustomerARRData(customers),
         calculateChurnRate()
       ]);
@@ -79,7 +83,8 @@ const Index = () => {
         conversionRate,
         averageDealSize,
         mrr,
-        dealsAtRisk
+        pitchToPayDays,
+        payToLiveDays
       });
       
       setArrData(arrDataResult);
@@ -224,9 +229,10 @@ const Index = () => {
       icon: <LifeBuoy className="h-6 w-6" />
     },
     {
-      title: "Total Customers",
-      value: `${getTotalCustomersCount()}`,
-      icon: <Briefcase className="h-6 w-6" />
+      title: "Pitch to Pay",
+      value: metrics.pitchToPayDays > 0 ? `${metrics.pitchToPayDays} days` : "N/A",
+      description: "Discovery to Payment",
+      icon: <Clock className="h-6 w-6" />
     },
     {
       title: "Deals Pipeline",
@@ -254,10 +260,10 @@ const Index = () => {
       icon: <TrendingUp className="h-6 w-6" />
     },
     {
-      title: "Deals at Risk",
-      value: `${metrics.dealsAtRisk}`,
-      description: "Overdue stages",
-      icon: <AlertTriangle className="h-6 w-6 text-red-500" />
+      title: "Pay to Live",
+      value: metrics.payToLiveDays > 0 ? `${metrics.payToLiveDays} days` : "N/A",
+      description: "Payment to Go Live",
+      icon: <Activity className="h-6 w-6" />
     },
     {
       title: "Churn Rate",
@@ -286,7 +292,7 @@ const Index = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {dashboardStats.map((stat, index) => {
-            const metricKeys = ["total-revenue", "total-arr", "live-customers", "total-customers", "deals-pipeline", "conversion-rate", "average-deal-size", "mrr", "deals-at-risk", "churn-rate"];
+            const metricKeys = ["total-revenue", "total-arr", "live-customers", "pitch-to-pay", "deals-pipeline", "conversion-rate", "average-deal-size", "mrr", "pay-to-live", "churn-rate"];
             return (
               <StatCard 
                 key={index} 

@@ -292,22 +292,108 @@ export const getMRR = async (): Promise<number> => {
   }
 };
 
-export const getDealsAtRisk = async (): Promise<number> => {
+export const calculatePitchToPayTime = async (): Promise<number> => {
   try {
-    const { data, error } = await supabase
+    // Get all Discovery Call and Payment Processed stages that are done
+    const { data: discoveryStages, error: discoveryError } = await supabase
       .from('lifecycle_stages')
-      .select('id', { count: 'exact' })
-      .eq('status', 'blocked')
-      .or('status_changed_at.lt.now()');
+      .select('customer_id, status_changed_at')
+      .eq('name', 'Discovery Call')
+      .eq('status', 'done')
+      .not('status_changed_at', 'is', null);
 
-    if (error) {
-      console.error("Error fetching deals at risk:", error);
+    const { data: paymentStages, error: paymentError } = await supabase
+      .from('lifecycle_stages')
+      .select('customer_id, status_changed_at')
+      .eq('name', 'Payment Processed')
+      .eq('status', 'done')
+      .not('status_changed_at', 'is', null);
+
+    if (discoveryError || paymentError) {
+      console.error("Error fetching pitch to pay stages:", discoveryError || paymentError);
       return 0;
     }
 
-    return data?.length || 0;
+    if (!discoveryStages || !paymentStages) return 0;
+
+    // Find customers who have both stages completed
+    const pitchToPayTimes: number[] = [];
+    
+    discoveryStages.forEach(discovery => {
+      const payment = paymentStages.find(p => p.customer_id === discovery.customer_id);
+      if (payment && discovery.status_changed_at && payment.status_changed_at) {
+        const discoveryDate = new Date(discovery.status_changed_at);
+        const paymentDate = new Date(payment.status_changed_at);
+        
+        // Only include if payment came after discovery
+        if (paymentDate > discoveryDate) {
+          const diffTime = paymentDate.getTime() - discoveryDate.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          pitchToPayTimes.push(diffDays);
+        }
+      }
+    });
+
+    if (pitchToPayTimes.length === 0) return 0;
+
+    // Calculate average
+    const average = pitchToPayTimes.reduce((sum, days) => sum + days, 0) / pitchToPayTimes.length;
+    return Math.round(average);
   } catch (error) {
-    console.error("Error in getDealsAtRisk:", error);
+    console.error("Error in calculatePitchToPayTime:", error);
+    return 0;
+  }
+};
+
+export const calculatePayToLiveTime = async (): Promise<number> => {
+  try {
+    // Get all Payment Processed and Go Live stages that are done
+    const { data: paymentStages, error: paymentError } = await supabase
+      .from('lifecycle_stages')
+      .select('customer_id, status_changed_at')
+      .eq('name', 'Payment Processed')
+      .eq('status', 'done')
+      .not('status_changed_at', 'is', null);
+
+    const { data: goLiveStages, error: goLiveError } = await supabase
+      .from('lifecycle_stages')
+      .select('customer_id, status_changed_at')
+      .eq('name', 'Go Live')
+      .eq('status', 'done')
+      .not('status_changed_at', 'is', null);
+
+    if (paymentError || goLiveError) {
+      console.error("Error fetching pay to live stages:", paymentError || goLiveError);
+      return 0;
+    }
+
+    if (!paymentStages || !goLiveStages) return 0;
+
+    // Find customers who have both stages completed
+    const payToLiveTimes: number[] = [];
+    
+    paymentStages.forEach(payment => {
+      const goLive = goLiveStages.find(g => g.customer_id === payment.customer_id);
+      if (goLive && payment.status_changed_at && goLive.status_changed_at) {
+        const paymentDate = new Date(payment.status_changed_at);
+        const goLiveDate = new Date(goLive.status_changed_at);
+        
+        // Only include if go live came after payment
+        if (goLiveDate > paymentDate) {
+          const diffTime = goLiveDate.getTime() - paymentDate.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          payToLiveTimes.push(diffDays);
+        }
+      }
+    });
+
+    if (payToLiveTimes.length === 0) return 0;
+
+    // Calculate average
+    const average = payToLiveTimes.reduce((sum, days) => sum + days, 0) / payToLiveTimes.length;
+    return Math.round(average);
+  } catch (error) {
+    console.error("Error in calculatePayToLiveTime:", error);
     return 0;
   }
 };
