@@ -23,11 +23,13 @@ const Customers = () => {
   const location = useLocation();
   const [filter, setFilter] = useState("all");
   const [countryFilter, setCountryFilter] = useState("all");
+  const [stageFilter, setStageFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc" | "none">("none");
   const [sortBy, setSortBy] = useState<"name" | "contractSize">("name");
   const [customers, setCustomers] = useState<CustomerData[]>([]);
   const [uniqueCountries, setUniqueCountries] = useState<string[]>([]);
+  const [uniqueStages, setUniqueStages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -111,6 +113,7 @@ const Customers = () => {
       stage: pipelineStage,
       status: operationalStatus,
       contractSize: dbCustomer.contract_size || 0,
+      completedStages,
       owner: {
         id: dbCustomer.owner_id || "unknown",
         name: "Unassigned",
@@ -127,6 +130,18 @@ const Customers = () => {
       .sort();
     
     setUniqueCountries(countries);
+  };
+
+  const extractUniqueStages = (allLifecycleStages: any[]) => {
+    const { sortStagesByOrder } = require('@/utils/stageOrdering');
+    
+    const stages = allLifecycleStages
+      .map(stage => stage.name)
+      .filter((stage, index, arr) => arr.indexOf(stage) === index)
+      .map(name => ({ name }));
+    
+    const sortedStages = sortStagesByOrder(stages);
+    setUniqueStages(sortedStages.map(stage => stage.name));
   };
 
   const fetchCustomers = async (showRefreshIndicator = false) => {
@@ -177,16 +192,19 @@ const Customers = () => {
         
         setCustomers(formattedCustomers);
         extractUniqueCountries(formattedCustomers);
+        extractUniqueStages(allLifecycleStages || []);
       } else {
         console.log("No customers found in database");
         setCustomers([]);
         setUniqueCountries([]);
+        setUniqueStages([]);
       }
     } catch (error) {
       console.error("Error fetching customers:", error);
       toast.error("Failed to load customers");
       setCustomers([]);
       setUniqueCountries([]);
+      setUniqueStages([]);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -282,6 +300,10 @@ const Customers = () => {
       return false;
     }
     
+    if (stageFilter !== "all" && !customer.completedStages?.includes(stageFilter)) {
+      return false;
+    }
+    
     if (
       searchTerm &&
       !customer.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -358,6 +380,20 @@ const Customers = () => {
               {uniqueCountries.map(country => (
                 <SelectItem key={country} value={country}>
                   {country}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={stageFilter} onValueChange={setStageFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Filter by stage" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Stages</SelectItem>
+              {uniqueStages.map(stage => (
+                <SelectItem key={stage} value={stage}>
+                  {stage}
                 </SelectItem>
               ))}
             </SelectContent>

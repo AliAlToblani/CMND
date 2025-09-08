@@ -195,6 +195,7 @@ export interface CustomerData {
   annual_rate?: number;
   go_live_date?: string;
   subscription_end_date?: string;
+  completedStages?: string[];
   owner: {
     id: string;
     name: string;
