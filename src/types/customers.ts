@@ -196,6 +196,7 @@ export interface CustomerData {
   go_live_date?: string;
   subscription_end_date?: string;
   completedStages?: string[];
+  furthestCompletedStage?: string;
   lastUpdatedStage?: string;
   owner: {
     id: string;

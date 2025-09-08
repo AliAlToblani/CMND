@@ -106,6 +106,12 @@ const Customers = () => {
     const pipelineStage = getFurthestPipelineStage(completedStages);
     const operationalStatus = getOperationalStatus(lifecycleStages);
 
+    // Compute latest completed stage by defined stage order (not by timestamp)
+    const furthestCompletedStage = completedStages.length
+      ? sortStagesByOrder(completedStages.map(name => ({ name }))).slice(-1)[0]?.name
+      : undefined;
+
+    // Compute last updated stage by timestamp (kept for reference, not used for filtering)
     const lastUpdatedStage = lifecycleStages && lifecycleStages.length > 0
       ? [...lifecycleStages]
           .sort((a, b) => {
@@ -125,6 +131,7 @@ const Customers = () => {
       status: operationalStatus,
       contractSize: dbCustomer.contract_size || 0,
       completedStages,
+      furthestCompletedStage,
       lastUpdatedStage,
       owner: {
         id: dbCustomer.owner_id || "unknown",
@@ -310,7 +317,7 @@ const Customers = () => {
       return false;
     }
     
-    if (stageFilter !== "all" && customer.lastUpdatedStage !== stageFilter) {
+    if (stageFilter !== "all" && customer.furthestCompletedStage !== stageFilter) {
       return false;
     }
     
