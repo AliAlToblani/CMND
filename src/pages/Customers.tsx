@@ -56,6 +56,18 @@ const Customers = () => {
 
   const PIPELINE_STAGE_ORDER = ["Lead", "Qualified", "Demo", "Proposal", "Contract", "Implementation", "Live"];
 
+  // Normalize and interpret stage statuses from DB (case and synonym tolerant)
+  const normalizeStatus = (s?: string) => (s ?? "").toString().trim().toLowerCase().replace(/[_\s]+/g, "-");
+  const isCompletedLike = (s?: string) => {
+    const n = normalizeStatus(s);
+    return n === "done" || n === "completed" || n === "complete" || n === "finished";
+  };
+  const isInProgressLike = (s?: string) => {
+    const n = normalizeStatus(s);
+    return n === "in-progress" || n === "inprogress" || n === "ongoing";
+  };
+  const isBlockedLike = (s?: string) => normalizeStatus(s) === "blocked";
+
   const getFurthestPipelineStage = (completedStages: string[]): string => {
     const pipelineStages = completedStages
       .map(stage => LIFECYCLE_TO_PIPELINE_MAPPING[stage])
@@ -76,35 +88,52 @@ const Customers = () => {
 
   const getOperationalStatus = (stages: any[]): "not-started" | "in-progress" | "done" | "blocked" => {
     if (!stages || stages.length === 0) return "not-started";
-    
+
     // Check if customer has completed "Go Live" stage
     const hasCompletedGoLive = stages.some(stage => 
-      stage.name === "Go Live" && stage.status === "done"
+      stage.name === "Go Live" && isCompletedLike(stage.status)
     );
-    
+
     if (hasCompletedGoLive) return "done";
-    
+
     // Check if any stage is blocked
-    const hasBlockedStages = stages.some(stage => stage.status === "blocked");
+    const hasBlockedStages = stages.some(stage => isBlockedLike(stage.status));
     if (hasBlockedStages) return "blocked";
-    
+
     // Check if any stage is in progress
-    const hasInProgressStages = stages.some(stage => stage.status === "in-progress");
+    const hasInProgressStages = stages.some(stage => isInProgressLike(stage.status));
     if (hasInProgressStages) return "in-progress";
-    
+
     // Check if any stage is completed (but not Go Live)
-    const hasCompletedStages = stages.some(stage => stage.status === "done");
+    const hasCompletedStages = stages.some(stage => isCompletedLike(stage.status));
     if (hasCompletedStages) return "in-progress";
-    
+
     return "not-started";
   };
 
   const formatDatabaseCustomer = (dbCustomer: any, lifecycleStages: any[] = []): CustomerData => {
+    // Strictly completed stages (for filters and "furthestCompletedStage")
     const completedStages = lifecycleStages
-      .filter(stage => stage.status === "done")
+      .filter(stage => isCompletedLike(stage.status))
       .map(stage => stage.name);
-    
-    const pipelineStage = getFurthestPipelineStage(completedStages);
+
+    // Stages the customer has at least reached (completed or in progress)
+    const reachedStages = lifecycleStages
+      .filter(stage => isCompletedLike(stage.status) || isInProgressLike(stage.status))
+      .map(stage => stage.name);
+
+    // Compute pipeline stage from reached stages (more forgiving than only completed)
+    let pipelineStage = getFurthestPipelineStage(reachedStages);
+
+    // If a Go Live date exists and is in the past, force Live
+    if (dbCustomer.go_live_date) {
+      const goLive = new Date(dbCustomer.go_live_date);
+      const now = new Date();
+      if (!isNaN(goLive.getTime()) && goLive <= now) {
+        pipelineStage = "Live";
+      }
+    }
+
     const operationalStatus = getOperationalStatus(lifecycleStages);
 
     // Compute latest completed stage by defined stage order (not by timestamp)
