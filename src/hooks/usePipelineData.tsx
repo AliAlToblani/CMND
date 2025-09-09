@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomerData } from "@/types/customers";
+import { canonicalizeStageName, createStageNameMap } from "@/utils/stageNames";
 
 export interface PipelineStageData {
   stageName: string;
@@ -48,11 +49,16 @@ const LIFECYCLE_TO_PIPELINE_MAPPING: Record<string, string> = {
 // Define pipeline stage order for determining furthest stage
 const PIPELINE_STAGE_ORDER = ["Lead", "Qualified", "Demo", "Proposal", "Contract", "Implementation", "Live"];
 
-const normalize = (s?: string) => (s || "").trim().toLowerCase();
+// Helper function to normalize stage names for mapping (updated to handle hyphens/underscores)
+const normalize = (s?: string) => (s || "").trim().toLowerCase().replace(/[_\s\-]+/g, ' ');
 
 // Function to determine the furthest pipeline stage based on completed lifecycle stages
 const getFurthestPipelineStage = (completedStages: string[]): string => {
-  const pipelineStages = completedStages
+  // Canonicalize completed stages for comparison
+  const canonicalCompleted = completedStages.map(canonicalizeStageName);
+  
+  // Map canonical lifecycle stages to pipeline stages
+  const pipelineStages = canonicalCompleted
     .map(stage => LIFECYCLE_TO_PIPELINE_MAPPING[normalize(stage)])
     .filter(Boolean) as string[];
   
@@ -112,7 +118,9 @@ export const usePipelineData = () => {
           if (!stagesByCustomer[stage.customer_id]) {
             stagesByCustomer[stage.customer_id] = [];
           }
-          stagesByCustomer[stage.customer_id].push(stage.name);
+          // Store canonical name for consistent mapping
+          const canonicalName = canonicalizeStageName(stage.name);
+          stagesByCustomer[stage.customer_id].push(canonicalName);
         }
       });
 

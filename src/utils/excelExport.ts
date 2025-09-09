@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { CustomerData } from '@/types/customers';
 import { defaultLifecycleStages } from '@/data/defaultLifecycleStages';
+import { canonicalizeStageName, createStageNameMap, logUnmappedStageNames } from './stageNames';
 
 export interface ExportCustomerData {
   name: string;
@@ -31,8 +32,10 @@ const isInProgressLike = (s?: string) => {
 };
 const isBlockedLike = (s?: string) => normalizeStatus(s) === "blocked";
 
-const getStageStatus = (stageName: string, customerLifecycleStages: any[]): string => {
-  const stage = customerLifecycleStages.find(s => s.name === stageName);
+const getStageStatus = (stageName: string, stageMap: Map<string, any>): string => {
+  const canonical = canonicalizeStageName(stageName);
+  const stage = stageMap.get(canonical);
+  
   if (!stage || !stage.status) return 'Not Started';
   
   if (isCompletedLike(stage.status)) return 'Completed';
@@ -41,26 +44,25 @@ const getStageStatus = (stageName: string, customerLifecycleStages: any[]): stri
   return 'Not Started';
 };
 
-const getOperationalStatus = (customerLifecycleStages: any[]): string => {
-  if (!customerLifecycleStages || customerLifecycleStages.length === 0) return "not-started";
+const getOperationalStatus = (stageMap: Map<string, any>): string => {
+  if (!stageMap || stageMap.size === 0) return "not-started";
 
-  // Check if customer has completed "Go Live" stage
-  const hasCompletedGoLive = customerLifecycleStages.some(stage => 
-    stage.name === "Go Live" && isCompletedLike(stage.status)
-  );
+  // Check if customer has completed "Go Live" stage (using canonical name)
+  const goLiveStage = stageMap.get('Go Live');
+  const hasCompletedGoLive = goLiveStage && isCompletedLike(goLiveStage.status);
 
   if (hasCompletedGoLive) return "done";
 
   // Check if any stage is blocked
-  const hasBlockedStages = customerLifecycleStages.some(stage => isBlockedLike(stage.status));
+  const hasBlockedStages = Array.from(stageMap.values()).some(stage => isBlockedLike(stage.status));
   if (hasBlockedStages) return "blocked";
 
   // Check if any stage is in progress
-  const hasInProgressStages = customerLifecycleStages.some(stage => isInProgressLike(stage.status));
+  const hasInProgressStages = Array.from(stageMap.values()).some(stage => isInProgressLike(stage.status));
   if (hasInProgressStages) return "in-progress";
 
   // Check if any stage is completed (but not Go Live)
-  const hasCompletedStages = customerLifecycleStages.some(stage => isCompletedLike(stage.status));
+  const hasCompletedStages = Array.from(stageMap.values()).some(stage => isCompletedLike(stage.status));
   if (hasCompletedStages) return "in-progress";
 
   return "not-started";
@@ -68,10 +70,16 @@ const getOperationalStatus = (customerLifecycleStages: any[]): string => {
 
 export function exportCustomersToExcel(customers: CustomerData[], allLifecycleStages: any[] = []): void {
   try {
+    // Log any unmapped stage names for debugging
+    logUnmappedStageNames(allLifecycleStages);
+    
     // Create export data structure
     const exportData: ExportCustomerData[] = customers.map(customer => {
       // Get lifecycle stages for this specific customer
       const customerLifecycleStages = allLifecycleStages.filter(stage => stage.customer_id === customer.id);
+      
+      // Create a stage map for fast canonical lookups
+      const stageMap = createStageNameMap(customerLifecycleStages);
       
       const baseData: ExportCustomerData = {
         name: customer.name,
@@ -86,13 +94,13 @@ export function exportCustomersToExcel(customers: CustomerData[], allLifecycleSt
         createdAt: '', // CustomerData doesn't have created_at, will be empty for now
         goLiveDate: customer.go_live_date ? new Date(customer.go_live_date).toLocaleDateString() : '',
         pipelineStage: customer.stage || 'Lead',
-        operationalStatus: getOperationalStatus(customerLifecycleStages),
+        operationalStatus: getOperationalStatus(stageMap),
       };
 
-      // Add lifecycle stage columns with proper status from database
+      // Add lifecycle stage columns with proper status from database using canonical names
       defaultLifecycleStages.forEach(stage => {
         const stageKey = stage.name.replace(/\s+/g, '_');
-        baseData[stageKey] = getStageStatus(stage.name, customerLifecycleStages);
+        baseData[stageKey] = getStageStatus(stage.name, stageMap);
       });
 
       return baseData;

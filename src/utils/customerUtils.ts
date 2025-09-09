@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { CustomerData } from "@/types/customers";
+import { canonicalizeStageName } from "@/utils/stageNames";
 
 export const formatCurrency = (amount: number, includeDecimals: boolean = true): string => {
   const formattedAmount = new Intl.NumberFormat('en-US', {
@@ -294,18 +295,16 @@ export const getMRR = async (): Promise<number> => {
 
 export const calculatePitchToPayTime = async (): Promise<number> => {
   try {
-    // Get all Discovery Call and Payment Processed stages that are done
+    // Get all Discovery Call and Payment Processed stages that are done (using canonical names)
     const { data: discoveryStages, error: discoveryError } = await supabase
       .from('lifecycle_stages')
-      .select('customer_id, status_changed_at')
-      .eq('name', 'Discovery Call')
+      .select('customer_id, status_changed_at, name')
       .eq('status', 'done')
       .not('status_changed_at', 'is', null);
 
     const { data: paymentStages, error: paymentError } = await supabase
       .from('lifecycle_stages')
-      .select('customer_id, status_changed_at')
-      .eq('name', 'Payment Processed')
+      .select('customer_id, status_changed_at, name')
       .eq('status', 'done')
       .not('status_changed_at', 'is', null);
 
@@ -316,11 +315,19 @@ export const calculatePitchToPayTime = async (): Promise<number> => {
 
     if (!discoveryStages || !paymentStages) return 0;
 
+    // Filter for canonical Discovery Call and Payment Processed stages
+    const discoveryCallStages = discoveryStages.filter(stage => 
+      canonicalizeStageName(stage.name) === 'Discovery Call'
+    );
+    const paymentProcessedStages = paymentStages.filter(stage => 
+      canonicalizeStageName(stage.name) === 'Payment Processed'
+    );
+
     // Find customers who have both stages completed
     const pitchToPayTimes: number[] = [];
     
-    discoveryStages.forEach(discovery => {
-      const payment = paymentStages.find(p => p.customer_id === discovery.customer_id);
+    discoveryCallStages.forEach(discovery => {
+      const payment = paymentProcessedStages.find(p => p.customer_id === discovery.customer_id);
       if (payment && discovery.status_changed_at && payment.status_changed_at) {
         const discoveryDate = new Date(discovery.status_changed_at);
         const paymentDate = new Date(payment.status_changed_at);
@@ -347,18 +354,16 @@ export const calculatePitchToPayTime = async (): Promise<number> => {
 
 export const calculatePayToLiveTime = async (): Promise<number> => {
   try {
-    // Get all Payment Processed and Go Live stages that are done
+    // Get all Payment Processed and Go Live stages that are done (using canonical names)
     const { data: paymentStages, error: paymentError } = await supabase
       .from('lifecycle_stages')
-      .select('customer_id, status_changed_at')
-      .eq('name', 'Payment Processed')
+      .select('customer_id, status_changed_at, name')
       .eq('status', 'done')
       .not('status_changed_at', 'is', null);
 
     const { data: goLiveStages, error: goLiveError } = await supabase
       .from('lifecycle_stages')
-      .select('customer_id, status_changed_at')
-      .eq('name', 'Go Live')
+      .select('customer_id, status_changed_at, name')
       .eq('status', 'done')
       .not('status_changed_at', 'is', null);
 
@@ -369,11 +374,19 @@ export const calculatePayToLiveTime = async (): Promise<number> => {
 
     if (!paymentStages || !goLiveStages) return 0;
 
+    // Filter for canonical Payment Processed and Go Live stages
+    const paymentProcessedStages = paymentStages.filter(stage => 
+      canonicalizeStageName(stage.name) === 'Payment Processed'
+    );
+    const goLiveCanonicalStages = goLiveStages.filter(stage => 
+      canonicalizeStageName(stage.name) === 'Go Live'
+    );
+
     // Find customers who have both stages completed
     const payToLiveTimes: number[] = [];
     
-    paymentStages.forEach(payment => {
-      const goLive = goLiveStages.find(g => g.customer_id === payment.customer_id);
+    paymentProcessedStages.forEach(payment => {
+      const goLive = goLiveCanonicalStages.find(g => g.customer_id === payment.customer_id);
       if (goLive && payment.status_changed_at && goLive.status_changed_at) {
         const paymentDate = new Date(payment.status_changed_at);
         const goLiveDate = new Date(goLive.status_changed_at);
@@ -402,8 +415,7 @@ export const calculateAverageGoLiveTime = async (): Promise<number> => {
   try {
     const { data, error } = await supabase
       .from('lifecycle_stages')
-      .select('customer_id, created_at')
-      .eq('name', 'Go Live')
+      .select('customer_id, created_at, name')
       .eq('status', 'done');
 
     if (error) {
@@ -416,8 +428,18 @@ export const calculateAverageGoLiveTime = async (): Promise<number> => {
       return 0;
     }
 
+    // Filter for canonical Go Live stages
+    const goLiveStages = data.filter(stage => 
+      canonicalizeStageName(stage.name) === 'Go Live'
+    );
+
+    if (goLiveStages.length === 0) {
+      console.log("No customers have completed Go Live stage yet.");
+      return 0;
+    }
+
     let totalTime = 0;
-    for (const goLive of data) {
+    for (const goLive of goLiveStages) {
       const { data: customerData, error: customerError } = await supabase
         .from('customers')
         .select('created_at')
@@ -440,7 +462,7 @@ export const calculateAverageGoLiveTime = async (): Promise<number> => {
       totalTime += timeDiff;
     }
 
-    const averageTimeMs = totalTime / data.length;
+    const averageTimeMs = totalTime / goLiveStages.length;
     const averageTimeDays = averageTimeMs / (1000 * 3600 * 24);
 
     return Math.round(averageTimeDays);
@@ -473,7 +495,7 @@ export const calculateSalesLifecycle = async (): Promise<number> => {
 
     for (const customer of data) {
       const contractSignedStage = customer.lifecycle_stages?.find(
-        (stage: any) => stage.name === 'Contract Signed'
+        (stage: any) => canonicalizeStageName(stage.name) === 'Contract Signed'
       );
 
       if (contractSignedStage) {

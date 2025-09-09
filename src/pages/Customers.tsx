@@ -18,6 +18,7 @@ import { CustomerData } from "@/types/customers";
 import { toast } from "sonner";
 import { syncCustomersToDatabase } from "@/utils/customerDataSync";
 import { exportCustomersToExcel } from "@/utils/excelExport";
+import { canonicalizeStageName, createStageNameMap } from "@/utils/stageNames";
 
 import { sortStagesByOrder } from "@/utils/stageOrdering";
 
@@ -86,30 +87,29 @@ const Customers = () => {
     return PIPELINE_STAGE_ORDER[furthestStageIndex] || "Lead";
   };
 
-  const getOperationalStatus = (stages: any[]): "not-started" | "in-progress" | "done" | "blocked" => {
-    if (!stages || stages.length === 0) return "not-started";
+const getOperationalStatus = (stageMap: Map<string, any>): "not-started" | "in-progress" | "done" | "blocked" => {
+  if (!stageMap || stageMap.size === 0) return "not-started";
 
-    // Check if customer has completed "Go Live" stage
-    const hasCompletedGoLive = stages.some(stage => 
-      stage.name === "Go Live" && isCompletedLike(stage.status)
-    );
+  // Check if customer has completed "Go Live" stage (using canonical name)
+  const goLiveStage = stageMap.get('Go Live');
+  const hasCompletedGoLive = goLiveStage && isCompletedLike(goLiveStage.status);
 
-    if (hasCompletedGoLive) return "done";
+  if (hasCompletedGoLive) return "done";
 
-    // Check if any stage is blocked
-    const hasBlockedStages = stages.some(stage => isBlockedLike(stage.status));
-    if (hasBlockedStages) return "blocked";
+  // Check if any stage is blocked
+  const hasBlockedStages = Array.from(stageMap.values()).some(stage => isBlockedLike(stage.status));
+  if (hasBlockedStages) return "blocked";
 
-    // Check if any stage is in progress
-    const hasInProgressStages = stages.some(stage => isInProgressLike(stage.status));
-    if (hasInProgressStages) return "in-progress";
+  // Check if any stage is in progress
+  const hasInProgressStages = Array.from(stageMap.values()).some(stage => isInProgressLike(stage.status));
+  if (hasInProgressStages) return "in-progress";
 
-    // Check if any stage is completed (but not Go Live)
-    const hasCompletedStages = stages.some(stage => isCompletedLike(stage.status));
-    if (hasCompletedStages) return "in-progress";
+  // Check if any stage is completed (but not Go Live)
+  const hasCompletedStages = Array.from(stageMap.values()).some(stage => isCompletedLike(stage.status));
+  if (hasCompletedStages) return "in-progress";
 
-    return "not-started";
-  };
+  return "not-started";
+};
 
   const formatDatabaseCustomer = (dbCustomer: any, lifecycleStages: any[] = []): CustomerData => {
     // Strictly completed stages (for filters and "furthestCompletedStage")
@@ -134,7 +134,9 @@ const Customers = () => {
       }
     }
 
-    const operationalStatus = getOperationalStatus(lifecycleStages);
+    // Create stage map for canonical lookups
+    const stageMap = createStageNameMap(lifecycleStages);
+    const operationalStatus = getOperationalStatus(stageMap);
 
     // Compute latest completed stage by defined stage order (not by timestamp)
     const furthestCompletedStage = completedStages.length
