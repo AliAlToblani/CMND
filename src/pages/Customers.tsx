@@ -19,8 +19,9 @@ import { toast } from "sonner";
 import { syncCustomersToDatabase } from "@/utils/customerDataSync";
 import { exportCustomersToExcel } from "@/utils/excelExport";
 import { canonicalizeStageName, createStageNameMap } from "@/utils/stageNames";
-
 import { sortStagesByOrder } from "@/utils/stageOrdering";
+import { isCompletedLike, isInProgressLike, isBlockedLike, getOperationalStatusFromArray } from "@/utils/stageStatus";
+import { resolvePipelineStageFromLifecycleStages } from "@/utils/pipelineRules";
 
 const Customers = () => {
   const navigate = useNavigate();
@@ -38,24 +39,7 @@ const Customers = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
-  // Define lifecycle to pipeline stage mapping (same as in usePipelineData)
-  const LIFECYCLE_TO_PIPELINE_MAPPING: Record<string, string> = {
-    "Prospect": "Lead",
-    "Qualified Lead": "Qualified", 
-    "Meeting Set": "Qualified",
-    "Demo": "Demo",
-    "Discovery Call": "Demo",
-    "Proposal Sent": "Proposal",
-    "Proposal Approved": "Proposal", 
-    "Contract Sent": "Contract",
-    "Contract Signed": "Contract",
-    "Onboarding": "Implementation",
-    "Technical Setup": "Implementation",
-    "Training": "Implementation",
-    "Go Live": "Live"
-  };
-
-  const PIPELINE_STAGE_ORDER = ["Lead", "Qualified", "Demo", "Proposal", "Contract", "Implementation", "Live"];
+// Pipeline rules are centralized in utils/pipelineRules.ts
 
   // Normalize and interpret stage statuses from DB (case and synonym tolerant)
   const normalizeStatus = (s?: string) => (s ?? "").toString().trim().toLowerCase().replace(/[_\s]+/g, "-");
@@ -69,47 +53,9 @@ const Customers = () => {
   };
   const isBlockedLike = (s?: string) => normalizeStatus(s) === "blocked";
 
-  const getFurthestPipelineStage = (completedStages: string[]): string => {
-    const pipelineStages = completedStages
-      .map(stage => LIFECYCLE_TO_PIPELINE_MAPPING[stage])
-      .filter(Boolean);
-    
-    if (pipelineStages.length === 0) return "Lead";
-    
-    let furthestStageIndex = -1;
-    for (const stage of pipelineStages) {
-      const index = PIPELINE_STAGE_ORDER.indexOf(stage);
-      if (index > furthestStageIndex) {
-        furthestStageIndex = index;
-      }
-    }
-    
-    return PIPELINE_STAGE_ORDER[furthestStageIndex] || "Lead";
-  };
+// getFurthestPipelineStage removed; using resolvePipelineStageFromLifecycleStages
 
-const getOperationalStatus = (stageMap: Map<string, any>): "not-started" | "in-progress" | "done" | "blocked" => {
-  if (!stageMap || stageMap.size === 0) return "not-started";
-
-  // Check if customer has completed "Go Live" stage (using canonical name)
-  const goLiveStage = stageMap.get('Go Live');
-  const hasCompletedGoLive = goLiveStage && isCompletedLike(goLiveStage.status);
-
-  if (hasCompletedGoLive) return "done";
-
-  // Check if any stage is blocked
-  const hasBlockedStages = Array.from(stageMap.values()).some(stage => isBlockedLike(stage.status));
-  if (hasBlockedStages) return "blocked";
-
-  // Check if any stage is in progress
-  const hasInProgressStages = Array.from(stageMap.values()).some(stage => isInProgressLike(stage.status));
-  if (hasInProgressStages) return "in-progress";
-
-  // Check if any stage is completed (but not Go Live)
-  const hasCompletedStages = Array.from(stageMap.values()).some(stage => isCompletedLike(stage.status));
-  if (hasCompletedStages) return "in-progress";
-
-  return "not-started";
-};
+// getOperationalStatus removed; using getOperationalStatusFromArray from utils/stageStatus
 
   const formatDatabaseCustomer = (dbCustomer: any, lifecycleStages: any[] = []): CustomerData => {
     // Strictly completed stages (for filters and "furthestCompletedStage")
@@ -117,13 +63,8 @@ const getOperationalStatus = (stageMap: Map<string, any>): "not-started" | "in-p
       .filter(stage => isCompletedLike(stage.status))
       .map(stage => stage.name);
 
-    // Stages the customer has at least reached (completed or in progress)
-    const reachedStages = lifecycleStages
-      .filter(stage => isCompletedLike(stage.status) || isInProgressLike(stage.status))
-      .map(stage => stage.name);
-
-    // Compute pipeline stage from reached stages (more forgiving than only completed)
-    let pipelineStage = getFurthestPipelineStage(reachedStages);
+    // Compute pipeline stage from lifecycle stages (completed or in progress)
+    let pipelineStage = resolvePipelineStageFromLifecycleStages(lifecycleStages, { includeInProgress: true });
 
     // If a Go Live date exists and is in the past, force Live
     if (dbCustomer.go_live_date) {
@@ -134,9 +75,8 @@ const getOperationalStatus = (stageMap: Map<string, any>): "not-started" | "in-p
       }
     }
 
-    // Create stage map for canonical lookups
-    const stageMap = createStageNameMap(lifecycleStages);
-    const operationalStatus = getOperationalStatus(stageMap);
+    // Determine operational status using centralized helper
+    const operationalStatus = getOperationalStatusFromArray(lifecycleStages);
 
     // Compute latest completed stage by defined stage order (not by timestamp)
     const furthestCompletedStage = completedStages.length

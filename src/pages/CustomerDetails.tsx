@@ -14,9 +14,10 @@ import { ChurnConfirmationDialog } from "@/components/customers/ChurnConfirmatio
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-
 import { CustomerData } from "@/types/customers";
 import { LifecycleStageProps } from "@/components/lifecycle/LifecycleStage";
+import { resolvePipelineStageFromLifecycleStages } from "@/utils/pipelineRules";
+import { getOperationalStatusFromArray } from "@/utils/stageStatus";
 
 const CustomerDetails = () => {
   const { id } = useParams<{ id: string }>();
