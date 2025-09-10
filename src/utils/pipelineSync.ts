@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { canonicalizeStageName } from "@/utils/stageNames";
 import { isCompletedLike, isInProgressLike, getOperationalStatusFromArray } from "@/utils/stageStatus";
-import { PIPELINE_STAGE_ORDER, LIFECYCLE_TO_PIPELINE_MAPPING, getFurthestPipelineStageFromNames } from "@/utils/pipelineRules";
+import { getFurthestPipelineStageFromNames } from "@/utils/pipelineRules";
 
 
 const computePipelineStage = (stages: any[]): string => {
@@ -53,12 +53,8 @@ export const syncCustomerPipelineStages = async (): Promise<boolean> => {
     // Update each customer's pipeline stage and status
     for (const customer of customers || []) {
       const customerStages = stagesByCustomer[customer.id] || [];
-      const completedStages = customerStages
-        .filter(stage => stage.status === "done")
-        .map(stage => stage.name);
-      
-      const newPipelineStage = getFurthestPipelineStage(completedStages);
-      const newOperationalStatus = getOperationalStatus(customerStages);
+      const newPipelineStage = computePipelineStage(customerStages);
+      const newOperationalStatus = computeOperationalStatus(customerStages);
       
       // Only update if stage or status has changed
       if (customer.stage !== newPipelineStage || customer.status !== newOperationalStatus) {
