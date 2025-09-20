@@ -65,6 +65,17 @@ export const syncCustomerPipelineStages = async (): Promise<boolean> => {
     });
 
     console.log(`🔄 Processing ${Object.keys(stagesByCustomer).length} customers with stages`);
+    
+    // Debug Gulf Air specifically
+    const gulfAirCustomer = customers?.find(c => c.name === 'Gulf Air');
+    if (gulfAirCustomer) {
+      const gulfAirStages = stagesByCustomer[gulfAirCustomer.id] || [];
+      console.log(`🔴 GULF AIR STAGE GROUPING DEBUG:`);
+      console.log(`   - Customer ID: ${gulfAirCustomer.id}`);
+      console.log(`   - Stages found in grouping: ${gulfAirStages.length}`);
+      console.log(`   - Stage names: [${gulfAirStages.map(s => s.name).join(', ')}]`);
+      console.log(`   - All customer IDs with stages: [${Object.keys(stagesByCustomer).join(', ')}]`);
+    }
 
     let updatedCount = 0;
     const syncResults: Array<{
