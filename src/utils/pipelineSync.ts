@@ -25,6 +25,11 @@ export const syncCustomerPipelineStages = async (): Promise<boolean> => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     console.log("🔐 Auth context:", { user: user?.id, email: user?.email, error: authError });
     
+    if (authError || !user) {
+      console.error("❌ Authentication failed in pipeline sync:", authError);
+      return false;
+    }
+    
     // Fetch all customers, excluding churned customers from pipeline sync
     const { data: customers, error: customersError } = await supabase
       .from('customers')
