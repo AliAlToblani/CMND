@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomerData } from "@/types/customers";
 import { canonicalizeStageName, createStageNameMap } from "@/utils/stageNames";
+import { syncCustomerPipelineStages } from "@/utils/pipelineSync";
 
 export interface PipelineStageData {
   stageName: string;
@@ -46,6 +47,10 @@ export const usePipelineData = () => {
     try {
       setIsLoading(true);
       setError(null);
+      
+      // Run pipeline sync to ensure database is up to date
+      console.log('Running pipeline sync before fetching data...');
+      await syncCustomerPipelineStages();
 
       // Fetch all customers with estimated deal values, excluding churned customers (include NULL status)
       const { data: customers, error: fetchError } = await supabase
@@ -85,7 +90,8 @@ lifecycleStages?.forEach(stage => {
       const transformedCustomers: CustomerData[] = (customers || []).map(customer => {
         const completedStages = stagesByCustomer[customer.id] || [];
         const pipelineStage = getFurthestPipelineStage(completedStages);
-        const finalStage = (pipelineStage === 'Lead' && customer.go_live_date) ? 'Live' : pipelineStage;
+        
+        console.log(`Customer ${customer.name}: stages=${completedStages.join(', ')} -> ${pipelineStage}`);
         
         return {
           id: customer.id,
@@ -93,7 +99,7 @@ lifecycleStages?.forEach(stage => {
           logo: customer.logo || undefined,
           segment: customer.segment || "Unknown Segment",
           country: customer.country || "Unknown Country",
-          stage: finalStage,
+          stage: pipelineStage,
           status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
           contractSize: customer.estimated_deal_value || 0,
           owner: {
