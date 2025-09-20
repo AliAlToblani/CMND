@@ -97,7 +97,7 @@ export const syncCustomerPipelineStages = async (): Promise<boolean> => {
       let finalPipelineStage = newPipelineStage;
       let finalOperationalStatus = newOperationalStatus;
       
-      if (customer.name === 'Gulf Air') {
+      if (customer.name.trim() === 'Gulf Air') {
         // Force Gulf Air to Demo stage since we know it has completed stages through Demo
         finalPipelineStage = 'Demo';
         finalOperationalStatus = 'in-progress';
