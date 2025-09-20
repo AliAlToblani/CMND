@@ -22,6 +22,8 @@ import { canonicalizeStageName, createStageNameMap } from "@/utils/stageNames";
 import { sortStagesByOrder } from "@/utils/stageOrdering";
 import { isCompletedLike, isInProgressLike, isBlockedLike, getOperationalStatusFromArray } from "@/utils/stageStatus";
 import { resolvePipelineStageFromLifecycleStages } from "@/utils/pipelineRules";
+import { syncCustomerPipelineStages } from "@/utils/pipelineSync";
+import { debugNawaraPipeline } from "@/utils/debugPipeline";
 
 const Customers = () => {
   const navigate = useNavigate();
@@ -265,7 +267,9 @@ const Customers = () => {
     };
   }, []);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
+    console.log('=== Running Pipeline Sync Before Refresh ===');
+    await syncCustomerPipelineStages();
     fetchCustomers(true);
   };
 
