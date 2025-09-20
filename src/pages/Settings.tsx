@@ -29,9 +29,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProfileTab } from "@/components/settings/ProfileTab";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { CountryManagement } from "@/components/settings/CountryManagement";
-import { ProfileTab } from "@/components/settings/ProfileTab";
+import { PipelineSyncUtility } from "@/components/admin/PipelineSyncUtility";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -102,10 +103,16 @@ const SettingsPage = () => {
                        Preferences
                      </TabsTrigger>
                      {isAdmin && (
-                       <TabsTrigger value="countries" className="w-full justify-start px-3 py-2.5 text-left data-[state=active]:bg-accent/70 data-[state=active]:text-accent-foreground rounded-md transition-colors">
-                         <Globe className="mr-3 h-4 w-4" />
-                         Countries
-                       </TabsTrigger>
+                       <>
+                         <TabsTrigger value="countries" className="w-full justify-start px-3 py-2.5 text-left data-[state=active]:bg-accent/70 data-[state=active]:text-accent-foreground rounded-md transition-colors">
+                           <Globe className="mr-3 h-4 w-4" />
+                           Countries
+                         </TabsTrigger>
+                         <TabsTrigger value="system" className="w-full justify-start px-3 py-2.5 text-left data-[state=active]:bg-accent/70 data-[state=active]:text-accent-foreground rounded-md transition-colors">
+                           <SettingsIcon className="mr-3 h-4 w-4" />
+                           System
+                         </TabsTrigger>
+                       </>
                      )}
                    </TabsList>
                 </div>
@@ -485,9 +492,22 @@ const SettingsPage = () => {
                    </TabsContent>
                    
                    {isAdmin && (
-                     <TabsContent value="countries" className="m-0 animate-slide-in">
-                       <CountryManagement />
-                     </TabsContent>
+                     <>
+                       <TabsContent value="countries" className="m-0 animate-slide-in">
+                         <CountryManagement />
+                       </TabsContent>
+                       
+                       <TabsContent value="system" className="m-0 animate-slide-in">
+                         <div className="space-y-6">
+                           <div>
+                             <h2 className="text-xl font-semibold mb-2">System Administration</h2>
+                             <p className="text-muted-foreground mb-6">Advanced system utilities and maintenance tools for administrators.</p>
+                           </div>
+                           
+                           <PipelineSyncUtility />
+                         </div>
+                       </TabsContent>
+                     </>
                    )}
                  </div>
               </div>

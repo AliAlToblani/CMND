@@ -244,8 +244,14 @@ const Customers = () => {
   };
 
   useEffect(() => {
-    // Only fetch from database, no automatic sync
-    fetchCustomers();
+    // Run pipeline sync before fetching data to ensure consistency
+    const initializeCustomersPage = async () => {
+      console.log("🔄 Customers page initializing - running pipeline sync");
+      await syncCustomerPipelineStages();
+      fetchCustomers();
+    };
+    
+    initializeCustomersPage();
   }, []);
 
   // Refresh data when navigating back to this page

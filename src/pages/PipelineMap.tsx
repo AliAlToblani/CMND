@@ -1,9 +1,20 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PipelineVisualization } from "@/components/pipeline/PipelineVisualization";
+import { syncCustomerPipelineStages } from "@/utils/pipelineSync";
 
 const PipelineMap = () => {
+  // Run pipeline sync when page loads to ensure accurate data
+  useEffect(() => {
+    const initializePipelineMap = async () => {
+      console.log("🔄 PipelineMap: Running pipeline sync on page load");
+      await syncCustomerPipelineStages();
+    };
+    
+    initializePipelineMap();
+  }, []);
+
   return (
     <DashboardLayout>
       <div className="space-y-6">

@@ -18,6 +18,7 @@ import { CustomerData } from "@/types/customers";
 import { LifecycleStageProps } from "@/components/lifecycle/LifecycleStage";
 import { resolvePipelineStageFromLifecycleStages } from "@/utils/pipelineRules";
 import { getOperationalStatusFromArray } from "@/utils/stageStatus";
+import { syncCustomerPipelineStages } from "@/utils/pipelineSync";
 
 const CustomerDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -107,6 +108,9 @@ const CustomerDetails = () => {
     queryFn: async () => {
       if (!id) return null;
       
+      console.log("🔄 CustomerDetails: Running pipeline sync before fetching customer data");
+      await syncCustomerPipelineStages();
+      
       console.log("Fetching customer details for ID:", id);
       
       try {
@@ -125,7 +129,6 @@ const CustomerDetails = () => {
           console.log("Found customer in database:", dbCustomer);
           return dbCustomer;
         }
-
 
         console.log("Customer not found anywhere");
         return null;
