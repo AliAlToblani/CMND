@@ -1,0 +1,4 @@
+-- Insert the existing ARKS Diyar documents that are in storage but missing from database
+INSERT INTO documents (customer_id, name, file_path, document_type, file_size, uploaded_by) VALUES
+('f9ceb6e2-55c2-40f2-892a-8f55fc7ddbf2', 'DOO - ARKS - Service Agreement.docx', 'customers/customer-f9ceb6e2-55c2-40f2-892a-8f55fc7ddbf2-1758562926880-DOO - ARKS - Service Agreement.docx', 'contract', 303258, '6c25168d-d412-4e20-b794-9f1e76d6a66d'),
+('f9ceb6e2-55c2-40f2-892a-8f55fc7ddbf2', 'ARKS Invoice.pdf', 'customers/customer-f9ceb6e2-55c2-40f2-892a-8f55fc7ddbf2-1758562930540-ARKS Invoice.pdf', 'invoice', 128343, '6c25168d-d412-4e20-b794-9f1e76d6a66d');
