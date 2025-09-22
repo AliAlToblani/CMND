@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { CustomerCard } from "@/components/customers/CustomerCard";
+import { ContractCard } from "@/components/contracts/ContractCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Users, HandHeart, Kanban, BarChart3, TrendingUp, Activity, Clock, Briefcase, LifeBuoy, Calendar, DollarSign, Target, AlertTriangle, Percent } from "lucide-react";
@@ -36,7 +36,9 @@ const Index = () => {
   
   const navigate = useNavigate();
   const [customers, setCustomers] = useState<CustomerData[]>([]);
+  const [pendingContracts, setPendingContracts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [contractsLoading, setContractsLoading] = useState(true);
   const [metrics, setMetrics] = useState({
     dealsPipeline: { value: 0, count: 0 },
     totalPipelineValue: 0,
@@ -198,6 +200,53 @@ const Index = () => {
     refreshMetrics();
   }, [customers]);
 
+  // Fetch pending contracts
+  useEffect(() => {
+    const fetchPendingContracts = async () => {
+      try {
+        setContractsLoading(true);
+        const { data, error } = await supabase
+          .from('contracts')
+          .select(`
+            id,
+            name,
+            value,
+            start_date,
+            end_date,
+            status,
+            customers!inner(id, name)
+          `)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(4);
+
+        if (error) {
+          console.error('Error fetching pending contracts:', error);
+          return;
+        }
+
+        const formattedContracts = data?.map(contract => ({
+          id: contract.id,
+          name: contract.name,
+          value: contract.value,
+          start_date: contract.start_date,
+          end_date: contract.end_date,
+          status: contract.status,
+          customer_name: contract.customers.name,
+          customer_id: contract.customers.id
+        })) || [];
+
+        setPendingContracts(formattedContracts);
+      } catch (error) {
+        console.error('Error fetching pending contracts:', error);
+      } finally {
+        setContractsLoading(false);
+      }
+    };
+
+    fetchPendingContracts();
+  }, []);
+
   // Calculate dashboard metrics  
   const formattedARR = formatCurrency(arrData.totalARR, false);
   const formattedDealsPipeline = formatCurrency(metrics.dealsPipeline.value, false);
@@ -273,10 +322,6 @@ const Index = () => {
     }
   ];
   
-  // Get unique customers for the Recent Customers section to avoid duplicates
-  const recentCustomers = customers.filter((customer, index, self) => 
-    index === self.findIndex((c) => c.name === customer.name)
-  ).slice(0, 4);
   
   return (
     <DashboardLayout>
@@ -307,22 +352,26 @@ const Index = () => {
           <Card className="col-span-2 bg-card dark:bg-gray-800">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg font-medium">
-                Recent Customers
+                Pending Contracts
               </CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => navigate("/customers")}>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/contracts")}>
                 View All
               </Button>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {loading ? (
+                {contractsLoading ? (
                   Array(4).fill(0).map((_, i) => (
-                    <div key={i} className="h-48 bg-gray-100 animate-pulse rounded-md"></div>
+                    <div key={i} className="h-32 bg-gray-100 animate-pulse rounded-md"></div>
+                  ))
+                ) : pendingContracts.length > 0 ? (
+                  pendingContracts.map((contract) => (
+                    <ContractCard key={contract.id} contract={contract} />
                   ))
                 ) : (
-                  recentCustomers.map((customer) => (
-                    <CustomerCard key={customer.id} customer={customer} />
-                  ))
+                  <div className="col-span-2 text-center py-8 text-muted-foreground">
+                    No pending contracts found
+                  </div>
                 )}
               </div>
             </CardContent>
