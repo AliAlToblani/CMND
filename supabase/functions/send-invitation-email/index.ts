@@ -4,7 +4,15 @@ import { Resend } from "npm:resend@2.0.0";
 
 console.log("Loading send-invitation-email function...");
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+// Validate RESEND_API_KEY at startup
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+if (!RESEND_API_KEY) {
+  console.error("CRITICAL: RESEND_API_KEY is not set!");
+} else {
+  console.log("RESEND_API_KEY is configured:", RESEND_API_KEY.substring(0, 10) + "...");
+}
+
+const resend = new Resend(RESEND_API_KEY);
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -25,6 +33,8 @@ interface EmailRequest {
 
 serve(async (req) => {
   console.log(`Received ${req.method} request to send-invitation-email`);
+  console.log("Request URL:", req.url);
+  console.log("Request headers:", Object.fromEntries(req.headers.entries()));
   
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -33,10 +43,26 @@ serve(async (req) => {
   }
 
   try {
+    // Validate RESEND_API_KEY before processing
+    if (!RESEND_API_KEY) {
+      console.error("RESEND_API_KEY is not configured");
+      return new Response(
+        JSON.stringify({ 
+          error: "Email service not configured. Please set RESEND_API_KEY.",
+          details: "The RESEND_API_KEY environment variable is missing"
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
     console.log("Processing invitation email request");
-    console.log("RESEND_API_KEY exists:", !!Deno.env.get("RESEND_API_KEY"));
+    console.log("RESEND_API_KEY exists:", !!RESEND_API_KEY);
     
     const body = await req.text();
+    console.log("Raw request body length:", body.length);
     console.log("Raw request body:", body);
     
     let parsedBody;
@@ -44,41 +70,105 @@ serve(async (req) => {
       parsedBody = JSON.parse(body);
     } catch (parseError) {
       console.error("Failed to parse JSON:", parseError);
-      throw new Error("Invalid JSON in request body");
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid JSON in request body",
+          details: parseError.message
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
     
     const { invitation }: EmailRequest = parsedBody;
-    console.log("Invitation data:", invitation);
+    console.log("Parsed invitation data:", JSON.stringify(invitation, null, 2));
 
     if (!invitation) {
-      throw new Error("Missing invitation data in request");
+      return new Response(
+        JSON.stringify({ 
+          error: "Missing invitation data in request",
+          details: "The 'invitation' field is required in the request body"
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
     if (!invitation.email || !invitation.role || !invitation.inviteLink) {
-      throw new Error("Missing required invitation fields: email, role, or inviteLink");
+      return new Response(
+        JSON.stringify({ 
+          error: "Missing required invitation fields",
+          details: "email, role, and inviteLink are all required",
+          received: {
+            hasEmail: !!invitation.email,
+            hasRole: !!invitation.role,
+            hasInviteLink: !!invitation.inviteLink
+          }
+        }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
     // Build email content
     const emailContent = buildInvitationEmailContent(invitation);
 
     console.log("Attempting to send email via Resend...");
+    console.log("Email recipient:", invitation.email);
+    console.log("Email sender: DOO Command <hello@doo.ooo>");
     
-    // Send email using Resend
-    const emailResponse = await resend.emails.send({
-      from: "DOO Command <hello@doo.ooo>",
-      to: [invitation.email],
-      subject: `You're invited to join ${invitation.companyName || 'our team'} on DOO Command`,
-      html: emailContent,
-    });
+    let emailResponse;
+    try {
+      // Send email using Resend
+      emailResponse = await resend.emails.send({
+        from: "DOO Command <hello@doo.ooo>",
+        to: [invitation.email],
+        subject: `You're invited to join ${invitation.companyName || 'our team'} on DOO Command`,
+        html: emailContent,
+      });
 
-    console.log("Resend response:", emailResponse);
+      console.log("Resend API call completed");
+      console.log("Resend response:", JSON.stringify(emailResponse, null, 2));
+    } catch (resendError) {
+      console.error("Resend API call failed:", resendError);
+      console.error("Resend error details:", JSON.stringify(resendError, null, 2));
+      
+      return new Response(
+        JSON.stringify({ 
+          error: "Failed to call Resend API",
+          details: resendError.message,
+          hint: "Check that your RESEND_API_KEY is valid and that hello@doo.ooo domain is verified in Resend"
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
     
     if (emailResponse.error) {
-      console.error("Resend API error:", emailResponse.error);
-      throw new Error(`Resend API error: ${emailResponse.error.message || emailResponse.error}`);
+      console.error("Resend API returned error:", emailResponse.error);
+      return new Response(
+        JSON.stringify({ 
+          error: "Resend API error",
+          details: emailResponse.error.message || JSON.stringify(emailResponse.error),
+          hint: "This usually means the domain is not verified or the API key is invalid"
+        }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
-    console.log("Invitation email sent successfully:", emailResponse.data);
+    console.log("Invitation email sent successfully!");
+    console.log("Email ID:", emailResponse.data?.id);
 
     return new Response(
       JSON.stringify({ 
@@ -93,13 +183,17 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error("Error sending invitation email:", error);
+    console.error("Unexpected error in send-invitation-email:", error);
+    console.error("Error type:", error.constructor.name);
+    console.error("Error message:", error.message);
     console.error("Error stack:", error.stack);
     
     return new Response(
       JSON.stringify({ 
-        error: error.message,
-        details: "Check function logs for more information"
+        error: error.message || "Unknown error occurred",
+        errorType: error.constructor.name,
+        details: "An unexpected error occurred. Check function logs for details.",
+        stack: error.stack
       }),
       { 
         status: 500, 
