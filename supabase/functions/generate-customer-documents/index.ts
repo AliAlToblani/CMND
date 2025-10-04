@@ -1,3 +1,4 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
@@ -6,61 +7,45 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface DocumentGenerationRequest {
-  customer_id: string;
-  document_types: Array<'proposal' | 'service_agreement' | 'sla' | 'quotation'>;
-  format: 'pdf';
-  options?: {
-    include_logo?: boolean;
-    custom_fields?: Record<string, any>;
-  };
-}
+console.log('[DOC-GEN] Function file loaded');
 
 serve(async (req) => {
-  // Handle CORS preflight
+  console.log('[DOC-GEN] Request received:', req.method, req.url);
+  
   if (req.method === 'OPTIONS') {
+    console.log('[DOC-GEN] Handling CORS preflight');
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('[DOC-GEN] Function invoked, method:', req.method);
+    console.log('[DOC-GEN] Processing request');
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
-    console.log('[DOC-GEN] Environment check:', {
-      hasUrl: !!supabaseUrl,
-      hasKey: !!supabaseKey
-    });
-    
     if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Missing Supabase environment variables');
+      throw new Error('Missing environment variables');
     }
     
     const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Get authenticated user
+    
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error('Missing authorization header');
+      throw new Error('Missing authorization');
     }
     
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     
     if (authError || !user) {
-      console.error('[DOC-GEN] Auth error:', authError);
       throw new Error('Unauthorized');
     }
 
-    console.log('[DOC-GEN] User authenticated:', user.id);
-
-    const requestBody: DocumentGenerationRequest = await req.json();
-    const { customer_id, document_types, options } = requestBody;
-
-    console.log('[DOC-GEN] Request params:', { customer_id, document_types, options });
-
-    // Fetch customer data
+    const body = await req.json();
+    console.log('[DOC-GEN] Request body:', body);
+    
+    const { customer_id, document_types } = body;
+    
     const { data: customer, error: customerError } = await supabase
       .from('customers')
       .select('*')
@@ -68,50 +53,41 @@ serve(async (req) => {
       .single();
 
     if (customerError || !customer) {
-      console.error('[DOC-GEN] Customer fetch error:', customerError);
       throw new Error('Customer not found');
     }
 
-    console.log('[DOC-GEN] Customer found:', customer.name);
+    console.log('[DOC-GEN] Processing customer:', customer.name);
 
-    // For now, return a simple success response
-    // TODO: Add actual PDF generation
-    const mockResults = document_types.map(docType => ({
-      type: docType,
-      file_path: `${customer_id}/${docType}_mock.pdf`,
-      download_url: `https://example.com/mock/${docType}.pdf`,
-      generated_at: new Date().toISOString(),
-      note: 'Mock document - PDF generation coming soon'
+    const mockDocs = document_types.map((type: string) => ({
+      type,
+      file_path: `mock/${type}.pdf`,
+      download_url: `https://example.com/${type}.pdf`,
+      generated_at: new Date().toISOString()
     }));
 
     return new Response(
       JSON.stringify({
         success: true,
-        documents: mockResults,
-        message: 'Edge function is working. PDF generation will be implemented next.',
-        customer: {
-          id: customer.id,
-          name: customer.name
-        }
+        documents: mockDocs,
+        message: 'Test successful'
       }),
       {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
       }
     );
 
   } catch (error: any) {
-    console.error('[DOC-GEN] Fatal error:', error);
+    console.error('[DOC-GEN] Error:', error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message || 'Unknown error occurred',
-        documents: [],
-        stack: error.stack
+        error: error.message,
+        documents: []
       }),
       {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500
       }
     );
   }
