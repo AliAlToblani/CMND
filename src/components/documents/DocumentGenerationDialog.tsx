@@ -60,6 +60,12 @@ export const DocumentGenerationDialog = ({
     setErrors([]);
 
     try {
+      console.log('[DOC-GEN-DIALOG] Starting generation request...', {
+        customerId,
+        selectedDocuments,
+        includeLogo
+      });
+
       const { data, error } = await supabase.functions.invoke('generate-customer-documents', {
         body: {
           customer_id: customerId,
@@ -71,7 +77,12 @@ export const DocumentGenerationDialog = ({
         }
       });
 
-      if (error) throw error;
+      console.log('[DOC-GEN-DIALOG] Function response:', { data, error });
+
+      if (error) {
+        console.error('[DOC-GEN-DIALOG] Function invocation error:', error);
+        throw error;
+      }
 
       if (data.success && data.documents.length > 0) {
         setGeneratedDocuments(data.documents);
@@ -95,14 +106,15 @@ export const DocumentGenerationDialog = ({
         throw new Error(data.error || 'Generation failed');
       }
 
-    } catch (error) {
-      console.error('Document generation error:', error);
+    } catch (error: any) {
+      console.error('[DOC-GEN-DIALOG] Document generation error:', error);
+      const errorMessage = error?.message || error?.error_description || error?.msg || 'Failed to generate documents';
       toast({
         title: "Generation failed",
-        description: error.message || "Failed to generate documents. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
-      setErrors([error.message || 'Unknown error']);
+      setErrors([errorMessage]);
     } finally {
       setIsGenerating(false);
     }
