@@ -35,15 +35,24 @@ async function drawProfessionalHeader(page: any, dooLogoBytes: Uint8Array, custo
     page.drawRectangle({ x: 0, y: y - (gradientHeight / gradientSteps), width: width, height: gradientHeight / gradientSteps + 1, color: rgb(r, g, b) });
   }
 
+  // DOO logo - scale proportionally, don't stretch
   const dooLogoImage = await pdfDoc.embedPng(dooLogoBytes);
-  page.drawImage(dooLogoImage, { x: 50, y: height - 70, width: 180, height: 65 });
+  const logoDims = dooLogoImage.scale(0.5); // Scale to 50% to get proper size
+  page.drawImage(dooLogoImage, { x: 50, y: height - 70, width: logoDims.width, height: logoDims.height });
 
   if (customerLogoBytes) {
     try {
       const customerLogoImage = await pdfDoc.embedPng(customerLogoBytes);
-      page.drawImage(customerLogoImage, { x: width - 110, y: height - 70, width: 60, height: 60 });
+      const customerLogoDims = customerLogoImage.scale(0.1);
+      page.drawImage(customerLogoImage, { x: width - 110, y: height - 70, width: customerLogoDims.width, height: customerLogoDims.height });
     } catch (e) { console.error('Customer logo error:', e); }
   }
+}
+
+function drawFooter(page: any, font: any, pageNumber: number) {
+  const { width } = page.getSize();
+  page.drawText(`Page ${pageNumber}`, { x: 50, y: 30, font, size: 9, color: rgb(0.5, 0.5, 0.5) });
+  page.drawText('www.doo.ooo | hello@doo.ooo', { x: width - 200, y: 30, font, size: 9, color: rgb(0.5, 0.5, 0.5) });
 }
 
 function formatCurrency(amount: number, currency: string = 'BD') {
@@ -51,231 +60,439 @@ function formatCurrency(amount: number, currency: string = 'BD') {
 }
 
 async function generateProposal(customer: any, pdfDoc: any, font: any, boldFont: any, dooLogoBytes: Uint8Array, customerLogoBytes: Uint8Array | null) {
-  // Cover Page
-  const coverPage = pdfDoc.addPage([595, 842]);
-  await drawProfessionalHeader(coverPage, dooLogoBytes, customerLogoBytes, pdfDoc);
-  
-  coverPage.drawText('Customer Proposal', { x: 50, y: 650, font: boldFont, size: 36, color: rgb(0.57, 0.27, 1) });
-  coverPage.drawText(`Prepared for ${customer.name}`, { x: 50, y: 600, font: boldFont, size: 20 });
-  coverPage.drawText(`Contact: ${customer.contact_name || 'N/A'}`, { x: 50, y: 560, font, size: 14 });
-  coverPage.drawText(`Email: ${customer.contact_email || 'N/A'}`, { x: 50, y: 540, font, size: 14 });
-  coverPage.drawText(`Date: ${new Date().toLocaleDateString()}`, { x: 50, y: 500, font, size: 14 });
+  // Page 1: Cover
+  const page1 = pdfDoc.addPage([595, 842]);
+  await drawProfessionalHeader(page1, dooLogoBytes, customerLogoBytes, pdfDoc);
+  page1.drawText('AI CX PROPOSAL', { x: 200, y: 420, font: boldFont, size: 36, color: rgb(0.57, 0.27, 1) });
+  drawFooter(page1, font, 1);
 
-  // Page 2: Company Overview
+  // Page 2: About DOO
   const page2 = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page2, dooLogoBytes, customerLogoBytes, pdfDoc);
+  page2.drawText('DOO: Innovative AI Solutions for Customer Service', { x: 50, y: 720, font: boldFont, size: 16 });
+  page2.drawText('and Marketing', { x: 50, y: 700, font: boldFont, size: 16 });
   
-  page2.drawText('About DOO', { x: 50, y: 720, font: boldFont, size: 24 });
-  const aboutText = [
-    'DOO is a leading provider of AI-powered customer service solutions.',
-    'We help businesses automate and enhance their customer interactions',
-    'through advanced text and voice AI technologies.',
+  let y = 670;
+  const aboutLines = [
+    'DOO is an innovative platform that leverages the power of AI to enhance customer',
+    'service and marketing for businesses. Our goal is to help companies streamline their',
+    'customer interactions, boost engagement, and improve sales processes using advanced',
+    'AI technology.',
     '',
-    'Our solutions are designed to:',
-    '• Reduce response times by up to 80%',
-    '• Handle unlimited simultaneous conversations',
-    '• Provide 24/7 customer support coverage',
-    '• Scale seamlessly with your business growth',
+    'We believe in providing ongoing, personalized support that helps businesses operate',
+    'more efficiently and connect with their customers whenever and wherever they need.',
   ];
-  let yPos = 680;
-  aboutText.forEach(line => {
-    page2.drawText(line, { x: 50, y: yPos, font, size: 12 });
-    yPos -= 20;
-  });
+  aboutLines.forEach(line => { page2.drawText(line, { x: 50, y, font, size: 11 }); y -= 18; });
+  
+  y -= 10;
+  page2.drawText("Here's what we offer:", { x: 50, y, font: boldFont, size: 13 });
+  y -= 25;
+  page2.drawText('• AI-Powered Customer Service: Automate responses on popular messaging', { x: 50, y, font, size: 11 });
+  y -= 18;
+  page2.drawText('  platforms like WhatsApp and Instagram, so you can respond to your customers', { x: 50, y, font, size: 11 });
+  y -= 18;
+  page2.drawText('  quickly and effectively.', { x: 50, y, font, size: 11 });
+  y -= 20;
+  page2.drawText('• Custom AI Agents: We create personalized AI agents that fit the unique needs', { x: 50, y, font, size: 11 });
+  y -= 18;
+  page2.drawText('  and voice of your business.', { x: 50, y, font, size: 11 });
+  
+  y -= 30;
+  const finalLines = [
+    'At DOO, we ensure that customer interactions are instant and personalized, with support',
+    'for multiple languages, creating a smooth experience for everyone. Our solutions not only',
+    'enhance service quality but also help reduce operational costs.',
+    '',
+    'We primarily serve businesses that want to elevate their customer experience through',
+    'automation, making it easier to meet the needs of their clients.',
+  ];
+  finalLines.forEach(line => { page2.drawText(line, { x: 50, y, font, size: 11 }); y -= 18; });
+  drawFooter(page2, font, 2);
 
-  // Page 3: Service Details
+  // Page 3: Problem & Advantages
   const page3 = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page3, dooLogoBytes, customerLogoBytes, pdfDoc);
+  page3.drawText('PROBLEM', { x: 50, y: 720, font: boldFont, size: 16 });
+  page3.drawText('Overwhelmed Teams | Missed Opportunities | Lack of Insights', { x: 50, y: 690, font, size: 11 });
   
-  page3.drawText('Proposed Services', { x: 50, y: 720, font: boldFont, size: 24 });
-  yPos = 680;
+  page3.drawText('ADVANTAGES', { x: 50, y: 640, font: boldFont, size: 16 });
+  y = 610;
+  page3.drawText('Streamlined Operations', { x: 50, y, font: boldFont, size: 12 });
+  y -= 18;
+  page3.drawText('Reduces response times and operational costs, and optimizing service delivery.', { x: 50, y, font, size: 10 });
   
-  if (customer.service_type === 'text' || customer.service_type === 'both') {
-    page3.drawText('Text AI Services', { x: 50, y: yPos, font: boldFont, size: 16 });
-    yPos -= 25;
-    page3.drawText(`Plan: ${customer.text_plan || 'N/A'}`, { x: 70, y: yPos, font, size: 12 });
-    yPos -= 20;
-    page3.drawText(`AI Responses: ${customer.text_ai_responses?.toLocaleString() || 'N/A'}`, { x: 70, y: yPos, font, size: 12 });
-    yPos -= 30;
-  }
+  y -= 30;
+  page3.drawText('Aligned Values', { x: 50, y, font: boldFont, size: 12 });
+  y -= 18;
+  page3.drawText('Mirrors brand personality in every interaction.', { x: 50, y, font, size: 10 });
   
-  if (customer.service_type === 'voice' || customer.service_type === 'both') {
-    page3.drawText('Voice AI Services', { x: 50, y: yPos, font: boldFont, size: 16 });
-    yPos -= 25;
-    page3.drawText(`Tier: ${customer.voice_tier || 'N/A'}`, { x: 70, y: yPos, font, size: 12 });
-    yPos -= 20;
-    page3.drawText(`Hours: ${customer.voice_hours || 'N/A'}`, { x: 70, y: yPos, font, size: 12 });
-    yPos -= 20;
-    page3.drawText(`Price per hour: ${formatCurrency(customer.voice_price_per_hour || 0, customer.currency)}`, { x: 70, y: yPos, font, size: 12 });
-    yPos -= 30;
-  }
+  y -= 30;
+  page3.drawText('Continuous Improvement', { x: 50, y, font: boldFont, size: 12 });
+  y -= 18;
+  page3.drawText("Utilizes DOO's AI-driven insights to continually enhance service offerings.", { x: 50, y, font, size: 10 });
+  drawFooter(page3, font, 3);
 
-  // Page 4: Pricing
+  // Page 4: AI Agents
   const page4 = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page4, dooLogoBytes, customerLogoBytes, pdfDoc);
+  page4.drawText('AI Agents that automate customer interactions', { x: 50, y: 720, font: boldFont, size: 16 });
+  y = 680;
+  const features = ['Order Status', 'FAQs', 'Take Action', 'Product Info', 'Problem Solving', 'Feedback'];
+  features.forEach(f => { page4.drawText(`• ${f}`, { x: 50, y, font, size: 12 }); y -= 25; });
   
-  page4.drawText('Investment', { x: 50, y: 720, font: boldFont, size: 24 });
-  page4.drawText(`Setup Fee: ${formatCurrency(customer.setup_fee || 0, customer.currency)}`, { x: 50, y: 670, font: boldFont, size: 14 });
-  page4.drawText(`Annual Rate: ${formatCurrency(customer.annual_rate || 0, customer.currency)}`, { x: 50, y: 640, font: boldFont, size: 14 });
-  page4.drawText(`Total First Year: ${formatCurrency((customer.setup_fee || 0) + (customer.annual_rate || 0), customer.currency)}`, { x: 50, y: 600, font: boldFont, size: 16, color: rgb(0.57, 0.27, 1) });
+  y -= 20;
+  page4.drawText('All Your Customer Conversations in a Unified Inbox', { x: 50, y, font: boldFont, size: 14 });
+  drawFooter(page4, font, 4);
+
+  // Page 5: Features
+  const page5 = pdfDoc.addPage([595, 842]);
+  await drawProfessionalHeader(page5, dooLogoBytes, customerLogoBytes, pdfDoc);
+  page5.drawText('Customer Pulse - AI-Driven CX Optimization', { x: 50, y: 720, font: boldFont, size: 14 });
+  page5.drawText('Monitor AI performance and customer sentiment across all channels. Use real-time', { x: 50, y: 690, font, size: 11 });
+  page5.drawText('insights to continuously improve customer satisfaction and service quality.', { x: 50, y: 672, font, size: 11 });
   
-  page4.drawText(`Payment Terms: ${customer.payment_terms_days || 14} days`, { x: 50, y: 550, font, size: 12 });
+  page5.drawText('Personalized AI Control', { x: 50, y: 620, font: boldFont, size: 14 });
+  page5.drawText('Customize their voice, adjust interaction styles, and ensure they provide a consistent', { x: 50, y: 590, font, size: 11 });
+  page5.drawText('and branded customer experience across all channels.', { x: 50, y: 572, font, size: 11 });
+  drawFooter(page5, font, 5);
+
+  // Page 6: OMLAQ
+  const page6 = pdfDoc.addPage([595, 842]);
+  await drawProfessionalHeader(page6, dooLogoBytes, customerLogoBytes, pdfDoc);
+  page6.drawText('OMLAQ - The Arabic Dialects Engine', { x: 50, y: 720, font: boldFont, size: 18 });
+  y = 680;
+  const omlaqLines = [
+    'OMLAQ is our Large Language Layer that is culturally aware, understands & speaks',
+    'in Arabic dialects.',
+    '',
+    'Replies in real dialect: Najdi, Bahraini, Kuwaiti, and more.',
+    '8 models, each tuned for authenticity and local culture.',
+    'Runs on Azure, live with customers today.',
+    '',
+    'OMLAQ Voice:',
+    'Speak to customers in their dialect: by phone, kiosk, or even in-car.',
+    'Natural, dialect-specific conversations to any touchpoint—no menus, no scripts,',
+    'just real connection.',
+  ];
+  omlaqLines.forEach(line => { page6.drawText(line, { x: 50, y, font, size: 11 }); y -= 18; });
+  drawFooter(page6, font, 6);
 
   return pdfDoc;
 }
 
 async function generateServiceAgreement(customer: any, pdfDoc: any, font: any, boldFont: any, dooLogoBytes: Uint8Array, customerLogoBytes: Uint8Array | null) {
-  // Page 1: Title & Parties
+  // Page 1
   const page1 = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page1, dooLogoBytes, customerLogoBytes, pdfDoc);
   
-  page1.drawText('Service Agreement', { x: 50, y: 720, font: boldFont, size: 28 });
-  page1.drawText(`Date: ${new Date().toLocaleDateString()}`, { x: 50, y: 680, font, size: 12 });
+  page1.drawText('Service Agreement', { x: 50, y: 720, font: boldFont, size: 24 });
+  let y = 680;
+  page1.drawText(`This Service Agreement ("Agreement") is entered into on ${new Date().toLocaleDateString()} ("Effective Date")`, { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 18;
+  page1.drawText('by and between:', { x: 50, y, font, size: 10 });
   
-  let yPos = 640;
-  page1.drawText('BETWEEN:', { x: 50, y: yPos, font: boldFont, size: 14 });
-  yPos -= 30;
-  page1.drawText('Party A: DOO Technologies', { x: 50, y: yPos, font: boldFont, size: 12 });
-  yPos -= 20;
-  page1.drawText('Address: [DOO Address]', { x: 70, y: yPos, font, size: 11 });
-  yPos -= 20;
-  page1.drawText('Registration: [DOO Registration]', { x: 70, y: yPos, font, size: 11 });
-  yPos -= 40;
+  y -= 30;
+  page1.drawText('Party A: DOO Technology Solutions, a company incorporated under the laws of the Kingdom', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page1.drawText('of Bahrain, with commercial registration number 173610-1 having its principal place of business', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page1.drawText('at Office 39, Building 111, Road 385, Block 304, Manama Center, Kingdom of Bahrain', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page1.drawText('("Service Provider"); and', { x: 50, y, font, size: 10 });
   
-  page1.drawText('AND:', { x: 50, y: yPos, font: boldFont, size: 14 });
-  yPos -= 30;
-  page1.drawText(`Party B: ${customer.name}`, { x: 50, y: yPos, font: boldFont, size: 12 });
-  yPos -= 20;
-  page1.drawText(`Address: ${customer.legal_address || 'N/A'}`, { x: 70, y: yPos, font, size: 11 });
-  yPos -= 20;
-  page1.drawText(`Registration: ${customer.company_registration_number || 'N/A'}`, { x: 70, y: yPos, font, size: 11 });
-  yPos -= 20;
-  page1.drawText(`Representative: ${customer.representative_name || 'N/A'}`, { x: 70, y: yPos, font, size: 11 });
-  yPos -= 20;
-  page1.drawText(`Title: ${customer.representative_title || 'N/A'}`, { x: 70, y: yPos, font, size: 11 });
+  y -= 30;
+  page1.drawText(`Party B: ${customer.name}, ${customer.company_registration_number ? 'Company Registration No.: ' + customer.company_registration_number : ''}`, { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page1.drawText(`Located at: ${customer.legal_address || 'N/A'}`, { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page1.drawText(`Represented herein by: ${customer.representative_name || customer.contact_name || 'N/A'} ("Client").`, { x: 50, y, font, size: 10, maxWidth: 495 });
+  
+  y -= 30;
+  page1.drawText('Collectively referred to as the "Parties" and individually as a "Party."', { x: 50, y, font, size: 10 });
+  
+  y -= 30;
+  page1.drawText('1. Scope of Services', { x: 50, y, font: boldFont, size: 12 });
+  y -= 20;
+  page1.drawText('The Service Provider shall deliver artificial intelligence (AI) solutions, systems, and related', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page1.drawText('services as described in Schedule A (Services Description).', { x: 50, y, font, size: 10 });
+  y -= 20;
+  page1.drawText('Any additional services outside the agreed scope shall be subject to a separate written', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page1.drawText('agreement or addendum.', { x: 50, y, font, size: 10 });
+  
+  y -= 30;
+  page1.drawText('2. Term & Duration', { x: 50, y, font: boldFont, size: 12 });
+  y -= 20;
+  page1.drawText('This Agreement shall commence on the Effective Date and shall remain in force for 12', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page1.drawText('months unless earlier terminated in accordance with this Agreement.', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 20;
+  page1.drawText('The Agreement may be renewed upon mutual written agreement of the Parties.', { x: 50, y, font, size: 10, maxWidth: 495 });
+  
+  y -= 30;
+  page1.drawText('3. Fees & Payment', { x: 50, y, font: boldFont, size: 12 });
+  y -= 20;
+  page1.drawText('The Client shall pay the Service Provider the fees specified in Schedule B (Fees & Payment', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page1.drawText('Terms).', { x: 50, y, font, size: 10 });
+  y -= 20;
+  page1.drawText(`Payment shall be made within ${customer.payment_terms_days || 14} days of receipt of a valid invoice.`, { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page1.drawText('Each Party shall bear its own costs not expressly covered under this Agreement.', { x: 50, y, font, size: 10, maxWidth: 495 });
+  drawFooter(page1, font, 1);
 
-  // Page 2: Terms
+  // Page 2
   const page2 = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page2, dooLogoBytes, customerLogoBytes, pdfDoc);
+  y = 720;
   
-  page2.drawText('Terms and Conditions', { x: 50, y: 720, font: boldFont, size: 20 });
-  yPos = 680;
+  page2.drawText('4. Intellectual Property', { x: 50, y, font: boldFont, size: 12 });
+  y -= 20;
+  page2.drawText('All pre-existing intellectual property of each Party shall remain their respective property. Unless', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page2.drawText('otherwise agreed, any AI systems, models, or software developed by the Service Provider under', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page2.drawText('this Agreement shall remain the intellectual property of the Service Provider. The Client shall', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page2.drawText('receive a non-exclusive, non-transferable license to use the deliverables solely for internal', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page2.drawText('business purposes.', { x: 50, y, font, size: 10 });
   
-  const sections = [
-    { title: '1. Services', text: 'DOO will provide AI-powered customer service solutions as specified in Appendix A.' },
-    { title: '2. Term', text: 'This agreement is effective upon signing and continues for one year with automatic renewal.' },
-    { title: '3. Fees', text: `Setup Fee: ${formatCurrency(customer.setup_fee || 0, customer.currency)}, Annual: ${formatCurrency(customer.annual_rate || 0, customer.currency)}` },
-    { title: '4. Payment Terms', text: `Payment due within ${customer.payment_terms_days || 14} days of invoice date.` },
-    { title: '5. Confidentiality', text: 'Both parties agree to maintain confidentiality of proprietary information.' },
-  ];
+  y -= 30;
+  page2.drawText('5. Confidentiality', { x: 50, y, font: boldFont, size: 12 });
+  y -= 20;
+  page2.drawText('Each Party agrees to keep confidential all proprietary or sensitive information received during', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page2.drawText('the course of this Agreement. Confidentiality obligations shall survive termination of this', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page2.drawText('Agreement for a period of 2 years.', { x: 50, y, font, size: 10 });
   
-  sections.forEach(section => {
-    if (yPos < 100) {
-      const newPage = pdfDoc.addPage([595, 842]);
-      yPos = 720;
-    }
-    page2.drawText(section.title, { x: 50, y: yPos, font: boldFont, size: 13 });
-    yPos -= 20;
-    page2.drawText(section.text, { x: 70, y: yPos, font, size: 11, maxWidth: 470 });
-    yPos -= 40;
-  });
+  y -= 30;
+  page2.drawText('6. Warranties & Disclaimers', { x: 50, y, font: boldFont, size: 12 });
+  y -= 20;
+  page2.drawText('The Service Provider warrants that it will perform the Services with reasonable skill and care.', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page2.drawText('The Service Provider does not warrant that AI systems will be error-free or guarantee specific', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page2.drawText('outcomes. However, such expected outcomes are mentioned in Schedule C (Expected Outcomes).', { x: 50, y, font, size: 10, maxWidth: 495 });
+  
+  y -= 30;
+  page2.drawText('7. Limitation of Liability', { x: 50, y, font: boldFont, size: 12 });
+  y -= 20;
+  page2.drawText('Neither Party shall be liable for indirect, incidental, or consequential damages. The Service', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page2.drawText("Provider's total liability under this Agreement shall not exceed the total fees paid by the Client", { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page2.drawText('in the duration of the agreement preceding the claim.', { x: 50, y, font, size: 10, maxWidth: 495 });
+  
+  y -= 30;
+  page2.drawText('8. Termination', { x: 50, y, font: boldFont, size: 12 });
+  y -= 20;
+  page2.drawText("Either Party may terminate this Agreement by giving 30 days' written notice. Either Party may", { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page2.drawText('terminate this Agreement immediately by written notice if the other Party commits a material', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page2.drawText('breach, becomes insolvent, or engages in fraud, gross negligence, willful misconduct, or', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page2.drawText('unlawful conduct.', { x: 50, y, font, size: 10 });
+  drawFooter(page2, font, 2);
 
-  // Page 3: Signatures
+  // Page 3
   const page3 = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page3, dooLogoBytes, customerLogoBytes, pdfDoc);
+  y = 720;
   
-  page3.drawText('Signatures', { x: 50, y: 720, font: boldFont, size: 20 });
-  page3.drawText('Party A: DOO Technologies', { x: 50, y: 650, font: boldFont, size: 12 });
-  page3.drawText('Signature: _____________________', { x: 50, y: 600, font, size: 11 });
-  page3.drawText('Date: _____________________', { x: 50, y: 570, font, size: 11 });
+  page3.drawText('9. Governing Law & Dispute Resolution', { x: 50, y, font: boldFont, size: 12 });
+  y -= 20;
+  page3.drawText('This Agreement shall be governed by the laws of the Kingdom of Bahrain. Any disputes shall be', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page3.drawText('resolved amicably between the Parties, failing which they shall be submitted to the exclusive', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page3.drawText('jurisdiction of the courts of the Kingdom of Bahrain.', { x: 50, y, font, size: 10 });
   
-  page3.drawText(`Party B: ${customer.name}`, { x: 50, y: 500, font: boldFont, size: 12 });
-  page3.drawText('Signature: _____________________', { x: 50, y: 450, font, size: 11 });
-  page3.drawText('Date: _____________________', { x: 50, y: 420, font, size: 11 });
+  y -= 30;
+  page3.drawText('10. Miscellaneous', { x: 50, y, font: boldFont, size: 12 });
+  y -= 20;
+  page3.drawText('This Agreement constitutes the entire agreement between the Parties and supersedes all prior', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page3.drawText('understandings. Amendments must be in writing and signed by both Parties. Neither Party may', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page3.drawText('assign its rights or obligations without prior written consent of the other Party.', { x: 50, y, font, size: 10, maxWidth: 495 });
+  
+  y -= 60;
+  page3.drawText('SIGNATURES', { x: 50, y, font: boldFont, size: 14 });
+  y -= 40;
+  page3.drawText('Party A: DOO Technology Solutions', { x: 50, y, font: boldFont, size: 11 });
+  y -= 30;
+  page3.drawText('Signature: _______________________', { x: 50, y, font, size: 10 });
+  y -= 25;
+  page3.drawText('Date: _______________________', { x: 50, y, font, size: 10 });
+  
+  y -= 50;
+  page3.drawText(`Party B: ${customer.name}`, { x: 50, y, font: boldFont, size: 11 });
+  y -= 30;
+  page3.drawText('Signature: _______________________', { x: 50, y, font, size: 10 });
+  y -= 25;
+  page3.drawText('Date: _______________________', { x: 50, y, font, size: 10 });
+  drawFooter(page3, font, 3);
 
   return pdfDoc;
 }
 
 async function generateSLA(customer: any, pdfDoc: any, font: any, boldFont: any, dooLogoBytes: Uint8Array, customerLogoBytes: Uint8Array | null) {
-  // Page 1: Title & Overview
+  // Page 1
   const page1 = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page1, dooLogoBytes, customerLogoBytes, pdfDoc);
   
-  page1.drawText('Service Level Agreement', { x: 50, y: 720, font: boldFont, size: 28 });
-  page1.drawText(`Customer: ${customer.name}`, { x: 50, y: 680, font: boldFont, size: 14 });
-  page1.drawText(`Effective Date: ${new Date().toLocaleDateString()}`, { x: 50, y: 660, font, size: 12 });
+  page1.drawText('DOO Enterprise Service Level Agreement (SLA)', { x: 50, y: 720, font: boldFont, size: 18 });
   
-  let yPos = 620;
-  page1.drawText('Service Commitments', { x: 50, y: yPos, font: boldFont, size: 16 });
-  yPos -= 30;
+  let y = 680;
+  page1.drawText('1. Overview', { x: 50, y, font: boldFont, size: 14 });
+  y -= 25;
+  page1.drawText('This Service Level Agreement ("SLA") defines the standards of service and support provided by', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page1.drawText('DOO Technology Solutions ("DOO") to its enterprise clients. It ensures maximum platform', { x: 50, y, font, size: 10, maxWidth: 495 });
+  y -= 16;
+  page1.drawText('availability, rapid issue response, and a consistently high-quality customer experience.', { x: 50, y, font, size: 10, maxWidth: 495 });
   
-  const commitments = [
-    '• System Uptime: 99.9% availability',
-    '• Response Time: < 500ms for 95% of requests',
-    '• Support Response: Within 4 business hours',
-    '• Critical Issues: Within 1 hour',
-    '• Scheduled Maintenance: < 4 hours per month',
-  ];
-  
-  commitments.forEach(commitment => {
-    page1.drawText(commitment, { x: 50, y: yPos, font, size: 12 });
-    yPos -= 25;
-  });
+  y -= 30;
+  page1.drawText('2. Service Commitment', { x: 50, y, font: boldFont, size: 14 });
+  y -= 30;
+  page1.drawText('Metric', { x: 80, y, font: boldFont, size: 10 });
+  page1.drawText('Commitment', { x: 300, y, font: boldFont, size: 10 });
+  y -= 20;
+  page1.drawLine({ start: { x: 50, y }, end: { x: 545, y }, thickness: 1 });
+  y -= 20;
+  page1.drawText('Service Uptime', { x: 80, y, font, size: 10 });
+  page1.drawText('99.999% Monthly Uptime Guarantee', { x: 300, y, font, size: 10 });
+  y -= 20;
+  page1.drawText('Initial Response Time', { x: 80, y, font, size: 10 });
+  page1.drawText('Within 1 hour for all support tickets', { x: 300, y, font, size: 10 });
+  y -= 20;
+  page1.drawText('Support Availability', { x: 80, y, font, size: 10 });
+  page1.drawText('24/7/365', { x: 300, y, font, size: 10 });
+  y -= 30;
+  page1.drawText('Service uptime is measured across DOO-managed services and channels, excluding', { x: 50, y, font, size: 9, maxWidth: 495 });
+  y -= 14;
+  page1.drawText('scheduled maintenance windows or client-side infrastructure issues.', { x: 50, y, font, size: 9, maxWidth: 495 });
+  drawFooter(page1, font, 1);
 
-  // Page 2: Support Levels
+  // Page 2
   const page2 = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page2, dooLogoBytes, customerLogoBytes, pdfDoc);
+  y = 720;
   
-  page2.drawText('Support Levels', { x: 50, y: 720, font: boldFont, size: 20 });
-  yPos = 680;
+  page2.drawText('3. Support and Severity Levels', { x: 50, y, font: boldFont, size: 14 });
+  y -= 30;
+  page2.drawText('Severity', { x: 60, y, font: boldFont, size: 9 });
+  page2.drawText('Description', { x: 150, y, font: boldFont, size: 9 });
+  page2.drawText('Response', { x: 340, y, font: boldFont, size: 9 });
+  page2.drawText('Resolution', { x: 440, y, font: boldFont, size: 9 });
+  y -= 18;
+  page2.drawLine({ start: { x: 50, y }, end: { x: 545, y }, thickness: 1 });
+  y -= 18;
   
-  const supportLevels = [
-    { level: 'Critical', time: '1 hour', desc: 'System down, major functionality unavailable' },
-    { level: 'High', time: '4 hours', desc: 'Significant feature impacted, workaround available' },
-    { level: 'Medium', time: '24 hours', desc: 'Minor feature affected, business continues' },
-    { level: 'Low', time: '48 hours', desc: 'General questions, enhancement requests' },
-  ];
+  page2.drawText('Critical (1)', { x: 60, y, font, size: 8 });
+  page2.drawText('Platform down, major disruption', { x: 150, y, font, size: 8 });
+  page2.drawText('1 hour', { x: 340, y, font, size: 8 });
+  page2.drawText('4 hours', { x: 440, y, font, size: 8 });
+  y -= 16;
   
-  supportLevels.forEach(level => {
-    page2.drawText(`${level.level} Priority - ${level.time}`, { x: 50, y: yPos, font: boldFont, size: 12 });
-    yPos -= 20;
-    page2.drawText(level.desc, { x: 70, y: yPos, font, size: 11 });
-    yPos -= 35;
-  });
+  page2.drawText('High (2)', { x: 60, y, font, size: 8 });
+  page2.drawText('Major functionality impaired', { x: 150, y, font, size: 8 });
+  page2.drawText('1 hour', { x: 340, y, font, size: 8 });
+  page2.drawText('8 hours', { x: 440, y, font, size: 8 });
+  y -= 16;
+  
+  page2.drawText('Medium (3)', { x: 60, y, font, size: 8 });
+  page2.drawText('Partial loss, workaround available', { x: 150, y, font, size: 8 });
+  page2.drawText('1 hour', { x: 340, y, font, size: 8 });
+  page2.drawText('24 hours', { x: 440, y, font, size: 8 });
+  y -= 16;
+  
+  page2.drawText('Low (4)', { x: 60, y, font, size: 8 });
+  page2.drawText('Minor issues, cosmetic defects', { x: 150, y, font, size: 8 });
+  page2.drawText('1 hour', { x: 340, y, font, size: 8 });
+  page2.drawText('3 biz days', { x: 440, y, font, size: 8 });
+  
+  y -= 30;
+  page2.drawText('4. Support Channels', { x: 50, y, font: boldFont, size: 14 });
+  y -= 25;
+  page2.drawText('• Email Support: Dedicated enterprise email (provided during onboarding)', { x: 50, y, font, size: 10 });
+  y -= 18;
+  page2.drawText('• Phone Support: Dedicated enterprise hotline (provided during onboarding)', { x: 50, y, font, size: 10 });
+  y -= 18;
+  page2.drawText('• DOO Support Portal: Access to ticketing, status updates, and knowledge base', { x: 50, y, font, size: 10 });
+  y -= 18;
+  page2.drawText('• Priority Escalation: Dedicated account manager for urgent issues', { x: 50, y, font, size: 10 });
+  drawFooter(page2, font, 2);
 
-  // Page 3: Remedies & Exclusions
+  // Page 3
   const page3 = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page3, dooLogoBytes, customerLogoBytes, pdfDoc);
+  y = 720;
   
-  page3.drawText('Service Credits', { x: 50, y: 720, font: boldFont, size: 20 });
-  yPos = 680;
+  page3.drawText('5. Scheduled Maintenance', { x: 50, y, font: boldFont, size: 14 });
+  y -= 25;
+  page3.drawText('• Clients will be notified at least 72 hours in advance for scheduled maintenance.', { x: 50, y, font, size: 10 });
+  y -= 18;
+  page3.drawText('• Maintenance will be scheduled during low-traffic periods when possible.', { x: 50, y, font, size: 10 });
+  y -= 18;
+  page3.drawText('• Scheduled maintenance will not be counted against the uptime commitment.', { x: 50, y, font, size: 10 });
   
-  const credits = [
-    'Uptime < 99.9%: 10% monthly fee credit',
-    'Uptime < 99.5%: 25% monthly fee credit',
-    'Uptime < 99.0%: 50% monthly fee credit',
-  ];
+  y -= 30;
+  page3.drawText('6. Remedies', { x: 50, y, font: boldFont, size: 14 });
+  y -= 25;
+  page3.drawText('If DOO fails to meet the monthly uptime commitment, clients are eligible to receive service', { x: 50, y, font, size: 10 });
+  y -= 16;
+  page3.drawText('credits as follows:', { x: 50, y, font, size: 10 });
   
-  credits.forEach(credit => {
-    page3.drawText(`• ${credit}`, { x: 50, y: yPos, font, size: 12 });
-    yPos -= 25;
-  });
+  y -= 30;
+  page3.drawText('Uptime Achieved', { x: 100, y, font: boldFont, size: 10 });
+  page3.drawText('Service Credit', { x: 300, y, font: boldFont, size: 10 });
+  y -= 20;
+  page3.drawLine({ start: { x: 50, y }, end: { x: 450, y }, thickness: 1 });
+  y -= 20;
+  page3.drawText('99.9% - 99.999%', { x: 100, y, font, size: 10 });
+  page3.drawText('5% of monthly fee', { x: 300, y, font, size: 10 });
+  y -= 18;
+  page3.drawText('99% - 99.89%', { x: 100, y, font, size: 10 });
+  page3.drawText('10% of monthly fee', { x: 300, y, font, size: 10 });
+  y -= 18;
+  page3.drawText('Below 99%', { x: 100, y, font, size: 10 });
+  page3.drawText('20% of monthly fee', { x: 300, y, font, size: 10 });
   
-  yPos -= 20;
-  page3.drawText('Exclusions', { x: 50, y: yPos, font: boldFont, size: 16 });
-  yPos -= 30;
+  y -= 30;
+  page3.drawText('Service credits must be requested within 30 days of the end of the impacted month.', { x: 50, y, font, size: 9 });
+  drawFooter(page3, font, 3);
+
+  // Page 4
+  const page4 = pdfDoc.addPage([595, 842]);
+  await drawProfessionalHeader(page4, dooLogoBytes, customerLogoBytes, pdfDoc);
+  y = 720;
   
-  const exclusions = [
-    '• Scheduled maintenance windows',
-    '• Issues caused by customer systems or actions',
-    '• Force majeure events',
-    '• Third-party service failures',
-  ];
+  page4.drawText('7. Exclusions', { x: 50, y, font: boldFont, size: 14 });
+  y -= 25;
+  page4.drawText('This SLA does not cover:', { x: 50, y, font, size: 10 });
+  y -= 22;
+  page4.drawText('• Client-side network issues or third-party service failures.', { x: 50, y, font, size: 10 });
+  y -= 18;
+  page4.drawText('• Downtime due to force majeure events.', { x: 50, y, font, size: 10 });
+  y -= 18;
+  page4.drawText('• Service interruptions caused by client modifications without prior DOO approval.', { x: 50, y, font, size: 10 });
   
-  exclusions.forEach(exclusion => {
-    page3.drawText(exclusion, { x: 50, y: yPos, font, size: 11 });
-    yPos -= 25;
-  });
+  y -= 30;
+  page4.drawText('8. Continuous Improvement', { x: 50, y, font: boldFont, size: 14 });
+  y -= 25;
+  page4.drawText('DOO follows a continuous improvement model, integrating:', { x: 50, y, font, size: 10 });
+  y -= 22;
+  page4.drawText('• Regular system upgrades', { x: 50, y, font, size: 10 });
+  y -= 18;
+  page4.drawText('• Security enhancements', { x: 50, y, font, size: 10 });
+  y -= 18;
+  page4.drawText('• Performance optimization', { x: 50, y, font, size: 10 });
+  drawFooter(page4, font, 4);
 
   return pdfDoc;
 }
@@ -284,74 +501,91 @@ async function generateInvoice(customer: any, pdfDoc: any, font: any, boldFont: 
   const page = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page, dooLogoBytes, customerLogoBytes, pdfDoc);
   
-  page.drawText('INVOICE', { x: 50, y: 720, font: boldFont, size: 32, color: rgb(0.57, 0.27, 1) });
+  page.drawText('QUOTATION', { x: 50, y: 720, font: boldFont, size: 28, color: rgb(0.57, 0.27, 1) });
   
-  let yPos = 670;
-  page.drawText(`Invoice Date: ${new Date().toLocaleDateString()}`, { x: 50, y: yPos, font, size: 11 });
-  yPos -= 20;
-  page.drawText(`Due Date: ${new Date(Date.now() + (customer.payment_terms_days || 14) * 24 * 60 * 60 * 1000).toLocaleDateString()}`, { x: 50, y: yPos, font, size: 11 });
-  yPos -= 40;
+  let y = 670;
+  page.drawText(`ADDRESSED TO: ${customer.contact_name || customer.name}`, { x: 50, y, font: boldFont, size: 11 });
+  y -= 25;
+  page.drawText(`Date: ${new Date().toLocaleDateString()}`, { x: 50, y, font, size: 10 });
+  y -= 18;
+  page.drawText('Issued by: DOO Technology Solutions', { x: 50, y, font, size: 10 });
+  y -= 18;
+  page.drawText('CR: 173610-1', { x: 50, y, font, size: 10 });
   
-  // Bill To
-  page.drawText('Bill To:', { x: 50, y: yPos, font: boldFont, size: 14 });
-  yPos -= 25;
-  page.drawText(customer.name, { x: 50, y: yPos, font: boldFont, size: 12 });
-  yPos -= 20;
-  if (customer.legal_address) {
-    page.drawText(customer.legal_address, { x: 50, y: yPos, font, size: 11 });
-    yPos -= 20;
-  }
-  if (customer.contact_email) {
-    page.drawText(customer.contact_email, { x: 50, y: yPos, font, size: 11 });
-    yPos -= 30;
-  } else {
-    yPos -= 30;
-  }
-  
-  // Line Items
-  yPos -= 20;
-  page.drawText('Description', { x: 50, y: yPos, font: boldFont, size: 12 });
-  page.drawText('Amount', { x: 450, y: yPos, font: boldFont, size: 12 });
-  yPos -= 5;
-  page.drawLine({ start: { x: 50, y: yPos }, end: { x: 545, y: yPos }, thickness: 1 });
-  yPos -= 25;
+  // Table
+  y -= 40;
+  page.drawLine({ start: { x: 50, y }, end: { x: 545, y }, thickness: 1 });
+  y -= 20;
+  page.drawText('Description', { x: 60, y, font: boldFont, size: 10 });
+  page.drawText('Qty', { x: 300, y, font: boldFont, size: 10 });
+  page.drawText('Price', { x: 370, y, font: boldFont, size: 10 });
+  page.drawText('Total', { x: 470, y, font: boldFont, size: 10 });
+  y -= 5;
+  page.drawLine({ start: { x: 50, y }, end: { x: 545, y }, thickness: 0.5 });
+  y -= 20;
   
   let subtotal = 0;
   
   if (customer.setup_fee && customer.setup_fee > 0) {
-    page.drawText('Setup Fee', { x: 50, y: yPos, font, size: 11 });
-    page.drawText(formatCurrency(customer.setup_fee, customer.currency), { x: 450, y: yPos, font, size: 11 });
+    page.drawText('Setup Fee', { x: 60, y, font, size: 10 });
+    page.drawText('1', { x: 300, y, font, size: 10 });
+    page.drawText(formatCurrency(customer.setup_fee, customer.currency), { x: 370, y, font, size: 10 });
+    page.drawText(formatCurrency(customer.setup_fee, customer.currency), { x: 470, y, font, size: 10 });
     subtotal += customer.setup_fee;
-    yPos -= 25;
+    y -= 22;
   }
   
   if (customer.annual_rate && customer.annual_rate > 0) {
-    page.drawText('Annual Service Fee', { x: 50, y: yPos, font, size: 11 });
-    page.drawText(formatCurrency(customer.annual_rate, customer.currency), { x: 450, y: yPos, font, size: 11 });
+    const serviceName = customer.text_plan ? `${customer.text_plan} Plan x 12 Months` : 'Annual Service Fee';
+    page.drawText(serviceName, { x: 60, y, font, size: 10 });
+    page.drawText('1', { x: 300, y, font, size: 10 });
+    page.drawText(formatCurrency(customer.annual_rate, customer.currency), { x: 370, y, font, size: 10 });
+    page.drawText(formatCurrency(customer.annual_rate, customer.currency), { x: 470, y, font, size: 10 });
     subtotal += customer.annual_rate;
-    yPos -= 25;
+    y -= 22;
   }
   
-  yPos -= 10;
-  page.drawLine({ start: { x: 50, y: yPos }, end: { x: 545, y: yPos }, thickness: 1 });
-  yPos -= 25;
+  y -= 10;
+  page.drawLine({ start: { x: 50, y }, end: { x: 545, y }, thickness: 0.5 });
+  y -= 20;
+  page.drawText('Sub-total:', { x: 370, y, font: boldFont, size: 10 });
+  page.drawText(formatCurrency(subtotal, customer.currency), { x: 470, y, font: boldFont, size: 10 });
   
-  page.drawText('Total', { x: 50, y: yPos, font: boldFont, size: 14 });
-  page.drawText(formatCurrency(subtotal, customer.currency), { x: 450, y: yPos, font: boldFont, size: 14 });
+  y -= 10;
+  page.drawLine({ start: { x: 50, y }, end: { x: 545, y }, thickness: 1 });
+  y -= 25;
+  page.drawText('TOTAL', { x: 60, y, font: boldFont, size: 14 });
+  page.drawText(formatCurrency(subtotal, customer.currency), { x: 470, y, font: boldFont, size: 14 });
+  y -= 10;
+  page.drawLine({ start: { x: 50, y }, end: { x: 545, y }, thickness: 1 });
   
-  // Payment Details
-  yPos -= 60;
-  page.drawText('Payment Details', { x: 50, y: yPos, font: boldFont, size: 14 });
-  yPos -= 25;
-  page.drawText('Bank: [Bank Name]', { x: 50, y: yPos, font, size: 11 });
-  yPos -= 20;
-  page.drawText('Account: [Account Number]', { x: 50, y: yPos, font, size: 11 });
-  yPos -= 20;
-  page.drawText('IBAN: [IBAN]', { x: 50, y: yPos, font, size: 11 });
+  // Payment Method
+  y -= 40;
+  page.drawText('Payment Method', { x: 50, y, font: boldFont, size: 12 });
+  y -= 25;
+  page.drawText('Bank Name: Bahrain Islamic Bank', { x: 50, y, font, size: 10 });
+  y -= 18;
+  page.drawText('Account Name: DOO Technology Solutions', { x: 50, y, font, size: 10 });
+  y -= 18;
+  page.drawText('IBAN: BH97BIBB00100002211548', { x: 50, y, font, size: 10 });
+  y -= 18;
+  page.drawText('SWIFT: BIBBBHBMXXX', { x: 50, y, font, size: 10 });
   
-  // Footer
-  page.drawText('Thank you for your business!', { x: 50, y: 100, font: boldFont, size: 12, color: rgb(0.57, 0.27, 1) });
-  page.drawText('For questions, contact: finance@doo.com', { x: 50, y: 80, font, size: 10 });
+  // Terms and Conditions
+  y -= 40;
+  page.drawText('Terms and Conditions', { x: 50, y, font: boldFont, size: 12 });
+  y -= 22;
+  page.drawText(`Please send payment within ${customer.payment_terms_days || 14} days of receiving this invoice.`, { x: 50, y, font, size: 10 });
+  
+  // Signature
+  y -= 60;
+  page.drawText('Ali Mohsen', { x: 50, y, font: boldFont, size: 11 });
+  y -= 18;
+  page.drawText('CEO', { x: 50, y, font, size: 10 });
+  y -= 18;
+  page.drawText('www.doo.ooo', { x: 50, y, font, size: 10 });
+  
+  drawFooter(page, font, 1);
 
   return pdfDoc;
 }

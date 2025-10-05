@@ -105,13 +105,15 @@ export const DocumentGenerationDialog = ({
       const data = await response.json();
       console.log('[DOC-GEN-DIALOG] Function response data:', data);
 
-      if (data.success && data.documents.length > 0) {
+      if (data.success && data.documents && data.documents.length > 0) {
         setGeneratedDocuments(data.documents);
         toast({
           title: "Documents generated successfully!",
           description: `${data.documents.length} document(s) created for ${customerName}`,
         });
         onSuccess?.();
+      } else if (!data.success) {
+        throw new Error(data.error || 'Generation failed');
       }
 
       if (data.errors && data.errors.length > 0) {
