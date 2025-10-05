@@ -55,12 +55,42 @@ export const GeneratedDocumentsList = ({ customerId, refreshTrigger }: Generated
 
   const handleDownload = async (doc: GeneratedDocument) => {
     try {
-      const { data } = supabase.storage
+      // Get the file data as a blob
+      const { data, error } = await supabase.storage
         .from('customer-documents')
-        .getPublicUrl(doc.file_path);
+        .download(doc.file_path);
 
-      window.open(data.publicUrl, '_blank');
+      if (error) throw error;
+      
+      if (!data) {
+        throw new Error('No file data received');
+      }
+
+      // Create a blob URL and trigger download
+      const blob = new Blob([data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Extract filename from document type
+      const docLabel = DOCUMENT_LABELS[doc.document_type as keyof typeof DOCUMENT_LABELS] || doc.document_type;
+      const timestamp = format(new Date(doc.generated_at), 'yyyy-MM-dd-HHmm');
+      link.download = `${docLabel.replace(/\s+/g, '_')}_${timestamp}.pdf`;
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Download started",
+        description: "Check your Downloads folder"
+      });
     } catch (error) {
+      console.error('Download error:', error);
       toast({
         title: "Download failed",
         description: "Could not download the document",
