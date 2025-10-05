@@ -52,12 +52,6 @@ const customerFormSchema = z.object({
   representative_title: z.string().optional(),
   payment_terms_days: z.number().nullable().optional(),
   currency: z.string().optional(),
-  service_type: z.enum(['text', 'voice', 'both']).nullable().optional(),
-  text_plan: z.enum(['basic', 'growth']).nullable().optional(),
-  text_ai_responses: z.number().nullable().optional(),
-  voice_tier: z.enum(['tier_1', 'tier_2', 'tier_3', 'tier_4']).nullable().optional(),
-  voice_hours: z.number().nullable().optional(),
-  voice_price_per_hour: z.number().nullable().optional(),
 });
 
 export type CustomerFormData = z.infer<typeof customerFormSchema>;
@@ -424,8 +418,12 @@ export function CustomerForm({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent className="bg-background z-50">
-                          <SelectItem value="basic">Basic Plan</SelectItem>
-                          <SelectItem value="growth">Growth Plan</SelectItem>
+                          <SelectItem value="basic">Basic</SelectItem>
+                          <SelectItem value="growth">Growth</SelectItem>
+                          <SelectItem value="pro">Pro</SelectItem>
+                          <SelectItem value="scale">Scale</SelectItem>
+                          <SelectItem value="enterprise">Enterprise</SelectItem>
+                          <SelectItem value="large_enterprise">Large Enterprise</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

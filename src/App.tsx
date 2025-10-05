@@ -24,6 +24,7 @@ import {
   LazyLifecycle,
   LazyContracts,
   LazySettings,
+  LazyGenerateDocuments,
   LazyNotFound,
   LazyAcceptInvite,
   LazyAnalyticsDetail,
