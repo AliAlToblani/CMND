@@ -24,7 +24,7 @@ const PRICING_PLANS = [
   { name: "Large Enterprise", responses: "250,000", price: "Custom" }
 ];
 
-async function drawGradientHeader(page: any, logoBytes: Uint8Array | null, pdfDoc: any) {
+async function drawGradientHeader(page: any, logoBytes: Uint8Array | null, pdfDoc: any, boldFont: any) {
   const { width, height } = page.getSize();
   
   // Draw gradient background (simulate with overlapping rectangles)
@@ -45,11 +45,11 @@ async function drawGradientHeader(page: any, logoBytes: Uint8Array | null, pdfDo
   }
   
   // Draw DOO text logo as placeholder
-  const fontSize = 48;
   page.drawText('DOO', {
     x: 50,
     y: height - 90,
-    size: fontSize,
+    size: 48,
+    font: boldFont,
     color: DOO_WHITE,
   });
 }
@@ -81,7 +81,7 @@ async function generateProposal(customer: any, logoBytes: Uint8Array | null) {
   
   // Page 1: Cover & Introduction
   let page = pdfDoc.addPage([595, 842]);
-  await drawGradientHeader(page, logoBytes, pdfDoc);
+  await drawGradientHeader(page, logoBytes, pdfDoc, boldFont);
   
   page.drawText('CUSTOMER PROPOSAL', {
     x: 40,
@@ -135,7 +135,7 @@ async function generateProposal(customer: any, logoBytes: Uint8Array | null) {
   
   // Page 2: Company Overview
   page = pdfDoc.addPage([595, 842]);
-  await drawGradientHeader(page, logoBytes, pdfDoc);
+  await drawGradientHeader(page, logoBytes, pdfDoc, boldFont);
   
   currentY = 700;
   page.drawText('2. ABOUT DOO TECHNOLOGIES', {
@@ -164,7 +164,7 @@ async function generateProposal(customer: any, logoBytes: Uint8Array | null) {
   
   // Page 3: Solution Overview
   page = pdfDoc.addPage([595, 842]);
-  await drawGradientHeader(page, logoBytes, pdfDoc);
+  await drawGradientHeader(page, logoBytes, pdfDoc, boldFont);
   
   currentY = 700;
   page.drawText('3. SOLUTION OVERVIEW', {
@@ -193,7 +193,7 @@ async function generateProposal(customer: any, logoBytes: Uint8Array | null) {
   
   // Page 4: Implementation Plan
   page = pdfDoc.addPage([595, 842]);
-  await drawGradientHeader(page, logoBytes, pdfDoc);
+  await drawGradientHeader(page, logoBytes, pdfDoc, boldFont);
   
   currentY = 700;
   page.drawText('4. IMPLEMENTATION PLAN', {
@@ -222,7 +222,7 @@ async function generateProposal(customer: any, logoBytes: Uint8Array | null) {
   
   // Page 5: Pricing & Terms
   page = pdfDoc.addPage([595, 842]);
-  await drawGradientHeader(page, logoBytes, pdfDoc);
+  await drawGradientHeader(page, logoBytes, pdfDoc, boldFont);
   
   currentY = 700;
   page.drawText('5. INVESTMENT & PRICING', {
@@ -272,7 +272,7 @@ async function generateProposal(customer: any, logoBytes: Uint8Array | null) {
   
   // Page 6: Support & SLA Summary
   page = pdfDoc.addPage([595, 842]);
-  await drawGradientHeader(page, logoBytes, pdfDoc);
+  await drawGradientHeader(page, logoBytes, pdfDoc, boldFont);
   
   currentY = 700;
   page.drawText('6. SUPPORT & SERVICE LEVELS', {
@@ -301,7 +301,7 @@ async function generateProposal(customer: any, logoBytes: Uint8Array | null) {
   
   // Page 7: Next Steps & Signature
   page = pdfDoc.addPage([595, 842]);
-  await drawGradientHeader(page, logoBytes, pdfDoc);
+  await drawGradientHeader(page, logoBytes, pdfDoc, boldFont);
   
   currentY = 700;
   page.drawText('7. NEXT STEPS', {
@@ -365,7 +365,7 @@ async function generateSLA(customer: any, logoBytes: Uint8Array | null) {
   
   // Page 1: Cover & Overview
   let page = pdfDoc.addPage([595, 842]);
-  await drawGradientHeader(page, logoBytes, pdfDoc);
+  await drawGradientHeader(page, logoBytes, pdfDoc, boldFont);
   
   page.drawText('SERVICE LEVEL AGREEMENT', {
     x: 40,
@@ -418,7 +418,7 @@ async function generateSLA(customer: any, logoBytes: Uint8Array | null) {
   
   // Page 2: Service Availability & Performance
   page = pdfDoc.addPage([595, 842]);
-  await drawGradientHeader(page, logoBytes, pdfDoc);
+  await drawGradientHeader(page, logoBytes, pdfDoc, boldFont);
   
   currentY = 700;
   page.drawText('2. SERVICE AVAILABILITY COMMITMENT', {
@@ -447,7 +447,7 @@ async function generateSLA(customer: any, logoBytes: Uint8Array | null) {
   
   // Page 3: Support Services
   page = pdfDoc.addPage([595, 842]);
-  await drawGradientHeader(page, logoBytes, pdfDoc);
+  await drawGradientHeader(page, logoBytes, pdfDoc, boldFont);
   
   currentY = 700;
   page.drawText('3. SUPPORT SERVICES', {
@@ -476,7 +476,7 @@ async function generateSLA(customer: any, logoBytes: Uint8Array | null) {
   
   // Page 4: Service Credits & Terms
   page = pdfDoc.addPage([595, 842]);
-  await drawGradientHeader(page, logoBytes, pdfDoc);
+  await drawGradientHeader(page, logoBytes, pdfDoc, boldFont);
   
   currentY = 700;
   page.drawText('4. SERVICE CREDITS', {
@@ -521,7 +521,7 @@ async function generateInvoice(customer: any, logoBytes: Uint8Array | null) {
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   
   const page = pdfDoc.addPage([595, 842]);
-  await drawGradientHeader(page, logoBytes, pdfDoc);
+  await drawGradientHeader(page, logoBytes, pdfDoc, boldFont);
   
   page.drawText('INVOICE / QUOTATION', {
     x: 40,
