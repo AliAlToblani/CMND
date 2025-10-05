@@ -24,7 +24,7 @@ const PRICING_PLANS = [
   { name: "Large Enterprise", responses: "250,000", price: "Custom" }
 ];
 
-async function drawGradientHeader(page: any, logoBytes: Uint8Array, pdfDoc: any) {
+async function drawGradientHeader(page: any, logoBytes: Uint8Array | null, pdfDoc: any) {
   const { width, height } = page.getSize();
   
   // Draw gradient background (simulate with overlapping rectangles)
@@ -44,22 +44,14 @@ async function drawGradientHeader(page: any, logoBytes: Uint8Array, pdfDoc: any)
     });
   }
   
-  // Embed and draw logo
-  try {
-    const logoImage = await pdfDoc.embedPng(logoBytes);
-    const logoScale = 0.15;
-    const logoWidth = logoImage.width * logoScale;
-    const logoHeight = logoImage.height * logoScale;
-    
-    page.drawImage(logoImage, {
-      x: 40,
-      y: height - 100,
-      width: logoWidth,
-      height: logoHeight,
-    });
-  } catch (error) {
-    console.error('Error embedding logo:', error);
-  }
+  // Draw DOO text logo as placeholder
+  const fontSize = 48;
+  page.drawText('DOO', {
+    x: 50,
+    y: height - 90,
+    size: fontSize,
+    color: DOO_WHITE,
+  });
 }
 
 function drawFooter(page: any, text: string, font: any) {
@@ -82,7 +74,7 @@ function drawFooter(page: any, text: string, font: any) {
   });
 }
 
-async function generateProposal(customer: any, logoBytes: Uint8Array) {
+async function generateProposal(customer: any, logoBytes: Uint8Array | null) {
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -366,7 +358,7 @@ async function generateProposal(customer: any, logoBytes: Uint8Array) {
   return await pdfDoc.save();
 }
 
-async function generateSLA(customer: any, logoBytes: Uint8Array) {
+async function generateSLA(customer: any, logoBytes: Uint8Array | null) {
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -523,7 +515,7 @@ async function generateSLA(customer: any, logoBytes: Uint8Array) {
   return await pdfDoc.save();
 }
 
-async function generateInvoice(customer: any, logoBytes: Uint8Array) {
+async function generateInvoice(customer: any, logoBytes: Uint8Array | null) {
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -855,9 +847,8 @@ serve(async (req) => {
       throw new Error('Customer not found');
     }
 
-    // Fetch DOO logo
-    const logoResponse = await fetch('https://3f059955-c5b7-4494-b3eb-e1b47678f18d.lovableproject.com/lovable-uploads/doo-logo.png');
-    const logoBytes = new Uint8Array(await logoResponse.arrayBuffer());
+    // Skip logo for now - use text-based logo in gradient header
+    const logoBytes = null;
 
     const generatedDocs = [];
     const errors = [];
