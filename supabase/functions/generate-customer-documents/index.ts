@@ -44,9 +44,9 @@ async function drawProfessionalHeader(page: any, dooLogoBytes: Uint8Array, custo
     const scale = Math.min(120 / originalWidth, 1);
     const scaledWidth = originalWidth * scale;
     const scaledHeight = originalHeight * scale;
-    // Position logo higher up to avoid text overlap
+    // Position logo higher up and to the left
     page.drawImage(dooLogoImage, { 
-      x: 50, 
+      x: 35, 
       y: height - 90, 
       width: scaledWidth, 
       height: scaledHeight 
@@ -78,19 +78,53 @@ function formatCurrency(amount: number, currency: string = 'BD') {
 }
 
 async function generateProposal(customer: any, pdfDoc: any, font: any, boldFont: any, dooLogoBytes: Uint8Array, customerLogoBytes: Uint8Array | null) {
+  const { width: pageWidth } = pdfDoc.getPages()[0].getSize();
+  
   // Page 1: Cover
   const page1 = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page1, dooLogoBytes, customerLogoBytes, pdfDoc);
-  page1.drawText('AI CX PROPOSAL', { x: 200, y: 420, font: boldFont, size: 36, color: rgb(0, 0, 0) });
+  
+  // Center the title
+  const titleText = 'AI CX PROPOSAL';
+  const titleWidth = boldFont.widthOfTextAtSize(titleText, 36);
+  const titleX = (pageWidth - titleWidth) / 2;
+  page1.drawText(titleText, { x: titleX, y: 420, font: boldFont, size: 36, color: rgb(0, 0, 0) });
+  
+  // Add customer name below title
+  const customerText = `Prepared for ${customer.name}`;
+  const customerTextWidth = font.widthOfTextAtSize(customerText, 18);
+  const customerX = (pageWidth - customerTextWidth) / 2;
+  page1.drawText(customerText, { x: customerX, y: 380, font, size: 18, color: rgb(0, 0, 0) });
+  
+  if (customer.industry) {
+    const industryText = `${customer.industry} Industry`;
+    const industryWidth = font.widthOfTextAtSize(industryText, 14);
+    const industryX = (pageWidth - industryWidth) / 2;
+    page1.drawText(industryText, { x: industryX, y: 355, font, size: 14, color: rgb(0.3, 0.3, 0.3) });
+  }
+  
   drawFooter(page1, font, 1);
 
-  // Page 2: About DOO
+  // Page 2: About DOO & Customer-Specific Context
   const page2 = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page2, dooLogoBytes, customerLogoBytes, pdfDoc);
   page2.drawText('DOO: Innovative AI Solutions for Customer Service', { x: 50, y: 720, font: boldFont, size: 16, color: rgb(0, 0, 0) });
   page2.drawText('and Marketing', { x: 50, y: 700, font: boldFont, size: 16, color: rgb(0, 0, 0) });
   
   let y = 670;
+  
+  // Add personalized intro
+  const industryContext = customer.industry ? ` in the ${customer.industry} sector` : '';
+  const personalizedIntro = [
+    `Dear ${customer.contact_name || customer.name},`,
+    '',
+    `We're excited to present this AI-powered customer experience solution specifically tailored`,
+    `for ${customer.name}${industryContext}. This proposal outlines how DOO's innovative platform`,
+    'can transform your customer interactions and drive business growth.',
+  ];
+  personalizedIntro.forEach(line => { page2.drawText(line, { x: 50, y, font, size: 11, color: rgb(0, 0, 0) }); y -= 18; });
+  
+  y -= 10;
   const aboutLines = [
     'DOO is an innovative platform that leverages the power of AI to enhance customer',
     'service and marketing for businesses. Our goal is to help companies streamline their',
@@ -127,72 +161,116 @@ async function generateProposal(customer: any, pdfDoc: any, font: any, boldFont:
   finalLines.forEach(line => { page2.drawText(line, { x: 50, y, font, size: 11, color: rgb(0, 0, 0) }); y -= 18; });
   drawFooter(page2, font, 2);
 
-  // Page 3: Problem & Advantages
+  // Page 3: Problem & Advantages (Personalized)
   const page3 = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page3, dooLogoBytes, customerLogoBytes, pdfDoc);
-  page3.drawText('PROBLEM', { x: 50, y: 720, font: boldFont, size: 16, color: rgb(0, 0, 0) });
-  page3.drawText('Overwhelmed Teams | Missed Opportunities | Lack of Insights', { x: 50, y: 690, font, size: 11, color: rgb(0, 0, 0) });
+  page3.drawText(`How ${customer.name} Can Benefit`, { x: 50, y: 720, font: boldFont, size: 18, color: rgb(0, 0, 0) });
   
-  page3.drawText('ADVANTAGES', { x: 50, y: 640, font: boldFont, size: 16, color: rgb(0, 0, 0) });
-  y = 610;
+  y = 685;
+  page3.drawText('THE CHALLENGE', { x: 50, y, font: boldFont, size: 14, color: rgb(0, 0, 0) });
+  y -= 20;
+  page3.drawText('Overwhelmed Teams | Missed Opportunities | Lack of Insights', { x: 50, y, font, size: 11, color: rgb(0, 0, 0) });
+  
+  y -= 30;
+  page3.drawText(`WHY ${customer.name.toUpperCase()} NEEDS DOO`, { x: 50, y, font: boldFont, size: 14, color: rgb(0, 0, 0) });
+  y -= 25;
   page3.drawText('Streamlined Operations', { x: 50, y, font: boldFont, size: 12, color: rgb(0, 0, 0) });
   y -= 18;
-  page3.drawText('Reduces response times and operational costs, and optimizing service delivery.', { x: 50, y, font, size: 10, color: rgb(0, 0, 0) });
+  page3.drawText(`Help ${customer.name} reduce response times and operational costs while optimizing`, { x: 50, y, font, size: 10, color: rgb(0, 0, 0) });
+  y -= 16;
+  page3.drawText('service delivery across all customer touchpoints.', { x: 50, y, font, size: 10, color: rgb(0, 0, 0) });
   
-  y -= 30;
+  y -= 25;
   page3.drawText('Aligned Values', { x: 50, y, font: boldFont, size: 12, color: rgb(0, 0, 0) });
   y -= 18;
-  page3.drawText('Mirrors brand personality in every interaction.', { x: 50, y, font, size: 10, color: rgb(0, 0, 0) });
+  page3.drawText(`Our AI agents will be customized to mirror ${customer.name}'s unique brand personality`, { x: 50, y, font, size: 10, color: rgb(0, 0, 0) });
+  y -= 16;
+  page3.drawText('and values in every customer interaction.', { x: 50, y, font, size: 10, color: rgb(0, 0, 0) });
   
-  y -= 30;
+  y -= 25;
   page3.drawText('Continuous Improvement', { x: 50, y, font: boldFont, size: 12, color: rgb(0, 0, 0) });
   y -= 18;
-  page3.drawText("Utilizes DOO's AI-driven insights to continually enhance service offerings.", { x: 50, y, font, size: 10, color: rgb(0, 0, 0) });
+  page3.drawText("Utilize DOO's AI-driven insights to continually enhance service offerings and adapt to", { x: 50, y, font, size: 10, color: rgb(0, 0, 0) });
+  y -= 16;
+  page3.drawText(`${customer.name}'s evolving customer needs.`, { x: 50, y, font, size: 10, color: rgb(0, 0, 0) });
   drawFooter(page3, font, 3);
 
-  // Page 4: AI Agents
+  // Page 4: AI Agents Tailored for Customer
   const page4 = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page4, dooLogoBytes, customerLogoBytes, pdfDoc);
-  page4.drawText('AI Agents that automate customer interactions', { x: 50, y: 720, font: boldFont, size: 16, color: rgb(0, 0, 0) });
+  page4.drawText(`AI Agents Designed for ${customer.name}`, { x: 50, y: 720, font: boldFont, size: 18, color: rgb(0, 0, 0) });
+  
   y = 680;
-  const features = ['Order Status', 'FAQs', 'Take Action', 'Product Info', 'Problem Solving', 'Feedback'];
-  features.forEach(f => { page4.drawText(`• ${f}`, { x: 50, y, font, size: 12, color: rgb(0, 0, 0) }); y -= 25; });
+  page4.drawText(`Our AI agents will be customized specifically for ${customer.name}'s unique needs,`, { x: 50, y, font, size: 11, color: rgb(0, 0, 0) });
+  y -= 18;
+  page4.drawText('automating customer interactions across all channels:', { x: 50, y, font, size: 11, color: rgb(0, 0, 0) });
+  
+  y -= 30;
+  const features = ['Order Status Tracking', 'Frequently Asked Questions', 'Action Processing & Transactions', 'Product Information & Recommendations', 'Problem Solving & Support', 'Customer Feedback Collection'];
+  features.forEach(f => { page4.drawText(`• ${f}`, { x: 50, y, font, size: 11, color: rgb(0, 0, 0) }); y -= 22; });
   
   y -= 20;
-  page4.drawText('All Your Customer Conversations in a Unified Inbox', { x: 50, y, font: boldFont, size: 14, color: rgb(0, 0, 0) });
+  page4.drawText(`Unified Inbox for ${customer.name}'s Team`, { x: 50, y, font: boldFont, size: 14, color: rgb(0, 0, 0) });
+  y -= 20;
+  page4.drawText('All customer conversations across WhatsApp, Instagram, email, and other channels', { x: 50, y, font, size: 10, color: rgb(0, 0, 0) });
+  y -= 16;
+  page4.drawText('unified in one powerful dashboard for seamless team collaboration.', { x: 50, y, font, size: 10, color: rgb(0, 0, 0) });
   drawFooter(page4, font, 4);
 
-  // Page 5: Features
+  // Page 5: Features for Customer's Success
   const page5 = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page5, dooLogoBytes, customerLogoBytes, pdfDoc);
-  page5.drawText('Customer Pulse - AI-Driven CX Optimization', { x: 50, y: 720, font: boldFont, size: 14, color: rgb(0, 0, 0) });
-  page5.drawText('Monitor AI performance and customer sentiment across all channels. Use real-time', { x: 50, y: 690, font, size: 11, color: rgb(0, 0, 0) });
-  page5.drawText('insights to continuously improve customer satisfaction and service quality.', { x: 50, y: 672, font, size: 11, color: rgb(0, 0, 0) });
+  page5.drawText(`Empowering ${customer.name} with Advanced Features`, { x: 50, y: 720, font: boldFont, size: 16, color: rgb(0, 0, 0) });
   
-  page5.drawText('Personalized AI Control', { x: 50, y: 620, font: boldFont, size: 14, color: rgb(0, 0, 0) });
-  page5.drawText('Customize their voice, adjust interaction styles, and ensure they provide a consistent', { x: 50, y: 590, font, size: 11, color: rgb(0, 0, 0) });
-  page5.drawText('and branded customer experience across all channels.', { x: 50, y: 572, font, size: 11, color: rgb(0, 0, 0) });
+  y = 680;
+  page5.drawText('Customer Pulse - AI-Driven CX Optimization', { x: 50, y, font: boldFont, size: 13, color: rgb(0, 0, 0) });
+  y -= 22;
+  page5.drawText(`${customer.name} will have access to real-time monitoring of AI performance and customer`, { x: 50, y, font, size: 10, color: rgb(0, 0, 0) });
+  y -= 16;
+  page5.drawText('sentiment across all channels. Use actionable insights to continuously improve customer', { x: 50, y, font, size: 10, color: rgb(0, 0, 0) });
+  y -= 16;
+  page5.drawText('satisfaction and service quality.', { x: 50, y, font, size: 10, color: rgb(0, 0, 0) });
+  
+  y -= 30;
+  page5.drawText(`Personalized AI Control for ${customer.name}`, { x: 50, y, font: boldFont, size: 13, color: rgb(0, 0, 0) });
+  y -= 22;
+  page5.drawText(`Customize your AI agents' voice to match ${customer.name}'s brand personality. Adjust`, { x: 50, y, font, size: 10, color: rgb(0, 0, 0) });
+  y -= 16;
+  page5.drawText('interaction styles, response patterns, and ensure they provide a consistent and branded', { x: 50, y, font, size: 10, color: rgb(0, 0, 0) });
+  y -= 16;
+  page5.drawText('customer experience across all channels.', { x: 50, y, font, size: 10, color: rgb(0, 0, 0) });
   drawFooter(page5, font, 5);
 
-  // Page 6: OMLAQ
+  // Page 6: OMLAQ - Perfect for Customer's Region
   const page6 = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page6, dooLogoBytes, customerLogoBytes, pdfDoc);
-  page6.drawText('OMLAQ - The Arabic Dialects Engine', { x: 50, y: 720, font: boldFont, size: 18, color: rgb(0, 0, 0) });
+  page6.drawText('OMLAQ - Arabic Dialects Engine', { x: 50, y: 720, font: boldFont, size: 18, color: rgb(0, 0, 0) });
+  
   y = 680;
+  const regionContext = customer.country ? ` This is particularly relevant for ${customer.name} serving customers in ${customer.country}.` : '';
   const omlaqLines = [
     'OMLAQ is our Large Language Layer that is culturally aware, understands & speaks',
-    'in Arabic dialects.',
+    `in Arabic dialects.${regionContext}`,
     '',
-    'Replies in real dialect: Najdi, Bahraini, Kuwaiti, and more.',
-    '8 models, each tuned for authenticity and local culture.',
-    'Runs on Azure, live with customers today.',
+    `For ${customer.name}, this means:`,
+    '• Authentic conversations in local dialects: Najdi, Bahraini, Kuwaiti, and more',
+    '• 8 specialized models, each tuned for regional authenticity and local culture',
+    '• Enterprise-grade reliability running on Microsoft Azure',
+    '• Already live and trusted by leading regional businesses',
     '',
-    'OMLAQ Voice:',
-    'Speak to customers in their dialect: by phone, kiosk, or even in-car.',
-    'Natural, dialect-specific conversations to any touchpoint—no menus, no scripts,',
-    'just real connection.',
+    'OMLAQ Voice - Multi-Channel Dialect Support:',
+    `${customer.name}'s customers can interact naturally in their own dialect through:`,
+    '• Phone conversations with natural dialect recognition',
+    '• Self-service kiosks with voice interaction',
+    '• In-vehicle assistance systems',
+    '• Any customer touchpoint—no rigid menus, no scripts, just authentic connection',
   ];
-  omlaqLines.forEach(line => { page6.drawText(line, { x: 50, y, font, size: 11, color: rgb(0, 0, 0) }); y -= 18; });
+  omlaqLines.forEach(line => { page6.drawText(line, { x: 50, y, font, size: 10, color: rgb(0, 0, 0) }); y -= 18; });
+  
+  y -= 20;
+  page6.drawText(`We look forward to partnering with ${customer.name} to transform your`, { x: 50, y, font: boldFont, size: 11, color: rgb(0, 0, 0) });
+  y -= 18;
+  page6.drawText('customer experience with AI-powered solutions.', { x: 50, y, font: boldFont, size: 11, color: rgb(0, 0, 0) });
   drawFooter(page6, font, 6);
 
   return pdfDoc;
@@ -203,7 +281,12 @@ async function generateServiceAgreement(customer: any, pdfDoc: any, font: any, b
   const page1 = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page1, dooLogoBytes, customerLogoBytes, pdfDoc);
   
-  page1.drawText('Service Agreement', { x: 50, y: 720, font: boldFont, size: 24, color: rgb(0, 0, 0) });
+  const { width: pageWidth } = page1.getSize();
+  const titleText = 'Service Agreement';
+  const titleWidth = boldFont.widthOfTextAtSize(titleText, 24);
+  const titleX = (pageWidth - titleWidth) / 2;
+  page1.drawText(titleText, { x: titleX, y: 720, font: boldFont, size: 24, color: rgb(0, 0, 0) });
+  
   let y = 680;
   page1.drawText(`This Service Agreement ("Agreement") is entered into on ${new Date().toLocaleDateString()} ("Effective Date")`, { x: 50, y, font, size: 10, maxWidth: 495, color: rgb(0, 0, 0) });
   y -= 18;
@@ -363,16 +446,25 @@ async function generateSLA(customer: any, pdfDoc: any, font: any, boldFont: any,
   const page1 = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page1, dooLogoBytes, customerLogoBytes, pdfDoc);
   
-  page1.drawText('DOO Enterprise Service Level Agreement (SLA)', { x: 50, y: 720, font: boldFont, size: 18 });
+  const { width: pageWidth } = page1.getSize();
+  const titleText = 'Service Level Agreement (SLA)';
+  const titleWidth = boldFont.widthOfTextAtSize(titleText, 20);
+  const titleX = (pageWidth - titleWidth) / 2;
+  page1.drawText(titleText, { x: titleX, y: 720, font: boldFont, size: 20, color: rgb(0, 0, 0) });
   
-  let y = 680;
-  page1.drawText('1. Overview', { x: 50, y, font: boldFont, size: 14 });
+  const customerText = `DOO Enterprise SLA for ${customer.name}`;
+  const customerTextWidth = font.widthOfTextAtSize(customerText, 14);
+  const customerX = (pageWidth - customerTextWidth) / 2;
+  page1.drawText(customerText, { x: customerX, y: 695, font, size: 14, color: rgb(0, 0, 0) });
+  
+  let y = 660;
+  page1.drawText('1. Overview', { x: 50, y, font: boldFont, size: 14, color: rgb(0, 0, 0) });
   y -= 25;
-  page1.drawText('This Service Level Agreement ("SLA") defines the standards of service and support provided by', { x: 50, y, font, size: 10, maxWidth: 495 });
+  page1.drawText(`This Service Level Agreement ("SLA") defines the standards of service and support that ${customer.name}`, { x: 50, y, font, size: 10, maxWidth: 495, color: rgb(0, 0, 0) });
   y -= 16;
-  page1.drawText('DOO Technology Solutions ("DOO") to its enterprise clients. It ensures maximum platform', { x: 50, y, font, size: 10, maxWidth: 495 });
+  page1.drawText('will receive from DOO Technology Solutions ("DOO"). It ensures maximum platform availability,', { x: 50, y, font, size: 10, maxWidth: 495, color: rgb(0, 0, 0) });
   y -= 16;
-  page1.drawText('availability, rapid issue response, and a consistently high-quality customer experience.', { x: 50, y, font, size: 10, maxWidth: 495 });
+  page1.drawText(`rapid issue response, and a consistently high-quality experience for ${customer.name}'s customers.`, { x: 50, y, font, size: 10, maxWidth: 495, color: rgb(0, 0, 0) });
   
   y -= 30;
   page1.drawText('2. Service Commitment', { x: 50, y, font: boldFont, size: 14 });
@@ -519,7 +611,11 @@ async function generateInvoice(customer: any, contract: any, pdfDoc: any, font: 
   const page = pdfDoc.addPage([595, 842]);
   await drawProfessionalHeader(page, dooLogoBytes, customerLogoBytes, pdfDoc);
   
-  page.drawText('QUOTATION', { x: 50, y: 720, font: boldFont, size: 28, color: rgb(0, 0, 0) });
+  const { width: pageWidth } = page.getSize();
+  const titleText = 'QUOTATION';
+  const titleWidth = boldFont.widthOfTextAtSize(titleText, 28);
+  const titleX = (pageWidth - titleWidth) / 2;
+  page.drawText(titleText, { x: titleX, y: 720, font: boldFont, size: 28, color: rgb(0, 0, 0) });
   
   let y = 670;
   page.drawText(`ADDRESSED TO: ${customer.contact_name || customer.name}`, { x: 50, y, font: boldFont, size: 11, color: rgb(0, 0, 0) });
