@@ -221,11 +221,11 @@ export const getConversionRate = async (): Promise<number> => {
       .from('customers')
       .select('id', { count: 'exact' });
 
-    // Get all customers with active contracts (live customers)
+    // Get all customers with status = "done" (live customers)
     const { data: liveCustomers, error: liveError } = await supabase
       .from('customers')
       .select('id', { count: 'exact' })
-      .neq('status', 'churned');
+      .eq('status', 'done');
 
     if (totalError || liveError) {
       console.error("Error calculating conversion rate:", totalError || liveError);

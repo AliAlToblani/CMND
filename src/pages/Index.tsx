@@ -75,7 +75,7 @@ const Index = () => {
         calculatePitchToPayTime(),
         calculatePayToLiveTime(),
         getCustomerARRData(customers),
-        calculateChurnRate()
+        calculateChurnRate(180) // 6 months = ~180 days
       ]);
 
       setMetrics({
@@ -260,6 +260,12 @@ const Index = () => {
   
   const dashboardStats = [
     {
+      title: "Total Customers",
+      value: `${getTotalCustomersCount()}`,
+      description: "All customers",
+      icon: <Users className="h-6 w-6" />
+    },
+    {
       title: "Total Revenue",
       value: formattedActiveContracts,
       description: "All revenue (current year)",
@@ -337,7 +343,7 @@ const Index = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {dashboardStats.map((stat, index) => {
-            const metricKeys = ["total-revenue", "total-arr", "live-customers", "pitch-to-pay", "deals-pipeline", "conversion-rate", "average-deal-size", "mrr", "pay-to-live", "churn-rate"];
+            const metricKeys = ["total-customers", "total-revenue", "total-arr", "live-customers", "pitch-to-pay", "deals-pipeline", "conversion-rate", "average-deal-size", "mrr", "pay-to-live", "churn-rate"];
             return (
               <StatCard 
                 key={index} 
