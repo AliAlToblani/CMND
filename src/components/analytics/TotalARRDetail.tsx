@@ -45,8 +45,7 @@ export const TotalARRDetail = () => {
               stage
             )
           `)
-          .or('status.eq.active,status.eq.pending,status.is.null')
-          .gt('end_date', new Date().toISOString());
+          .or('status.eq.active,status.eq.pending,status.is.null');
 
         if (contractsError) throw contractsError;
 
