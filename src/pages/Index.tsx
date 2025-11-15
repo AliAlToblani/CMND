@@ -323,18 +323,18 @@ const Index = () => {
         {/* Main Content */}
         <div className="space-y-12">
           {/* Dashboard Header */}
-          <div className="flex items-center justify-between mb-12 pb-6 border-b border-border/50">
-            <div>
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent mb-2">
-                Dashboard
-              </h1>
-              <p className="text-base text-muted-foreground font-light">
-                Real-time business analytics and insights
-              </p>
-            </div>
-            
-            <div className="flex flex-col items-end gap-3">
-              <div className="flex items-center gap-3">
+          <div className="mb-12 pb-6 border-b border-border/50">
+            <div className="flex flex-col gap-6">
+              <div>
+                <h1 className="text-5xl font-bold bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent mb-2">
+                  Dashboard
+                </h1>
+                <p className="text-base text-muted-foreground font-light">
+                  Real-time business analytics and insights
+                </p>
+              </div>
+              
+              <div className="flex items-center gap-3 flex-wrap">
                 <Button 
                   onClick={refreshMetrics} 
                   disabled={isRefreshing}
@@ -353,13 +353,13 @@ const Index = () => {
                   <Plus className="mr-2 h-4 w-4" />
                   Add Customer
                 </Button>
+                {lastRefreshedAt && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-full ml-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    Last refreshed at {lastRefreshedAt.toLocaleTimeString()}
+                  </div>
+                )}
               </div>
-              {lastRefreshedAt && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-full">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                  Last refreshed at {lastRefreshedAt.toLocaleTimeString()}
-                </div>
-              )}
             </div>
           </div>
 
