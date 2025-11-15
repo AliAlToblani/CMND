@@ -58,6 +58,8 @@ export const PipelineReportView: React.FC = () => {
     }
     const endDate = new Date();
 
+    console.log("🔍 Fetching pipeline data for:", { daysAgo, startDate: startDate?.toISOString(), endDate: endDate.toISOString() });
+
     const { data: customers, error: customersError } = await supabase
       .from("customers")
       .select("*")
@@ -65,10 +67,13 @@ export const PipelineReportView: React.FC = () => {
 
     if (customersError) throw customersError;
 
+    console.log("📊 Total customers fetched:", customers?.length);
+
     // Fetch timeline events - filter by date only if startDate exists
     const timelineQuery = supabase
       .from("customer_timeline")
       .select("*")
+      .eq("event_type", "stage_change")
       .order("created_at", { ascending: false });
     
     if (startDate) {
@@ -78,6 +83,15 @@ export const PipelineReportView: React.FC = () => {
     }
     
     const { data: timelineEvents } = await timelineQuery;
+    
+    console.log("📅 Timeline events fetched:", { 
+      total: timelineEvents?.length, 
+      period: daysAgo ? `${daysAgo} days` : "all time",
+      sample: timelineEvents?.slice(0, 2).map(e => ({ 
+        desc: e.event_description, 
+        created: e.created_at 
+      }))
+    });
 
     const customerData = customers as Customer[];
 
@@ -93,8 +107,7 @@ export const PipelineReportView: React.FC = () => {
 
     // Parse timeline events to extract actual stage changes
     const movedCustomers = timelineEvents
-      ?.filter((e) => e.event_type === "stage_change")
-      .slice(0, 10)
+      ?.slice(0, 10)
       .map((e) => {
         const customer = customerData.find((c) => c.id === e.customer_id);
         // Parse event_description to extract previous and new stages
@@ -117,18 +130,7 @@ export const PipelineReportView: React.FC = () => {
         };
       }) || [];
 
-    const newCustomers = customerData
-      .filter((c) => {
-        if (!startDate) return true; // For all-time, consider all customers as "tracked"
-        const createdDate = new Date(c.created_at);
-        return createdDate >= startDate && createdDate <= endDate;
-      })
-      .slice(0, 10)
-      .map((c) => ({
-        name: c.name,
-        stage: c.stage || "Unknown",
-        value: c.contract_size || 0,
-      }));
+    console.log("🔄 Moved customers:", movedCustomers.length);
 
     const stalledCustomers = customerData
       .filter((c) => {
@@ -148,7 +150,7 @@ export const PipelineReportView: React.FC = () => {
       });
 
     // Calculate value gained/lost based on beneficial vs negative stage movements
-    const beneficialStages = ["Signed", "Go Live", "Renewing", "Upsell Opportunity"];
+    const beneficialStages = ["Signed", "Go Live", "Renewing", "Upsell Opportunity", "Live"];
     const negativeStages = ["Lost", "Churned", "At Risk"];
     
     const valueGained = movedCustomers
@@ -158,9 +160,19 @@ export const PipelineReportView: React.FC = () => {
     const valueLost = movedCustomers
       .filter(c => negativeStages.some(s => c.toStage.includes(s)))
       .reduce((sum, c) => sum + c.value, 0);
+    
     const totalPipelineValue = customerData.reduce((sum, c) => sum + (c.contract_size || 0), 0);
     const totalCustomers = customerData.length;
     const avgDealSize = totalCustomers > 0 ? totalPipelineValue / totalCustomers : 0;
+
+    console.log("💰 Calculated values:", { 
+      valueGained, 
+      valueLost, 
+      totalPipelineValue, 
+      totalCustomers,
+      movedToPositive: movedCustomers.filter(c => beneficialStages.some(s => c.toStage.includes(s))).length,
+      movedToNegative: movedCustomers.filter(c => negativeStages.some(s => c.toStage.includes(s))).length
+    });
 
     return {
       period: {
@@ -169,7 +181,7 @@ export const PipelineReportView: React.FC = () => {
       },
       stageDistribution,
       movedCustomers,
-      newCustomers,
+      newCustomers: [], // Removed as requested
       stalledCustomers,
       valueGained,
       valueLost,
@@ -207,14 +219,6 @@ export const PipelineReportView: React.FC = () => {
       report += `=== CUSTOMERS MOVED (${data.movedCustomers.length}) ===\n`;
       data.movedCustomers.forEach((c) => {
         report += `- ${c.name}: ${c.fromStage} → ${c.toStage} (${formatCurrency(c.value)})\n`;
-      });
-      report += `\n`;
-    }
-
-    if (data.newCustomers.length > 0) {
-      report += `=== NEW CUSTOMERS (${data.newCustomers.length}) ===\n`;
-      data.newCustomers.forEach((c) => {
-        report += `- ${c.name} (${c.stage}): ${formatCurrency(c.value)}\n`;
       });
       report += `\n`;
     }
@@ -319,23 +323,6 @@ export const PipelineReportView: React.FC = () => {
           </Card>
         )}
 
-        {/* New Customers */}
-        {data.newCustomers.length > 0 && (
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">New Customers This Period ({data.newCustomers.length})</h3>
-            <div className="space-y-2">
-              {data.newCustomers.map((customer, index) => (
-                <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border hover:bg-muted transition-colors">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{customer.name}</span>
-                    <span className="text-sm text-muted-foreground">({customer.stage})</span>
-                  </div>
-                  <span className="font-semibold text-primary">{formatCurrency(customer.value)}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
 
         {/* Stalled Customers */}
         {data.stalledCustomers.length > 0 && (
