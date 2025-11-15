@@ -59,28 +59,26 @@ export const UpdatesPanel = () => {
       date: format(new Date(stage.status_changed_at), 'MMM dd')
     }));
 
-    // Fetch new customers
-    const { data: customersData } = await supabase
-      .from('customers')
-      .select('id, name, created_at')
+    // Fetch new customers (contracts created)
+    const { data: contractsData } = await supabase
+      .from('contracts')
+      .select('id, name, created_at, customers(name)')
       .gte('created_at', daysAgo.toISOString())
-      .neq('status', 'churned')
       .order('created_at', { ascending: false })
       .limit(10);
 
-    const newCustomers: ActivityItem[] = customersData?.map((customer: any) => ({
-      id: customer.id,
+    const newCustomers: ActivityItem[] = contractsData?.map((contract: any) => ({
+      id: contract.id,
       type: 'customer' as const,
-      customerName: customer.name,
-      details: 'New customer',
-      date: format(new Date(customer.created_at), 'MMM dd')
+      customerName: contract.customers?.name || 'Unknown',
+      details: contract.name,
+      date: format(new Date(contract.created_at), 'MMM dd')
     })) || [];
 
-    // Fetch new leads
+    // Fetch new leads (customers added)
     const { data: leadsData } = await supabase
       .from('customers')
       .select('id, name, created_at')
-      .eq('status', 'lead')
       .gte('created_at', daysAgo.toISOString())
       .order('created_at', { ascending: false })
       .limit(10);
