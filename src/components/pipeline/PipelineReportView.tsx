@@ -147,7 +147,9 @@ export const PipelineReportView: React.FC = () => {
         stageDistribution[stage] = { count: 0, value: 0 };
       }
       stageDistribution[stage].count++;
-      stageDistribution[stage].value += customer.contract_size || customer.estimated_deal_value || 0;
+      // Use estimated_deal_value primarily, fall back to contract_size
+      const value = customer.estimated_deal_value || customer.contract_size || 0;
+      stageDistribution[stage].value += value;
     });
 
     console.log("📊 Stage distribution:", stageDistribution);
@@ -169,15 +171,17 @@ export const PipelineReportView: React.FC = () => {
           if (toMatch) toStage = toMatch[1].trim();
         }
         
+        const value = customer?.estimated_deal_value || customer?.contract_size || 0;
+        
         return {
           name: customer?.name || "Unknown",
           fromStage,
           toStage,
-          value: customer?.contract_size || 0,
+          value,
         };
       }) || [];
 
-    console.log("🔄 Moved customers:", movedCustomers.length);
+    console.log("🔄 Moved customers:", movedCustomers.length, "Timeline events:", timelineEvents?.length);
 
     const stalledCustomers = customerData
       .filter((c) => {
@@ -189,11 +193,12 @@ export const PipelineReportView: React.FC = () => {
       .map((c) => {
         const updatedDate = new Date(c.updated_at);
         const daysSince = Math.floor((Date.now() - updatedDate.getTime()) / (1000 * 60 * 60 * 24));
+        const value = c.estimated_deal_value || c.contract_size || 0;
         return {
           name: c.name,
           stage: c.stage || "Lead",
           daysSinceUpdate: daysSince,
-          value: c.contract_size || c.estimated_deal_value || 0,
+          value,
         };
       });
 
@@ -211,18 +216,20 @@ export const PipelineReportView: React.FC = () => {
       .filter(c => negativeStages.some(s => c.toStage.includes(s)))
       .reduce((sum, c) => sum + c.value, 0);
     
-    const totalPipelineValue = customerData.reduce((sum, c) => sum + (c.contract_size || c.estimated_deal_value || 0), 0);
+    // Use estimated_deal_value primarily for pipeline value
+    const totalPipelineValue = customerData.reduce((sum, c) => sum + (c.estimated_deal_value || c.contract_size || 0), 0);
     const totalCustomers = customerData.length;
     const avgDealSize = totalCustomers > 0 ? totalPipelineValue / totalCustomers : 0;
 
     console.log("💰 Calculated values:", { 
       valueGained, 
       valueLost, 
-      totalPipelineValue, 
+      totalPipelineValue: `${(totalPipelineValue / 1000000).toFixed(2)}M`, 
       totalCustomers,
-      avgDealSize,
+      avgDealSize: `${(avgDealSize / 1000).toFixed(0)}K`,
       movedToPositive: movedCustomers.filter(c => beneficialStages.some(s => c.toStage.includes(s))).length,
-      movedToNegative: movedCustomers.filter(c => negativeStages.some(s => c.toStage.includes(s))).length
+      movedToNegative: movedCustomers.filter(c => negativeStages.some(s => c.toStage.includes(s))).length,
+      timelineEventsFound: timelineEvents?.length || 0
     });
 
     return {
@@ -355,9 +362,14 @@ export const PipelineReportView: React.FC = () => {
         </Card>
 
         {/* Customers Moved */}
-        {data.movedCustomers.length > 0 && (
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Customers Moved This Period ({data.movedCustomers.length})</h3>
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4">
+            {data.movedCustomers.length > 0 
+              ? `Customers Moved This Period (${data.movedCustomers.length})`
+              : "Customer Movement This Period"
+            }
+          </h3>
+          {data.movedCustomers.length > 0 ? (
             <div className="space-y-2">
               {data.movedCustomers.map((customer, index) => (
                 <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border hover:bg-muted transition-colors">
@@ -371,8 +383,15 @@ export const PipelineReportView: React.FC = () => {
                 </div>
               ))}
             </div>
-          </Card>
-        )}
+          ) : (
+            <div className="p-6 text-center bg-muted/30 rounded-lg border-2 border-dashed border-border">
+              <p className="text-muted-foreground mb-2">No customer movements recorded in this period</p>
+              <p className="text-sm text-muted-foreground">
+                Movement data requires timeline events to be tracked. Make sure to update customer stages to generate movement history.
+              </p>
+            </div>
+          )}
+        </Card>
 
 
         {/* Stalled Customers */}
