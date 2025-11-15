@@ -224,4 +224,5 @@ export interface CustomerData {
   contact_name?: string;
   contact_email?: string;
   contact_phone?: string;
+  updated_at?: string;
 }

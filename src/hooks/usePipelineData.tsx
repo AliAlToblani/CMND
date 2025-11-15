@@ -102,6 +102,7 @@ lifecycleStages?.forEach(stage => {
           stage: pipelineStage,
           status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
           contractSize: customer.estimated_deal_value || 0,
+          updated_at: customer.updated_at,
           owner: {
             id: customer.owner_id || "unknown",
             name: "Unassigned",
