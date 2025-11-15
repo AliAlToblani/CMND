@@ -18,7 +18,7 @@ interface StatCardProps {
 export function StatCard({ title, value, change, icon, description, onClick }: StatCardProps) {
   return (
     <Card 
-      className="group relative overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:shadow-2xl hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98] min-h-[160px] flex flex-col justify-between border-0 bg-gradient-to-br from-card to-card/80" 
+      className="group relative overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:shadow-2xl hover:-translate-y-1 hover:scale-[1.02] active:scale-[0.98] h-[160px] flex flex-col justify-between border-0 bg-gradient-to-br from-card to-card/80" 
       onClick={onClick}
     >
       {/* Gradient accent bar on top */}

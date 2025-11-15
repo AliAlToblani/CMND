@@ -178,8 +178,8 @@ export const UpdatesPanel = () => {
   );
 
   return (
-    <Card className="border-0 shadow-xl bg-gradient-to-br from-card to-card/80 h-full">
-      <CardHeader className="border-b border-border/50 pb-4">
+    <Card className="border-0 shadow-xl bg-gradient-to-br from-card to-card/80 h-[500px] flex flex-col overflow-hidden">
+      <CardHeader className="border-b border-border/50 pb-4 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
@@ -189,20 +189,20 @@ export const UpdatesPanel = () => {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4 p-6">
-        <Tabs value={period} onValueChange={(v) => setPeriod(v as 'weekly' | 'monthly')}>
-          <TabsList className="grid w-full grid-cols-2">
+      <CardContent className="space-y-4 p-6 flex-1 overflow-hidden flex flex-col">
+        <Tabs value={period} onValueChange={(v) => setPeriod(v as 'weekly' | 'monthly')} className="flex-1 flex flex-col overflow-hidden">
+          <TabsList className="grid w-full grid-cols-2 flex-shrink-0">
             <TabsTrigger value="weekly">Weekly</TabsTrigger>
             <TabsTrigger value="monthly">Monthly</TabsTrigger>
           </TabsList>
 
-          <TabsContent value={period} className="mt-4">
+          <TabsContent value={period} className="mt-4 flex-1 overflow-hidden">
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             ) : currentData ? (
-              <ScrollArea className="h-[500px] pr-4">
+              <ScrollArea className="h-full pr-4">
                 <div className="space-y-4">
                   <div className="text-xs text-muted-foreground">
                     Last {period === 'weekly' ? '7' : '30'} days
