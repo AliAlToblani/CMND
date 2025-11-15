@@ -167,7 +167,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="min-h-screen flex w-full dashboard-background">
         <DashboardSidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
           <header className="backdrop-blur-lg bg-white/90 dark:bg-gray-900/90 border-b border-gray-200/50 dark:border-gray-700/50 h-16 flex items-center justify-between px-6 z-10 shadow-sm">
@@ -282,7 +282,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
           </header>
           <ScrollArea className="flex-1">
-            <main className="dashboard-background p-6">
+            <main className="p-6">
               <div className="animate-fade-in">
                 {children}
               </div>
