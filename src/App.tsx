@@ -24,7 +24,6 @@ import {
   LazyLifecycle,
   LazyContracts,
   LazySettings,
-  LazyGenerateDocuments,
   LazyNotFound,
   LazyAcceptInvite,
   LazyAnalyticsDetail,
@@ -87,7 +86,6 @@ const App = () => {
                   <Route path="/lifecycle" element={<ProtectedRoute><LazyLifecycle /></ProtectedRoute>} />
                   <Route path="/lifecycle/:customerId" element={<ProtectedRoute><LazyLifecycle /></ProtectedRoute>} />
   <Route path="/contracts" element={<ProtectedRoute><LazyContracts /></ProtectedRoute>} />
-  <Route path="/generate-documents" element={<ProtectedRoute><LazyGenerateDocuments /></ProtectedRoute>} />
   <Route path="/settings" element={<ProtectedRoute><LazySettings /></ProtectedRoute>} />
                   <Route path="/analytics/:metric" element={<ProtectedRoute><LazyAnalyticsDetail /></ProtectedRoute>} />
                   

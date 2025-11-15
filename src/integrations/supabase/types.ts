@@ -1071,16 +1071,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cleanup_expired_invitations: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      generate_invitation_token: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      cleanup_expired_invitations: { Args: never; Returns: undefined }
+      generate_invitation_token: { Args: never; Returns: string }
       get_current_user_profile: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           avatar_url: string
           email: string
@@ -1115,14 +1109,8 @@ export type Database = {
         }
         Returns: boolean
       }
-      update_customer_churn_status: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      update_payment_status: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      update_customer_churn_status: { Args: never; Returns: undefined }
+      update_payment_status: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "manager" | "user"
