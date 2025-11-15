@@ -28,6 +28,9 @@ export const PipelineReportView: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"weekly" | "monthly" | "all_time">("all_time");
 
+  // Force console logging on mount
+  console.log("🚀🚀🚀 PIPELINE REPORT VIEW MOUNTED - V2.0 🚀🚀🚀");
+
   useEffect(() => {
     console.log("🚀 PipelineReportView mounted, starting data fetch");
     fetchReportData();
@@ -445,7 +448,7 @@ export const PipelineReportView: React.FC = () => {
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "weekly" | "monthly" | "all_time")}>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold">Pipeline Reports</h2>
+            <h2 className="text-2xl font-bold">Pipeline Reports <span className="text-xs text-muted-foreground">(v3.0 - Using Estimated Deal Value)</span></h2>
             <p className="text-sm text-muted-foreground mt-1">
               Detailed analytics for {getTabLabel()} pipeline performance
             </p>
