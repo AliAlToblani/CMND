@@ -1,259 +1,260 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Download, FileText, Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Download, Loader2, TrendingUp, Users, Target, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { generateWeeklyReport, generateMonthlyReport } from "@/utils/reportGeneration";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
-interface ReportPreview {
-  lifecycleChanges: number;
-  newCustomers: number;
-  newLeads: number;
-  churns: number;
+interface ActivityItem {
+  id: string;
+  type: 'lifecycle' | 'customer' | 'lead' | 'churn';
+  customerName: string;
+  details: string;
+  date: string;
+}
+
+interface DetailedData {
+  lifecycleChanges: ActivityItem[];
+  newCustomers: ActivityItem[];
+  newLeads: ActivityItem[];
+  churns: ActivityItem[];
 }
 
 export const UpdatesPanel = () => {
-  const [weeklyPreview, setWeeklyPreview] = useState<ReportPreview | null>(null);
-  const [monthlyPreview, setMonthlyPreview] = useState<ReportPreview | null>(null);
-  const [weeklyGenerating, setWeeklyGenerating] = useState(false);
-  const [monthlyGenerating, setMonthlyGenerating] = useState(false);
-  const [weeklyTimestamp, setWeeklyTimestamp] = useState<Date | null>(null);
-  const [monthlyTimestamp, setMonthlyTimestamp] = useState<Date | null>(null);
+  const [period, setPeriod] = useState<'weekly' | 'monthly'>('weekly');
+  const [weeklyData, setWeeklyData] = useState<DetailedData | null>(null);
+  const [monthlyData, setMonthlyData] = useState<DetailedData | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const fetchWeeklyPreview = async () => {
-    try {
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const fetchDetailedData = async (days: number): Promise<DetailedData> => {
+    const daysAgo = new Date();
+    daysAgo.setDate(daysAgo.getDate() - days);
 
-      const [lifecycleData, customersData, leadsData, churnsData] = await Promise.all([
-        supabase
-          .from('lifecycle_stages')
-          .select('customer_id, name, status_changed_at')
-          .gte('status_changed_at', sevenDaysAgo.toISOString()),
-        supabase
-          .from('customers')
-          .select('id')
-          .gte('created_at', sevenDaysAgo.toISOString())
-          .neq('status', 'churned'),
-        supabase
-          .from('customers')
-          .select('id')
-          .eq('status', 'lead')
-          .gte('created_at', sevenDaysAgo.toISOString()),
-        supabase
-          .from('customers')
-          .select('id')
-          .eq('status', 'churned')
-          .gte('churn_date', sevenDaysAgo.toISOString()),
-      ]);
+    // Fetch lifecycle changes with customer names
+    const { data: lifecycleData } = await supabase
+      .from('lifecycle_stages')
+      .select('customer_id, name, status_changed_at, customers(name)')
+      .gte('status_changed_at', daysAgo.toISOString())
+      .order('status_changed_at', { ascending: false });
 
-      // Get unique customers with lifecycle changes (latest stage only)
-      const customerStages = new Map();
-      lifecycleData.data?.forEach(stage => {
-        const existing = customerStages.get(stage.customer_id);
-        if (!existing || new Date(stage.status_changed_at) > new Date(existing.status_changed_at)) {
-          customerStages.set(stage.customer_id, stage);
-        }
-      });
+    // Get unique customers with latest stage only
+    const customerStagesMap = new Map();
+    lifecycleData?.forEach((stage: any) => {
+      const existing = customerStagesMap.get(stage.customer_id);
+      if (!existing || new Date(stage.status_changed_at) > new Date(existing.status_changed_at)) {
+        customerStagesMap.set(stage.customer_id, stage);
+      }
+    });
 
-      setWeeklyPreview({
-        lifecycleChanges: customerStages.size,
-        newCustomers: customersData.data?.length || 0,
-        newLeads: leadsData.data?.length || 0,
-        churns: churnsData.data?.length || 0,
-      });
-      setWeeklyTimestamp(new Date());
-    } catch (error) {
-      console.error("Error fetching weekly preview:", error);
-    }
+    const lifecycleChanges: ActivityItem[] = Array.from(customerStagesMap.values()).map((stage: any) => ({
+      id: stage.customer_id,
+      type: 'lifecycle' as const,
+      customerName: stage.customers?.name || 'Unknown',
+      details: stage.name,
+      date: format(new Date(stage.status_changed_at), 'MMM dd')
+    }));
+
+    // Fetch new customers
+    const { data: customersData } = await supabase
+      .from('customers')
+      .select('id, name, created_at')
+      .gte('created_at', daysAgo.toISOString())
+      .neq('status', 'churned')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    const newCustomers: ActivityItem[] = customersData?.map((customer: any) => ({
+      id: customer.id,
+      type: 'customer' as const,
+      customerName: customer.name,
+      details: 'New customer',
+      date: format(new Date(customer.created_at), 'MMM dd')
+    })) || [];
+
+    // Fetch new leads
+    const { data: leadsData } = await supabase
+      .from('customers')
+      .select('id, name, created_at')
+      .eq('status', 'lead')
+      .gte('created_at', daysAgo.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    const newLeads: ActivityItem[] = leadsData?.map((lead: any) => ({
+      id: lead.id,
+      type: 'lead' as const,
+      customerName: lead.name,
+      details: 'New lead',
+      date: format(new Date(lead.created_at), 'MMM dd')
+    })) || [];
+
+    // Fetch churns
+    const { data: churnsData } = await supabase
+      .from('customers')
+      .select('id, name, churn_date')
+      .eq('status', 'churned')
+      .gte('churn_date', daysAgo.toISOString())
+      .order('churn_date', { ascending: false })
+      .limit(10);
+
+    const churns: ActivityItem[] = churnsData?.map((customer: any) => ({
+      id: customer.id,
+      type: 'churn' as const,
+      customerName: customer.name,
+      details: 'Churned',
+      date: format(new Date(customer.churn_date), 'MMM dd')
+    })) || [];
+
+    return { lifecycleChanges, newCustomers, newLeads, churns };
   };
 
-  const fetchMonthlyPreview = async () => {
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const [weekly, monthly] = await Promise.all([
+          fetchDetailedData(7),
+          fetchDetailedData(30)
+        ]);
+        setWeeklyData(weekly);
+        setMonthlyData(monthly);
+      } catch (error) {
+        console.error("Error fetching activity data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  const handleGenerateReport = async () => {
+    setGenerating(true);
     try {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      const [lifecycleData, customersData, leadsData, churnsData] = await Promise.all([
-        supabase
-          .from('lifecycle_stages')
-          .select('customer_id, name, status_changed_at')
-          .gte('status_changed_at', thirtyDaysAgo.toISOString()),
-        supabase
-          .from('customers')
-          .select('id')
-          .gte('created_at', thirtyDaysAgo.toISOString())
-          .neq('status', 'churned'),
-        supabase
-          .from('customers')
-          .select('id')
-          .eq('status', 'lead')
-          .gte('created_at', thirtyDaysAgo.toISOString()),
-        supabase
-          .from('customers')
-          .select('id')
-          .eq('status', 'churned')
-          .gte('churn_date', thirtyDaysAgo.toISOString()),
-      ]);
-
-      // Get unique customers with lifecycle changes (latest stage only)
-      const customerStages = new Map();
-      lifecycleData.data?.forEach(stage => {
-        const existing = customerStages.get(stage.customer_id);
-        if (!existing || new Date(stage.status_changed_at) > new Date(existing.status_changed_at)) {
-          customerStages.set(stage.customer_id, stage);
-        }
-      });
-
-      setMonthlyPreview({
-        lifecycleChanges: customerStages.size,
-        newCustomers: customersData.data?.length || 0,
-        newLeads: leadsData.data?.length || 0,
-        churns: churnsData.data?.length || 0,
-      });
-      setMonthlyTimestamp(new Date());
+      if (period === 'weekly') {
+        await generateWeeklyReport();
+        toast.success("Weekly report downloaded");
+      } else {
+        await generateMonthlyReport();
+        toast.success("Monthly report downloaded");
+      }
     } catch (error) {
-      console.error("Error fetching monthly preview:", error);
-    }
-  };
-
-  const handleGenerateWeekly = async () => {
-    setWeeklyGenerating(true);
-    try {
-      await generateWeeklyReport();
-      await fetchWeeklyPreview();
-      toast.success("Weekly report generated and downloaded");
-    } catch (error) {
-      console.error("Error generating weekly report:", error);
-      toast.error("Failed to generate weekly report");
+      console.error("Error generating report:", error);
+      toast.error("Failed to generate report");
     } finally {
-      setWeeklyGenerating(false);
+      setGenerating(false);
     }
   };
 
-  const handleGenerateMonthly = async () => {
-    setMonthlyGenerating(true);
-    try {
-      await generateMonthlyReport();
-      await fetchMonthlyPreview();
-      toast.success("Monthly report generated and downloaded");
-    } catch (error) {
-      console.error("Error generating monthly report:", error);
-      toast.error("Failed to generate monthly report");
-    } finally {
-      setMonthlyGenerating(false);
-    }
-  };
+  const currentData = period === 'weekly' ? weeklyData : monthlyData;
+
+  const ActivitySection = ({ title, items, icon }: { title: string; items: ActivityItem[]; icon: React.ReactNode }) => (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        {icon}
+        <span>{title} ({items.length})</span>
+      </div>
+      {items.length > 0 ? (
+        <div className="space-y-1 pl-6">
+          {items.slice(0, 5).map((item) => (
+            <div key={item.id} className="text-xs text-muted-foreground flex justify-between">
+              <span className="truncate flex-1">{item.customerName} → {item.details}</span>
+              <span className="text-[10px] ml-2 whitespace-nowrap">{item.date}</span>
+            </div>
+          ))}
+          {items.length > 5 && (
+            <div className="text-xs text-muted-foreground italic">
+              +{items.length - 5} more
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="text-xs text-muted-foreground pl-6">No activity</div>
+      )}
+    </div>
+  );
 
   return (
-    <div className="space-y-4">
-      {/* Weekly Update Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Calendar className="h-5 w-5" />
-            Weekly Update
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {weeklyTimestamp && (
-            <p className="text-xs text-muted-foreground">
-              Last generated: {weeklyTimestamp.toLocaleTimeString()}
-            </p>
-          )}
-          
-          {weeklyPreview && (
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Lifecycle changes:</span>
-                <span className="font-medium">{weeklyPreview.lifecycleChanges}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">New customers:</span>
-                <span className="font-medium">{weeklyPreview.newCustomers}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">New leads:</span>
-                <span className="font-medium">{weeklyPreview.newLeads}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Churns:</span>
-                <span className="font-medium">{weeklyPreview.churns}</span>
-              </div>
-            </div>
-          )}
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Activity Updates</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Tabs value={period} onValueChange={(v) => setPeriod(v as 'weekly' | 'monthly')}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="weekly">Weekly</TabsTrigger>
+            <TabsTrigger value="monthly">Monthly</TabsTrigger>
+          </TabsList>
 
-          <div className="flex gap-2">
-            <Button 
-              onClick={handleGenerateWeekly} 
-              disabled={weeklyGenerating}
-              className="flex-1"
-              size="sm"
-            >
-              {weeklyGenerating ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <FileText className="h-4 w-4 mr-2" />
-              )}
-              Generate Report
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          <TabsContent value={period} className="mt-4">
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : currentData ? (
+              <ScrollArea className="h-[500px] pr-4">
+                <div className="space-y-4">
+                  <div className="text-xs text-muted-foreground">
+                    Last {period === 'weekly' ? '7' : '30'} days
+                  </div>
 
-      {/* Monthly Update Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Calendar className="h-5 w-5" />
-            Monthly Update
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {monthlyTimestamp && (
-            <p className="text-xs text-muted-foreground">
-              Last generated: {monthlyTimestamp.toLocaleTimeString()}
-            </p>
-          )}
-          
-          {monthlyPreview && (
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Lifecycle changes:</span>
-                <span className="font-medium">{monthlyPreview.lifecycleChanges}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">New customers:</span>
-                <span className="font-medium">{monthlyPreview.newCustomers}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">New leads:</span>
-                <span className="font-medium">{monthlyPreview.newLeads}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Churns:</span>
-                <span className="font-medium">{monthlyPreview.churns}</span>
-              </div>
-            </div>
-          )}
+                  <ActivitySection
+                    title="Lifecycle Changes"
+                    items={currentData.lifecycleChanges}
+                    icon={<TrendingUp className="h-4 w-4" />}
+                  />
 
-          <div className="flex gap-2">
-            <Button 
-              onClick={handleGenerateMonthly} 
-              disabled={monthlyGenerating}
-              className="flex-1"
-              size="sm"
-            >
-              {monthlyGenerating ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <FileText className="h-4 w-4 mr-2" />
-              )}
-              Generate Report
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+                  <ActivitySection
+                    title="New Customers"
+                    items={currentData.newCustomers}
+                    icon={<Users className="h-4 w-4" />}
+                  />
+
+                  <ActivitySection
+                    title="New Leads"
+                    items={currentData.newLeads}
+                    icon={<Target className="h-4 w-4" />}
+                  />
+
+                  <ActivitySection
+                    title="Churns"
+                    items={currentData.churns}
+                    icon={<AlertCircle className="h-4 w-4" />}
+                  />
+                </div>
+              </ScrollArea>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                No data available
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        <Button 
+          onClick={handleGenerateReport} 
+          disabled={generating}
+          className="w-full"
+          size="sm"
+        >
+          {generating ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Generating...
+            </>
+          ) : (
+            <>
+              <Download className="mr-2 h-4 w-4" />
+              Download Report
+            </>
+          )}
+        </Button>
+      </CardContent>
+    </Card>
   );
 };

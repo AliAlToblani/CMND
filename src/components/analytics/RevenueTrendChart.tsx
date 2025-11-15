@@ -21,30 +21,40 @@ export const RevenueTrendChart = ({ isRefreshing }: RevenueTrendChartProps) => {
   const fetchRevenueTrend = async () => {
     setLoading(true);
     try {
-      const sixMonthsAgo = new Date();
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-
+      // Get ALL contracts ever created, ordered by date
       const { data: contracts, error } = await supabase
         .from('contracts')
-        .select('created_at, setup_fee, annual_rate')
-        .gte('created_at', sixMonthsAgo.toISOString())
-        .in('status', ['active', 'pending']);
+        .select('created_at, setup_fee, annual_rate, status')
+        .in('status', ['active', 'pending', 'expired'])
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
 
-      // Group by month
-      const monthlyData = new Map<string, number>();
-      
+      // Calculate cumulative revenue
+      let cumulativeRevenue = 0;
+      const cumulativeData: { date: Date; revenue: number; month: string }[] = [];
+
       contracts?.forEach(contract => {
+        cumulativeRevenue += (contract.setup_fee || 0) + (contract.annual_rate || 0);
         const date = new Date(contract.created_at);
-        const monthKey = date.toLocaleString('default', { month: 'short', year: 'numeric' });
-        const revenue = (contract.setup_fee || 0) + (contract.annual_rate || 0);
-        
-        monthlyData.set(monthKey, (monthlyData.get(monthKey) || 0) + revenue);
+        cumulativeData.push({
+          date,
+          revenue: cumulativeRevenue,
+          month: date.toLocaleString('default', { month: 'short', year: 'numeric' })
+        });
       });
 
-      // Convert to array and sort by date
-      const sortedData = Array.from(monthlyData.entries())
+      // Group by month (keep only last value per month for cleaner chart)
+      const monthlyGrouped = new Map<string, number>();
+      cumulativeData.forEach(item => {
+        const existing = monthlyGrouped.get(item.month);
+        if (!existing || item.revenue > existing) {
+          monthlyGrouped.set(item.month, item.revenue);
+        }
+      });
+
+      // Convert to array format for chart
+      const sortedData = Array.from(monthlyGrouped.entries())
         .map(([month, revenue]) => ({ month, revenue }))
         .sort((a, b) => {
           const dateA = new Date(a.month);
@@ -70,7 +80,7 @@ export const RevenueTrendChart = ({ isRefreshing }: RevenueTrendChartProps) => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
-            Revenue Trend (Last 6 Months)
+            Total Revenue Growth
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -88,14 +98,14 @@ export const RevenueTrendChart = ({ isRefreshing }: RevenueTrendChartProps) => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
-            Revenue Trend (Last 6 Months)
+            Total Revenue Growth
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-64 flex flex-col items-center justify-center text-center">
             <TrendingUp className="h-12 w-12 mb-2 opacity-50 text-muted-foreground" />
-            <p className="text-muted-foreground">Insufficient data to display revenue trend</p>
-            <p className="text-sm text-muted-foreground">At least 2 months of data required</p>
+            <p className="text-muted-foreground">Insufficient data to display revenue growth</p>
+            <p className="text-sm text-muted-foreground">At least 2 data points required</p>
           </div>
         </CardContent>
       </Card>
@@ -107,7 +117,7 @@ export const RevenueTrendChart = ({ isRefreshing }: RevenueTrendChartProps) => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <TrendingUp className="h-5 w-5" />
-          Revenue Trend (Last 6 Months)
+          Total Revenue Growth
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -125,7 +135,8 @@ export const RevenueTrendChart = ({ isRefreshing }: RevenueTrendChartProps) => {
               tick={{ fill: 'hsl(var(--muted-foreground))' }}
             />
             <Tooltip
-              formatter={(value: number) => formatCurrency(value)}
+              formatter={(value: number) => [`Total Revenue: ${formatCurrency(value)}`, '']}
+              labelFormatter={(label) => `Month: ${label}`}
               contentStyle={{
                 backgroundColor: 'hsl(var(--background))',
                 border: '1px solid hsl(var(--border))',
@@ -136,8 +147,9 @@ export const RevenueTrendChart = ({ isRefreshing }: RevenueTrendChartProps) => {
               type="monotone" 
               dataKey="revenue" 
               stroke="hsl(var(--primary))" 
-              strokeWidth={2}
-              dot={{ fill: 'hsl(var(--primary))' }}
+              strokeWidth={3}
+              dot={{ fill: 'hsl(var(--primary))', r: 4 }}
+              name="Total Revenue"
             />
           </LineChart>
         </ResponsiveContainer>
