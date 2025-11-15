@@ -76,7 +76,7 @@ export const RevenueTrendChart = ({ isRefreshing }: RevenueTrendChartProps) => {
 
   if (loading) {
     return (
-      <Card className="overflow-hidden border-0 shadow-xl bg-gradient-to-br from-card to-card/80 h-full">
+    <Card className="overflow-hidden border-0 shadow-xl bg-gradient-to-br from-card to-card/80 h-[500px]">
         <CardHeader className="border-b border-border/50 bg-gradient-to-r from-primary/5 to-transparent pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
@@ -99,7 +99,7 @@ export const RevenueTrendChart = ({ isRefreshing }: RevenueTrendChartProps) => {
 
   if (data.length < 2) {
     return (
-      <Card className="overflow-hidden border-0 shadow-xl bg-gradient-to-br from-card to-card/80 h-full">
+      <Card className="overflow-hidden border-0 shadow-xl bg-gradient-to-br from-card to-card/80 h-[500px]">
         <CardHeader className="border-b border-border/50 bg-gradient-to-r from-primary/5 to-transparent pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
@@ -123,7 +123,7 @@ export const RevenueTrendChart = ({ isRefreshing }: RevenueTrendChartProps) => {
   }
 
   return (
-    <Card className="overflow-hidden border-0 shadow-xl bg-gradient-to-br from-card to-card/80 h-full">
+    <Card className="overflow-hidden border-0 shadow-xl bg-gradient-to-br from-card to-card/80 h-[500px] flex flex-col">
       <CardHeader className="border-b border-border/50 bg-gradient-to-r from-primary/5 to-transparent pb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
