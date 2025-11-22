@@ -23,6 +23,7 @@ export interface ProcessedCustomer {
     payment_type: string;
     status: string;
   } | null;
+  nextPaymentDelta?: number;
 }
 
 export type ViewMode = "timeline" | "renewals";
