@@ -23,10 +23,12 @@ const AnalyticsDetail = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [title, setTitle] = useState("");
-  const [filterParams, setFilterParams] = useState<FilterParams>({});
+  const [filterParams, setFilterParams] = useState<FilterParams>(() => {
+    return decodeFiltersFromQueryString(searchParams);
+  });
 
   useEffect(() => {
-    // Parse filters from URL
+    // Update filters if URL changes
     const filters = decodeFiltersFromQueryString(searchParams);
     setFilterParams(filters);
   }, [searchParams]);
