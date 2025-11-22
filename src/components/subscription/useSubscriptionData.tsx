@@ -197,97 +197,36 @@ export const useSubscriptionData = () => {
   const processCustomers = (customers: any[]): ProcessedCustomer[] => {
     console.log('Processing customers:', customers.length);
     return customers.map(customer => {
-      if (customer.name === 'Ahlia University') {
-        console.log('Processing Ahlia University:', {
-          nextPaymentDate: customer.nextPaymentDate,
-          effective_end_date: customer.effective_end_date,
-          payment_frequency: customer.payment_frequency,
-          nextPayment: customer.nextPayment
-        });
-      }
       const today = new Date();
       
-      // Find the next payment date across all customer contracts
-      const nextPaymentDate = customer.nextPaymentDate ? new Date(customer.nextPaymentDate) : null;
+      // Contract-based tracking (for progress bar and main countdown)
       const contractEndDate = customer.effective_end_date ? new Date(customer.effective_end_date) : null;
+      const startDate = customer.effective_start_date ? new Date(customer.effective_start_date) : null;
       
-      // For tracking, use next payment date for recurring contracts, contract end for one-time
-      let trackingDate: Date | null = null;
-      let trackingType = "";
+      // Next payment tracking (separate countdown)
+      const nextPaymentDate = customer.nextPaymentDate ? new Date(customer.nextPaymentDate) : null;
+      let nextPaymentDelta: number | undefined = undefined;
       
-      if (nextPaymentDate && customer.payment_frequency !== 'one_time') {
-        trackingDate = nextPaymentDate;
-        trackingType = "payment";
-        if (customer.name === 'Ahlia University') {
-          console.log('Ahlia: Using next payment date:', trackingDate, 'Type:', trackingType);
-        }
-      } else if (contractEndDate && customer.payment_frequency !== 'one_time') {
-        trackingDate = contractEndDate;
-        trackingType = "renewal";
-        if (customer.name === 'Ahlia University') {
-          console.log('Ahlia: Using contract end date:', trackingDate, 'Type:', trackingType);
-        }
+      if (nextPaymentDate) {
+        nextPaymentDelta = Math.ceil((nextPaymentDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       }
       
-      // One-time contracts shouldn't appear in the tracker unless they're about to expire
-      if (customer.payment_frequency === 'one_time' && contractEndDate) {
-        const daysToExpiry = Math.ceil((contractEndDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        if (daysToExpiry > 30) {
-          // Don't track one-time contracts that are far from expiry
-          trackingDate = null;
-        } else {
-          trackingDate = contractEndDate;
-          trackingType = "expiry";
-        }
-      }
-      
+      // Calculate contract-based metrics
       let timeLeft = "";
       let status: "active" | "expiring_soon" | "expired" | "missing_date" = "missing_date";
       let delta = 0;
       let progressPercentage = 0;
 
-      if (trackingDate) {
-        delta = Math.ceil((trackingDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (contractEndDate && startDate) {
+        // Delta is days until contract end
+        delta = Math.ceil((contractEndDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
         
-        if (customer.name === 'Ahlia University') {
-          console.log('Ahlia delta calculation:', {
-            trackingDate: trackingDate.toISOString(),
-            today: today.toISOString(),
-            delta: delta,
-            trackingType: trackingType
-          });
-        }
+        // Progress bar shows contract timeline
+        const totalDays = Math.ceil((contractEndDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        const elapsedDays = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        progressPercentage = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
         
-        // Calculate progress based on payment schedule or contract period
-        if (customer.effective_start_date) {
-          const startDate = new Date(customer.effective_start_date);
-          let periodLength = 365; // Default to annual
-          
-          // Adjust period length based on payment frequency
-          switch (customer.payment_frequency) {
-            case 'monthly':
-              periodLength = 30;
-              break;
-            case 'quarterly':
-              periodLength = 90;
-              break;
-            case 'semi_annual':
-              periodLength = 180;
-              break;
-            case 'annual':
-              periodLength = 365;
-              break;
-            default:
-              // For one-time, use full contract period
-              if (contractEndDate) {
-                periodLength = Math.ceil((contractEndDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-              }
-          }
-          
-          const elapsedDays = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-          progressPercentage = Math.min(100, Math.max(0, (elapsedDays % periodLength) / periodLength * 100));
-        }
-        
+        // Status based on contract end date
         if (delta > 60) {
           status = "active";
           const months = Math.floor(delta / 30);
@@ -301,13 +240,13 @@ export const useSubscriptionData = () => {
           timeLeft = `${delta} days left`;
         } else if (delta === 0) {
           status = "expiring_soon";
-          timeLeft = trackingType === "payment" ? "Payment due today" : "Expires today";
+          timeLeft = "Contract ends today";
         } else {
           status = "expired";
-          timeLeft = trackingType === "payment" ? "Payment overdue" : "Contract expired";
+          timeLeft = "Contract expired";
         }
       } else {
-        timeLeft = "No tracking date";
+        timeLeft = "No contract end date";
         delta = -999999;
       }
 
@@ -322,7 +261,8 @@ export const useSubscriptionData = () => {
         progressPercentage,
         contractCount: customer.contractCount || 0,
         lifetimeValue: customer.lifetimeValue || 0,
-        contracts: customer.contracts || []
+        contracts: customer.contracts || [],
+        nextPaymentDelta
       };
     });
   };

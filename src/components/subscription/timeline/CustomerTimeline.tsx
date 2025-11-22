@@ -111,11 +111,11 @@ export const CustomerTimeline: React.FC<CustomerTimelineProps> = ({ customer }) 
           </div>
           <div className="text-gray-600 dark:text-gray-400">
             {customer.delta > 0 ? (
-              <span className="font-medium">{customer.delta} days left</span>
+              <span className="font-medium">{customer.delta} days until contract end</span>
             ) : customer.delta === 0 ? (
-              <span className="font-medium text-orange-600">Renews today</span>
+              <span className="font-medium text-orange-600">Contract ends today</span>
             ) : customer.status !== 'missing_date' ? (
-              <span className="font-medium text-red-600">Overdue</span>
+              <span className="font-medium text-red-600">Contract expired</span>
             ) : (
               <span>No end date</span>
             )}
@@ -125,22 +125,39 @@ export const CustomerTimeline: React.FC<CustomerTimelineProps> = ({ customer }) 
         {/* Next Payment Info */}
         {customer.nextPayment && (
           <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 border-l-4 border-blue-400">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
                   Next payment
                 </span>
               </div>
-              <div className="text-right">
-                <div className="text-sm font-bold text-blue-900 dark:text-blue-100">
-                  {formatCurrency(customer.nextPayment.amount)}
-                </div>
-                <div className="text-xs text-blue-700 dark:text-blue-300">
-                  Due: {new Date(customer.nextPayment.due_date).toLocaleDateString('en-GB', {
-                    day: 'numeric', month: 'numeric', year: 'numeric'
-                  })}
-                </div>
+              {customer.nextPaymentDelta !== undefined && (
+                <Badge 
+                  className={
+                    customer.nextPaymentDelta > 0
+                      ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+                      : customer.nextPaymentDelta === 0
+                      ? "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300"
+                      : "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"
+                  }
+                >
+                  {customer.nextPaymentDelta > 0
+                    ? `${customer.nextPaymentDelta} days`
+                    : customer.nextPaymentDelta === 0
+                    ? "Due today"
+                    : "Overdue"}
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-bold text-blue-900 dark:text-blue-100">
+                {formatCurrency(customer.nextPayment.amount)}
+              </div>
+              <div className="text-xs text-blue-700 dark:text-blue-300">
+                Due: {new Date(customer.nextPayment.due_date).toLocaleDateString('en-GB', {
+                  day: 'numeric', month: 'numeric', year: 'numeric'
+                })}
               </div>
             </div>
           </div>
