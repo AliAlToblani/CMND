@@ -280,6 +280,10 @@ export type Database = {
           industry: string | null
           legal_address: string | null
           logo: string | null
+          manual_stage: string | null
+          manual_stage_note: string | null
+          manual_stage_set_at: string | null
+          manual_stage_set_by: string | null
           name: string
           owner_id: string | null
           payment_terms_days: number | null
@@ -322,6 +326,10 @@ export type Database = {
           industry?: string | null
           legal_address?: string | null
           logo?: string | null
+          manual_stage?: string | null
+          manual_stage_note?: string | null
+          manual_stage_set_at?: string | null
+          manual_stage_set_by?: string | null
           name: string
           owner_id?: string | null
           payment_terms_days?: number | null
@@ -364,6 +372,10 @@ export type Database = {
           industry?: string | null
           legal_address?: string | null
           logo?: string | null
+          manual_stage?: string | null
+          manual_stage_note?: string | null
+          manual_stage_set_at?: string | null
+          manual_stage_set_by?: string | null
           name?: string
           owner_id?: string | null
           payment_terms_days?: number | null
