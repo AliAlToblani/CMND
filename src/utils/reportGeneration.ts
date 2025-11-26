@@ -1,10 +1,13 @@
 import { supabase } from "@/integrations/supabase/client";
+import { PARTNERSHIP_TYPE_LABELS } from "@/types/partnerships";
 
 interface ReportData {
   newCustomers: any[];
   newLeads: any[];
   lifecycleChanges: any[];
   churns: any[];
+  newContracts: any[];
+  newPartnerships: any[];
   periodStart: Date;
   periodEnd: Date;
 }
@@ -25,7 +28,7 @@ const fetchWeeklyData = async (): Promise<ReportData> => {
   const periodStart = new Date();
   periodStart.setDate(periodStart.getDate() - 7);
 
-  const [customersData, leadsData, lifecycleData, churnsData] = await Promise.all([
+  const [customersData, leadsData, lifecycleData, churnsData, contractsData, partnershipsData] = await Promise.all([
     supabase
       .from('customers')
       .select('id, name, created_at')
@@ -45,6 +48,14 @@ const fetchWeeklyData = async (): Promise<ReportData> => {
       .select('id, name, churn_date')
       .eq('status', 'churned')
       .gte('churn_date', periodStart.toISOString()),
+    supabase
+      .from('contracts')
+      .select('id, name, customer_id, value, setup_fee, annual_rate, status, start_date, created_at, customers!inner(name)')
+      .gte('created_at', periodStart.toISOString()),
+    supabase
+      .from('partnerships')
+      .select('id, name, partnership_type, status, expected_value, country, created_at')
+      .gte('created_at', periodStart.toISOString()),
   ]);
 
   return {
@@ -52,6 +63,8 @@ const fetchWeeklyData = async (): Promise<ReportData> => {
     newLeads: leadsData.data || [],
     lifecycleChanges: getLatestLifecycleStages(lifecycleData.data || []),
     churns: churnsData.data || [],
+    newContracts: contractsData.data || [],
+    newPartnerships: partnershipsData.data || [],
     periodStart,
     periodEnd,
   };
@@ -62,7 +75,7 @@ const fetchMonthlyData = async (): Promise<ReportData> => {
   const periodStart = new Date();
   periodStart.setDate(periodStart.getDate() - 30);
 
-  const [customersData, leadsData, lifecycleData, churnsData] = await Promise.all([
+  const [customersData, leadsData, lifecycleData, churnsData, contractsData, partnershipsData] = await Promise.all([
     supabase
       .from('customers')
       .select('id, name, created_at')
@@ -82,6 +95,14 @@ const fetchMonthlyData = async (): Promise<ReportData> => {
       .select('id, name, churn_date')
       .eq('status', 'churned')
       .gte('churn_date', periodStart.toISOString()),
+    supabase
+      .from('contracts')
+      .select('id, name, customer_id, value, setup_fee, annual_rate, status, start_date, created_at, customers!inner(name)')
+      .gte('created_at', periodStart.toISOString()),
+    supabase
+      .from('partnerships')
+      .select('id, name, partnership_type, status, expected_value, country, created_at')
+      .gte('created_at', periodStart.toISOString()),
   ]);
 
   return {
@@ -89,13 +110,15 @@ const fetchMonthlyData = async (): Promise<ReportData> => {
     newLeads: leadsData.data || [],
     lifecycleChanges: getLatestLifecycleStages(lifecycleData.data || []),
     churns: churnsData.data || [],
+    newContracts: contractsData.data || [],
+    newPartnerships: partnershipsData.data || [],
     periodStart,
     periodEnd,
   };
 };
 
 const generateTextReport = (data: ReportData, type: 'weekly' | 'monthly'): string => {
-  const { newCustomers, newLeads, lifecycleChanges, churns, periodStart, periodEnd } = data;
+  const { newCustomers, newLeads, lifecycleChanges, churns, newContracts, newPartnerships, periodStart, periodEnd } = data;
 
   let report = `${type.toUpperCase()} UPDATE REPORT\n`;
   report += `Period: ${periodStart.toLocaleDateString()} - ${periodEnd.toLocaleDateString()}\n`;
@@ -107,6 +130,8 @@ const generateTextReport = (data: ReportData, type: 'weekly' | 'monthly'): strin
   report += `New Customers: ${newCustomers.length}\n`;
   report += `New Leads: ${newLeads.length}\n`;
   report += `Lifecycle Changes: ${lifecycleChanges.length}\n`;
+  report += `New Contracts: ${newContracts.length}\n`;
+  report += `New Partnerships: ${newPartnerships.length}\n`;
   report += `Churns: ${churns.length}\n\n`;
 
   if (newCustomers.length > 0) {
@@ -132,6 +157,30 @@ const generateTextReport = (data: ReportData, type: 'weekly' | 'monthly'): strin
     report += `-----------------\n`;
     lifecycleChanges.forEach(change => {
       report += `• ${change.customers.name} → ${change.name}\n`;
+    });
+    report += `\n`;
+  }
+
+  if (newContracts.length > 0) {
+    report += `NEW CONTRACTS\n`;
+    report += `-------------\n`;
+    newContracts.forEach((contract: any) => {
+      const totalValue = (contract.setup_fee || 0) + (contract.annual_rate || 0);
+      const customerName = contract.customers?.name || 'Unknown Customer';
+      const startDate = contract.start_date ? new Date(contract.start_date).toLocaleDateString() : 'N/A';
+      report += `• ${customerName}: ${contract.name} - $${totalValue.toLocaleString()} (${contract.status || 'N/A'}) - Start: ${startDate}\n`;
+    });
+    report += `\n`;
+  }
+
+  if (newPartnerships.length > 0) {
+    report += `NEW PARTNERSHIPS\n`;
+    report += `----------------\n`;
+    newPartnerships.forEach((partnership: any) => {
+      const partnerType = PARTNERSHIP_TYPE_LABELS[partnership.partnership_type as keyof typeof PARTNERSHIP_TYPE_LABELS] || partnership.partnership_type;
+      const expectedValue = partnership.expected_value ? `$${partnership.expected_value.toLocaleString()}` : 'N/A';
+      const country = partnership.country ? ` - ${partnership.country}` : '';
+      report += `• ${partnership.name} (${partnerType}) - Expected: ${expectedValue} - ${partnership.status}${country}\n`;
     });
     report += `\n`;
   }
