@@ -40,7 +40,8 @@ export const LIFECYCLE_TO_PIPELINE_MAPPING: Record<string, string> = {
 
   // Live stage
   "Go Live": "Live",
-  "Payment Processed": "Live",
+  // Payment Processed should not advance to Live on its own; keep in Implementation
+  "Payment Processed": "Implementation",
 };
 
 // Resolve furthest pipeline stage from a list of canonical or raw lifecycle stage names
