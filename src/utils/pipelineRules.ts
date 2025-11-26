@@ -81,7 +81,52 @@ export const resolvePipelineStageFromLifecycleStages = (
       names.push(titleCase(s.name));
     }
   });
-  return getFurthestPipelineStageFromNames(names);
+  
+  const basePipelineStage = getFurthestPipelineStageFromNames(names);
+  
+  // GATING LOGIC: Prevent showing as "Live" unless ALL implementation stages + Go Live are complete
+  if (basePipelineStage === "Live") {
+    // Check if ALL implementation stages are completed
+    const hasOnboardingCompleted = stages.some(
+      s => titleCase(s.name) === "Onboarding" && 
+      (s.status?.toLowerCase() === "done" || s.status?.toLowerCase() === "completed" || 
+       s.status?.toLowerCase() === "complete" || s.status?.toLowerCase() === "finished")
+    );
+    const hasTechnicalSetupCompleted = stages.some(
+      s => titleCase(s.name) === "Technical Setup" && 
+      (s.status?.toLowerCase() === "done" || s.status?.toLowerCase() === "completed" || 
+       s.status?.toLowerCase() === "complete" || s.status?.toLowerCase() === "finished")
+    );
+    const hasTrainingCompleted = stages.some(
+      s => titleCase(s.name) === "Training" && 
+      (s.status?.toLowerCase() === "done" || s.status?.toLowerCase() === "completed" || 
+       s.status?.toLowerCase() === "complete" || s.status?.toLowerCase() === "finished")
+    );
+    const hasGoLiveCompleted = stages.some(
+      s => titleCase(s.name) === "Go Live" && 
+      (s.status?.toLowerCase() === "done" || s.status?.toLowerCase() === "completed" || 
+       s.status?.toLowerCase() === "complete" || s.status?.toLowerCase() === "finished")
+    );
+    
+    const allImplementationCompleted = hasOnboardingCompleted && hasTechnicalSetupCompleted && hasTrainingCompleted;
+    
+    // If not all implementation complete OR Go Live not complete, stay in Implementation
+    if (!allImplementationCompleted || !hasGoLiveCompleted) {
+      // Check if any implementation stage is started
+      const hasImplementationStarted = stages.some(s => {
+        const canonical = titleCase(s.name);
+        return (canonical === "Onboarding" || canonical === "Technical Setup" || canonical === "Training") &&
+          (s.status?.toLowerCase() === "done" || s.status?.toLowerCase() === "completed" || 
+           s.status?.toLowerCase() === "complete" || s.status?.toLowerCase() === "finished" ||
+           s.status?.toLowerCase() === "in-progress" || s.status?.toLowerCase() === "in progress" || 
+           s.status?.toLowerCase() === "ongoing");
+      });
+      
+      return hasImplementationStarted ? "Implementation" : "Contract";
+    }
+  }
+  
+  return basePipelineStage;
 };
 
 function titleCase(s?: string): string {
