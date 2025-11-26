@@ -33,7 +33,8 @@ const fetchWeeklyData = async (): Promise<ReportData> => {
       .from('customers')
       .select('id, name, created_at')
       .gte('created_at', periodStart.toISOString())
-      .neq('status', 'churned'),
+      .neq('status', 'churned')
+      .neq('status', 'lead'),
     supabase
       .from('customers')
       .select('id, name, created_at')
@@ -80,7 +81,8 @@ const fetchMonthlyData = async (): Promise<ReportData> => {
       .from('customers')
       .select('id, name, created_at')
       .gte('created_at', periodStart.toISOString())
-      .neq('status', 'churned'),
+      .neq('status', 'churned')
+      .neq('status', 'lead'),
     supabase
       .from('customers')
       .select('id, name, created_at')
