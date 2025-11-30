@@ -32,6 +32,16 @@ export function LifecycleTracker({
 }: LifecycleTrackerProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [prevCustomerId, setPrevCustomerId] = useState<string | null>(null);
+  
+  // Reset hasInitialized when customerId changes
+  if (customerId !== prevCustomerId) {
+    setPrevCustomerId(customerId);
+    if (prevCustomerId !== null) {
+      // Only reset if this isn't the first render
+      setHasInitialized(false);
+    }
+  }
   
 
   const getDbCustomerId = (customerId: string) => {
@@ -194,25 +204,32 @@ export function LifecycleTracker({
   };
 
   const initializeDefaultStages = async () => {
-    if (hasInitialized || stages.length > 0) return;
+    if (hasInitialized) return;
     
-    setIsLoading(true);
     setHasInitialized(true);
-    
-    // Double-check that stages don't exist in database to prevent duplicates
     const dbCustomerId = getDbCustomerId(customerId);
+    
+    // Check existing stages in database
     const { data: existingStages } = await supabase
       .from('lifecycle_stages')
-      .select('id')
+      .select('name')
       .eq('customer_id', dbCustomerId);
     
-    if (existingStages && existingStages.length > 0) {
-      setIsLoading(false);
-      return;
+    const existingStageNames = (existingStages || []).map(s => s.name?.toLowerCase());
+    
+    // Find missing default stages
+    const missingStages = defaultLifecycleStages.filter(
+      ds => !existingStageNames.includes(ds.name.toLowerCase())
+    );
+    
+    if (missingStages.length === 0) {
+      return; // All stages exist
     }
     
+    console.log(`Creating ${missingStages.length} missing stages for customer ${customerId}:`, missingStages.map(s => s.name));
+    setIsLoading(true);
+    
     try {
-      
       // Fetch available staff members
       const { data: staffData, error: staffError } = await supabase
         .from('staff')
@@ -230,8 +247,7 @@ export function LifecycleTracker({
         'Integration Engineer': staffData?.find(s => s.role === 'Integration Engineer')
       };
       
-      for (const defaultStage of defaultLifecycleStages) {
-        
+      for (const defaultStage of missingStages) {
         // Try to find a matching staff member by role, fallback to first available or null
         const matchingStaff = staffByRole[defaultStage.owner.role as keyof typeof staffByRole] || 
                              staffData?.[0] || 
@@ -249,7 +265,7 @@ export function LifecycleTracker({
           });
       }
       
-      toast.success("Default lifecycle stages initialized");
+      toast.success(`Created ${missingStages.length} missing lifecycle stages`);
       
       // Refresh stages data without page reload
       const { data, error } = await supabase
@@ -283,17 +299,19 @@ export function LifecycleTracker({
       }
       
     } catch (error) {
-      toast.error("Failed to initialize default stages");
+      console.error('Failed to create missing stages:', error);
+      toast.error("Failed to initialize missing stages");
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (stages.length === 0 && !hasInitialized) {
+    // Always check for missing stages, not just when stages.length === 0
+    if (!hasInitialized) {
       initializeDefaultStages();
     }
-  }, [customerId, stages.length, hasInitialized]);
+  }, [customerId, hasInitialized]);
 
   const sortedStages = sortStagesByOrder(stages);
 

@@ -291,12 +291,14 @@ export const getConversionRate = async (filterParams?: FilterParams): Promise<nu
   try {
     let totalQuery = supabase
       .from('customers')
-      .select('id', { count: 'exact' });
+      .select('id', { count: 'exact' })
+      .neq('status', 'churned'); // Exclude churned from total
 
+    // Count customers who are Live (either by stage='Live' OR status='done')
     let liveQuery = supabase
       .from('customers')
       .select('id', { count: 'exact' })
-      .eq('status', 'done');
+      .or('stage.eq.Live,status.eq.done');
 
     if (filterParams?.countries && filterParams.countries.length > 0) {
       totalQuery = totalQuery.in('country', filterParams.countries);
@@ -326,6 +328,7 @@ export const getConversionRate = async (filterParams?: FilterParams): Promise<nu
     const totalCount = totalCustomers?.length || 0;
     const liveCount = liveCustomers?.length || 0;
 
+    console.log(`Conversion Rate: ${liveCount} live customers / ${totalCount} total = ${totalCount > 0 ? ((liveCount / totalCount) * 100).toFixed(1) : 0}%`);
     return totalCount > 0 ? (liveCount / totalCount) * 100 : 0;
   } catch (error) {
     console.error("Error in getConversionRate:", error);
@@ -415,6 +418,23 @@ export const getMRR = async (filterParams?: FilterParams): Promise<number> => {
 
 export const calculatePitchToPayTime = async (filterParams?: FilterParams): Promise<number> => {
   try {
+    // Helper to fetch all stages with pagination
+    const fetchAllStages = async (baseQuery: any) => {
+      let allStages: any[] = [];
+      let offset = 0;
+      const pageSize = 1000;
+      
+      while (true) {
+        const { data, error } = await baseQuery.range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allStages = allStages.concat(data);
+        if (data.length < pageSize) break;
+        offset += pageSize;
+      }
+      return allStages;
+    };
+
     let discoveryQuery = supabase
       .from('lifecycle_stages')
       .select('customer_id, status_changed_at, name, customers!inner(country, segment, created_at)')
@@ -444,13 +464,10 @@ export const calculatePitchToPayTime = async (filterParams?: FilterParams): Prom
       paymentQuery = paymentQuery.lte('customers.created_at', filterParams.dateTo.toISOString());
     }
 
-    const [{ data: discoveryStages, error: discoveryError }, { data: paymentStages, error: paymentError }] = 
-      await Promise.all([discoveryQuery, paymentQuery]);
-
-    if (discoveryError || paymentError) {
-      console.error("Error fetching pitch to pay stages:", discoveryError || paymentError);
-      return 0;
-    }
+    const [discoveryStages, paymentStages] = await Promise.all([
+      fetchAllStages(discoveryQuery),
+      fetchAllStages(paymentQuery)
+    ]);
 
     if (!discoveryStages || !paymentStages) return 0;
 
@@ -493,6 +510,23 @@ export const calculatePitchToPayTime = async (filterParams?: FilterParams): Prom
 
 export const calculatePayToLiveTime = async (filterParams?: FilterParams): Promise<number> => {
   try {
+    // Helper to fetch all stages with pagination
+    const fetchAllStages = async (baseQuery: any) => {
+      let allStages: any[] = [];
+      let offset = 0;
+      const pageSize = 1000;
+      
+      while (true) {
+        const { data, error } = await baseQuery.range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allStages = allStages.concat(data);
+        if (data.length < pageSize) break;
+        offset += pageSize;
+      }
+      return allStages;
+    };
+
     let paymentQuery = supabase
       .from('lifecycle_stages')
       .select('customer_id, status_changed_at, name, customers!inner(country, segment, created_at)')
@@ -522,13 +556,10 @@ export const calculatePayToLiveTime = async (filterParams?: FilterParams): Promi
       goLiveQuery = goLiveQuery.lte('customers.created_at', filterParams.dateTo.toISOString());
     }
 
-    const [{ data: paymentStages, error: paymentError }, { data: goLiveStages, error: goLiveError }] = 
-      await Promise.all([paymentQuery, goLiveQuery]);
-
-    if (paymentError || goLiveError) {
-      console.error("Error fetching pay to live stages:", paymentError || goLiveError);
-      return 0;
-    }
+    const [paymentStages, goLiveStages] = await Promise.all([
+      fetchAllStages(paymentQuery),
+      fetchAllStages(goLiveQuery)
+    ]);
 
     if (!paymentStages || !goLiveStages) return 0;
 
@@ -571,23 +602,36 @@ export const calculatePayToLiveTime = async (filterParams?: FilterParams): Promi
 
 export const calculateAverageGoLiveTime = async (): Promise<number> => {
   try {
-    const { data, error } = await supabase
-      .from('lifecycle_stages')
-      .select('customer_id, created_at, name')
-      .eq('status', 'done');
-
-    if (error) {
-      console.error("Error fetching Go Live dates:", error);
-      return 0;
+    // Fetch all done lifecycle stages with pagination
+    let allStages: any[] = [];
+    let offset = 0;
+    const pageSize = 1000;
+    
+    while (true) {
+      const { data, error } = await supabase
+        .from('lifecycle_stages')
+        .select('customer_id, created_at, name')
+        .eq('status', 'done')
+        .range(offset, offset + pageSize - 1);
+      
+      if (error) {
+        console.error("Error fetching Go Live dates:", error);
+        return 0;
+      }
+      
+      if (!data || data.length === 0) break;
+      allStages = allStages.concat(data);
+      if (data.length < pageSize) break;
+      offset += pageSize;
     }
 
-    if (!data || data.length === 0) {
+    if (allStages.length === 0) {
       console.log("No customers have reached Go Live yet.");
       return 0;
     }
 
     // Filter for canonical Go Live stages
-    const goLiveStages = data.filter(stage => 
+    const goLiveStages = allStages.filter(stage => 
       canonicalizeStageName(stage.name) === 'Go Live'
     );
 
@@ -597,6 +641,8 @@ export const calculateAverageGoLiveTime = async (): Promise<number> => {
     }
 
     let totalTime = 0;
+    let validCount = 0;
+    
     for (const goLive of goLiveStages) {
       const { data: customerData, error: customerError } = await supabase
         .from('customers')
@@ -618,9 +664,12 @@ export const calculateAverageGoLiveTime = async (): Promise<number> => {
       const endDate = new Date(goLive.created_at);
       const timeDiff = endDate.getTime() - startDate.getTime();
       totalTime += timeDiff;
+      validCount++;
     }
 
-    const averageTimeMs = totalTime / goLiveStages.length;
+    if (validCount === 0) return 0;
+
+    const averageTimeMs = totalTime / validCount;
     const averageTimeDays = averageTimeMs / (1000 * 3600 * 24);
 
     return Math.round(averageTimeDays);
@@ -835,10 +884,11 @@ export const getImprovedConversionRate = async (): Promise<number> => {
       .select('id', { count: 'exact' })
       .neq('status', 'churned');
 
+    // Count customers who are Live (either by stage='Live' OR status='done')
     const { data: liveCustomers, error: liveError } = await supabase
       .from('customers')
       .select('id', { count: 'exact' })
-      .eq('status', 'done');
+      .or('stage.eq.Live,status.eq.done');
 
     if (totalError || liveError) {
       console.error("Error calculating improved conversion rate:", totalError || liveError);

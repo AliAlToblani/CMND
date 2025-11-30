@@ -99,7 +99,38 @@ const STAGE_ALIASES: Record<string, string> = {
   // Prospect variations
   'prospect': 'Prospect',
   'prospecting': 'Prospect',
-  'lead generation': 'Prospect'
+  'lead generation': 'Prospect',
+  
+  // Kick-off Meeting variations
+  'kick off meeting': 'Kick Off Meeting',
+  'kick-off meeting': 'Kick Off Meeting',
+  'kickoff meeting': 'Kick Off Meeting',
+  'kickoff': 'Kick Off Meeting',
+  'kick off': 'Kick Off Meeting',
+  
+  // Requirements Gathering variations
+  'requirements gathering': 'Requirements Gathering',
+  'requirements': 'Requirements Gathering',
+  'gathering requirements': 'Requirements Gathering',
+  
+  // Account Setup variations
+  'account setup': 'Account Setup',
+  'account configuration': 'Account Setup',
+  'setup account': 'Account Setup',
+  
+  // Data Migration variations
+  'data migration': 'Data Migration',
+  'migration': 'Data Migration',
+  'data import': 'Data Migration',
+  
+  // Invoice Generation variations
+  'invoice generation': 'Invoice Generation',
+  'generate invoice': 'Invoice Generation',
+  'invoicing': 'Invoice Generation',
+  
+  // Payment Processing variations
+  'payment processing': 'Payment Processing',
+  'process payment': 'Payment Processing'
 };
 
 // Get canonical stage name from any variation

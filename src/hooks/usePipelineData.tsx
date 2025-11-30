@@ -45,16 +45,30 @@ export const usePipelineData = () => {
         throw fetchError;
       }
 
-      // Fetch all lifecycle stages (not just completed ones)
-      const { data: lifecycleStages, error: stagesError } = await supabase
-        .from('lifecycle_stages')
-        .select('customer_id, name, status');
-
-      if (stagesError) {
-        throw stagesError;
+      // Fetch ALL lifecycle stages with pagination to avoid 1000 row limit
+      let lifecycleStages: any[] = [];
+      let offset = 0;
+      const pageSize = 1000;
+      
+      while (true) {
+        const { data: pageStages, error: stagesError } = await supabase
+          .from('lifecycle_stages')
+          .select('customer_id, name, status')
+          .range(offset, offset + pageSize - 1);
+        
+        if (stagesError) {
+          throw stagesError;
+        }
+        
+        if (!pageStages || pageStages.length === 0) break;
+        
+        lifecycleStages = lifecycleStages.concat(pageStages);
+        
+        if (pageStages.length < pageSize) break;
+        offset += pageSize;
       }
 
-      console.log('Lifecycle stages fetched:', lifecycleStages);
+      console.log(`Lifecycle stages fetched (paginated): ${lifecycleStages.length}`);
 
       // Transform customers to CustomerData format with pipeline stage determination
       const transformedCustomers: CustomerData[] = (customers || []).map(customer => {

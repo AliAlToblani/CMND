@@ -8,6 +8,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
+import { defaultLifecycleStages } from "@/data/defaultLifecycleStages";
 
 // Helper function to save documents to database
 const saveDocumentsToDatabase = async (customerId: string, documents: any[]) => {
@@ -130,6 +131,13 @@ export default function AddEditCustomer() {
             contact_name: data.contact_name || "",
             contact_email: data.contact_email || "",
             contact_phone: data.contact_phone || "",
+            // Service plan fields
+            service_type: data.service_type || null,
+            text_plan: data.text_plan || null,
+            text_ai_responses: data.text_ai_responses ?? null,
+            voice_tier: data.voice_tier || null,
+            voice_hours: data.voice_hours ?? null,
+            voice_price_per_hour: data.voice_price_per_hour ?? null,
           });
         }
       } catch (error) {
@@ -235,19 +243,31 @@ export default function AddEditCustomer() {
         documentCount: documents.length,
         documents: documents.map(doc => ({ name: doc.name, file_path: doc.file_path, hasId: !!doc.id }))
       });
+      // Helper to convert empty strings to null (important for UUID and enum fields)
+      const nullIfEmpty = (val: any) => (val === '' || val === undefined) ? null : val;
+      
       const customerData = {
         name: data.name,
-        segment: data.segment,
-        country: data.country,
-        industry: data.industry,
+        segment: nullIfEmpty(data.segment),
+        country: nullIfEmpty(data.country),
+        industry: nullIfEmpty(data.industry),
         estimated_deal_value: data.estimated_deal_value ?? null,
-        description: data.description,
-        logo: data.logo,
-        owner_id: data.owner_id,
-        contact_name: data.contact_name,
-        contact_email: data.contact_email,
-        contact_phone: data.contact_phone,
+        description: nullIfEmpty(data.description),
+        logo: nullIfEmpty(data.logo),
+        owner_id: nullIfEmpty(data.owner_id), // Must be valid UUID or null
+        contact_name: nullIfEmpty(data.contact_name),
+        contact_email: nullIfEmpty(data.contact_email),
+        contact_phone: nullIfEmpty(data.contact_phone),
+        // Service plan fields - must match database enum values or be null
+        service_type: nullIfEmpty(data.service_type),
+        text_plan: nullIfEmpty(data.text_plan),
+        text_ai_responses: data.text_ai_responses ?? null,
+        voice_tier: nullIfEmpty(data.voice_tier),
+        voice_hours: data.voice_hours ?? null,
+        voice_price_per_hour: data.voice_price_per_hour ?? null,
       };
+
+      console.log('Saving customer data:', JSON.stringify(customerData, null, 2));
 
       let customerId = id;
 
@@ -258,7 +278,13 @@ export default function AddEditCustomer() {
           .update(customerData)
           .eq('id', id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase update error:', JSON.stringify(error, null, 2));
+          console.error('Error message:', error.message);
+          console.error('Error code:', error.code);
+          console.error('Error details:', error.details);
+          throw error;
+        }
       } else {
         // Create new customer
         const { data: newCustomer, error } = await supabase
@@ -269,6 +295,36 @@ export default function AddEditCustomer() {
 
         if (error) throw error;
         customerId = newCustomer.id;
+
+        // Create default lifecycle stages for the new customer
+        console.log(`Creating default lifecycle stages for new customer ${customerId}`);
+        
+        // Get first staff member to assign as owner
+        const { data: staffData } = await supabase
+          .from('staff')
+          .select('id')
+          .limit(1);
+        
+        const defaultOwnerId = staffData?.[0]?.id || null;
+        
+        const stagesToInsert = defaultLifecycleStages.map(stage => ({
+          customer_id: customerId,
+          name: stage.name,
+          status: stage.status,
+          category: stage.category,
+          owner_id: defaultOwnerId,
+          notes: stage.notes || null
+        }));
+        
+        const { error: stagesError } = await supabase
+          .from('lifecycle_stages')
+          .insert(stagesToInsert);
+        
+        if (stagesError) {
+          console.error('Error creating lifecycle stages:', stagesError);
+        } else {
+          console.log(`✅ Created ${stagesToInsert.length} lifecycle stages for customer ${customerId}`);
+        }
       }
 
       // Save contracts
@@ -332,11 +388,18 @@ export default function AddEditCustomer() {
 
       // Navigate to lifecycle page with the customer ID
       navigate(`/lifecycle/${customerId}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving customer:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint,
+        stack: error?.stack
+      });
       toast({
         title: "Error",
-        description: `Failed to ${id ? 'update' : 'create'} customer.`,
+        description: `Failed to ${id ? 'update' : 'create'} customer. ${error?.message || ''}`,
         variant: "destructive"
       });
     } finally {

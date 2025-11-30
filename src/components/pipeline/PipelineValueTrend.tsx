@@ -31,7 +31,6 @@ export const PipelineValueTrend: React.FC<PipelineValueTrendProps> = ({
   const [activeMetrics, setActiveMetrics] = useState({
     totalValue: true,
     customerCount: true,
-    avgDealSize: false,
   });
 
   const toggleMetric = (metric: keyof typeof activeMetrics) => {
@@ -100,15 +99,6 @@ export const PipelineValueTrend: React.FC<PipelineValueTrendProps> = ({
           >
             <Users className="h-3 w-3 mr-1" />
             Customers
-          </Button>
-          <Button
-            variant={activeMetrics.avgDealSize ? "default" : "outline"}
-            size="sm"
-            onClick={() => toggleMetric("avgDealSize")}
-            className="hover-scale transition-all"
-          >
-            <TrendingUp className="h-3 w-3 mr-1" />
-            Avg Deal Size
           </Button>
         </div>
       </div>
@@ -181,25 +171,12 @@ export const PipelineValueTrend: React.FC<PipelineValueTrendProps> = ({
                 animationDuration={1000}
               />
             )}
-            {activeMetrics.avgDealSize && (
-              <Line
-                yAxisId="left"
-                type="monotone"
-                dataKey="avgDealSize"
-                name="Avg Deal Size"
-                stroke="hsl(var(--chart-3))"
-                strokeWidth={3}
-                dot={{ fill: "hsl(var(--chart-3))", r: 4 }}
-                activeDot={{ r: 6 }}
-                animationDuration={1000}
-              />
-            )}
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-border/50">
+      <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-border/50">
         <div className="text-center">
           <p className="text-xs text-muted-foreground mb-1">Current Total</p>
           <p className="text-lg font-bold text-primary">
@@ -210,12 +187,6 @@ export const PipelineValueTrend: React.FC<PipelineValueTrendProps> = ({
           <p className="text-xs text-muted-foreground mb-1">Active Customers</p>
           <p className="text-lg font-bold text-chart-2">
             {trendData[trendData.length - 1]?.customerCount || 0}
-          </p>
-        </div>
-        <div className="text-center">
-          <p className="text-xs text-muted-foreground mb-1">Avg Deal Size</p>
-          <p className="text-lg font-bold text-chart-3">
-            {formatCurrency(trendData[trendData.length - 1]?.avgDealSize || 0)}
           </p>
         </div>
       </div>

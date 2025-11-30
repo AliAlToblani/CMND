@@ -32,11 +32,25 @@ export const LIFECYCLE_TO_PIPELINE_MAPPING: Record<string, string> = {
   // Contract stage
   "Contract Sent": "Contract",
   "Contract Signed": "Contract",
+  "Contract Approval": "Contract",
 
   // Implementation stage
   "Onboarding": "Implementation",
   "Technical Setup": "Implementation",
   "Training": "Implementation",
+  "Kick Off Meeting": "Implementation",  // titleCase normalizes hyphens to spaces
+  "Kick-Off Meeting": "Implementation",
+  "Kick-off Meeting": "Implementation",
+  "Kickoff Meeting": "Implementation",
+  "Requirements Gathering": "Implementation",
+  "Account Setup": "Implementation",
+  "Data Migration": "Implementation",
+  "Invoice Generation": "Implementation",
+  "Payment Processing": "Implementation",
+  "Implementation": "Implementation",
+  "Setup": "Implementation",
+  "Configuration": "Implementation",
+  "Integration": "Implementation",
 
   // Live stage
   "Go Live": "Live",
@@ -66,68 +80,73 @@ export const resolvePipelineStageFromLifecycleStages = (
   opts: { includeInProgress?: boolean } = { includeInProgress: true }
 ): string => {
   const { includeInProgress = true } = opts;
+  
+  // Implementation stage names - expanded list
+  const implementationStageNames = [
+    "Onboarding", "Technical Setup", "Training", "Kick Off Meeting",
+    "Requirements Gathering", "Account Setup", "Data Migration",
+    "Invoice Generation", "Payment Processing", "Implementation",
+    "Setup", "Configuration", "Integration"
+  ];
+  
+  const isActiveStatus = (status?: string) => {
+    const s = (status || "").toLowerCase();
+    const isActive = s === "done" || s === "completed" || s === "complete" || s === "finished" ||
+      (includeInProgress && (s === "in-progress" || s === "in progress" || s === "ongoing"));
+    return isActive;
+  };
+  
   const names: string[] = [];
   stages?.forEach((s) => {
     if (!s?.name) return;
-    const status = (s.status || "").toString();
-    if (
-      status &&
-      (status.toLowerCase() === "done" ||
-        status.toLowerCase() === "completed" ||
-        status.toLowerCase() === "complete" ||
-        status.toLowerCase() === "finished" ||
-        (includeInProgress && (status.toLowerCase() === "in-progress" || status.toLowerCase() === "in progress" || status.toLowerCase() === "ongoing")))
-    ) {
-      // Accept this stage as reached
+    if (isActiveStatus(s.status)) {
       names.push(titleCase(s.name));
+    }
+  });
+  
+  // Check if ANY implementation stage is active
+  let hasImplementationActivity = false;
+  stages?.forEach(s => {
+    if (!s?.name) return;
+    const canonical = titleCase(s.name);
+    const normalizedName = s.name.toLowerCase();
+    const isImplStage = implementationStageNames.some(name => 
+      canonical === name || 
+      canonical.toLowerCase() === name.toLowerCase() ||
+      normalizedName.includes(name.toLowerCase())
+    );
+    if (isImplStage && isActiveStatus(s.status)) {
+      console.log(`   ✅ Found implementation stage: "${s.name}" (${s.status}) -> canonical: "${canonical}"`);
+      hasImplementationActivity = true;
     }
   });
   
   const basePipelineStage = getFurthestPipelineStageFromNames(names);
   
-  // GATING LOGIC: Prevent showing as "Live" unless ALL implementation stages + Go Live are complete
-  if (basePipelineStage === "Live") {
-    // Check if ALL implementation stages are completed
-    const hasOnboardingCompleted = stages.some(
-      s => titleCase(s.name) === "Onboarding" && 
-      (s.status?.toLowerCase() === "done" || s.status?.toLowerCase() === "completed" || 
-       s.status?.toLowerCase() === "complete" || s.status?.toLowerCase() === "finished")
-    );
-    const hasTechnicalSetupCompleted = stages.some(
-      s => titleCase(s.name) === "Technical Setup" && 
-      (s.status?.toLowerCase() === "done" || s.status?.toLowerCase() === "completed" || 
-       s.status?.toLowerCase() === "complete" || s.status?.toLowerCase() === "finished")
-    );
-    const hasTrainingCompleted = stages.some(
-      s => titleCase(s.name) === "Training" && 
-      (s.status?.toLowerCase() === "done" || s.status?.toLowerCase() === "completed" || 
-       s.status?.toLowerCase() === "complete" || s.status?.toLowerCase() === "finished")
-    );
-    const hasGoLiveCompleted = stages.some(
+  let finalPipelineStage = basePipelineStage;
+  
+  // KEY FIX: If we have implementation activity but base stage is Contract or earlier, bump to Implementation
+  if (hasImplementationActivity && ["Lead", "Qualified", "Demo", "Proposal", "Contract"].includes(basePipelineStage)) {
+    console.log(`   🔄 Bumping stage from ${basePipelineStage} to Implementation`);
+    finalPipelineStage = "Implementation";
+  }
+  
+  // GATING LOGIC: Prevent showing as "Live" unless Go Live is complete
+  if (finalPipelineStage === "Live") {
+    const hasGoLiveCompleted = stages?.some(
       s => titleCase(s.name) === "Go Live" && 
       (s.status?.toLowerCase() === "done" || s.status?.toLowerCase() === "completed" || 
        s.status?.toLowerCase() === "complete" || s.status?.toLowerCase() === "finished")
     );
     
-    const allImplementationCompleted = hasOnboardingCompleted && hasTechnicalSetupCompleted && hasTrainingCompleted;
-    
-    // If not all implementation complete OR Go Live not complete, stay in Implementation
-    if (!allImplementationCompleted || !hasGoLiveCompleted) {
-      // Check if any implementation stage is started
-      const hasImplementationStarted = stages.some(s => {
-        const canonical = titleCase(s.name);
-        return (canonical === "Onboarding" || canonical === "Technical Setup" || canonical === "Training") &&
-          (s.status?.toLowerCase() === "done" || s.status?.toLowerCase() === "completed" || 
-           s.status?.toLowerCase() === "complete" || s.status?.toLowerCase() === "finished" ||
-           s.status?.toLowerCase() === "in-progress" || s.status?.toLowerCase() === "in progress" || 
-           s.status?.toLowerCase() === "ongoing");
-      });
-      
-      return hasImplementationStarted ? "Implementation" : "Contract";
+    if (!hasGoLiveCompleted) {
+      finalPipelineStage = hasImplementationActivity ? "Implementation" : "Contract";
     }
   }
   
-  return basePipelineStage;
+  console.log(`   Pipeline: names=[${names.join(', ')}] base=${basePipelineStage} hasImpl=${hasImplementationActivity} final=${finalPipelineStage}`);
+  
+  return finalPipelineStage;
 };
 
 function titleCase(s?: string): string {

@@ -24,6 +24,7 @@ import { isCompletedLike, isInProgressLike, isBlockedLike, getOperationalStatusF
 import { resolvePipelineStageFromLifecycleStages } from "@/utils/pipelineRules";
 import { syncCustomerPipelineStages } from "@/utils/pipelineSync";
 import { debugNawaraPipeline } from "@/utils/debugPipeline";
+import { auditCustomerStages } from "@/utils/stageAudit";
 
 const Customers = () => {
   const navigate = useNavigate();
@@ -68,9 +69,27 @@ const Customers = () => {
       .map(stage => stage.name);
 
     // Derive pipeline stage from lifecycle stages (include in-progress)
-    const pipelineStage = resolvePipelineStageFromLifecycleStages(lifecycleStages, {
-      includeInProgress: true,
-    });
+    // BUT: If customer has no lifecycle stages, use the database stage (may have been manually set)
+    let pipelineStage: string;
+    if (lifecycleStages.length === 0) {
+      // No lifecycle stages - use database stage or default to "Lead"
+      pipelineStage = dbCustomer.stage || "Lead";
+    } else {
+      // Has lifecycle stages - compute from them
+      pipelineStage = resolvePipelineStageFromLifecycleStages(lifecycleStages, {
+        includeInProgress: true,
+      });
+    }
+    
+    // Debug logging for specific customers
+    if (dbCustomer.name?.toLowerCase().includes('macqueen') || 
+        dbCustomer.name?.toLowerCase().includes('bait al asaad') ||
+        dbCustomer.name?.toLowerCase().includes('grip')) {
+      console.log(`🔵 ${dbCustomer.name} formatDatabaseCustomer:`);
+      console.log('   Lifecycle stages count:', lifecycleStages.length);
+      console.log('   DB stage:', dbCustomer.stage);
+      console.log('   Final stage used:', pipelineStage);
+    }
 
     // Use the operational status from the database (maintained by trigger / sync)
     const operationalStatus = dbCustomer.status || "not-started";
@@ -140,6 +159,176 @@ const Customers = () => {
     setUniqueSegments(segments);
   };
 
+  // Auto-fix customer stages on load
+  const autoFixCustomerStages = async () => {
+    try {
+      console.log("🔄 AUTO-FIX STARTING...");
+      
+      // Fetch all customers
+      const { data: allCustomers, error: custErr } = await supabase
+        .from('customers')
+        .select('id, name, stage, status');
+      
+      if (custErr) {
+        console.error("❌ Error fetching customers:", custErr);
+        return;
+      }
+      
+      if (!allCustomers || allCustomers.length === 0) return;
+      
+      // Fetch ALL lifecycle stages with pagination to avoid 1000 row limit
+      let allStages: any[] = [];
+      let offset = 0;
+      const pageSize = 1000;
+      
+      while (true) {
+        const { data: pageStages, error: stagesErr } = await supabase
+          .from('lifecycle_stages')
+          .select('customer_id, name, status')
+          .range(offset, offset + pageSize - 1);
+        
+        if (stagesErr) {
+          console.error("❌ Error fetching stages:", stagesErr);
+          break;
+        }
+        
+        if (!pageStages || pageStages.length === 0) break;
+        
+        allStages = allStages.concat(pageStages);
+        
+        if (pageStages.length < pageSize) break;
+        offset += pageSize;
+      }
+      
+      console.log(`📊 Found ${allCustomers.length} customers, ${allStages.length} lifecycle stages (paginated)`);
+      
+      // Group stages by customer
+      const stagesByCustomer: Record<string, any[]> = {};
+      allStages.forEach(stage => {
+        if (!stagesByCustomer[stage.customer_id]) {
+          stagesByCustomer[stage.customer_id] = [];
+        }
+        stagesByCustomer[stage.customer_id].push(stage);
+      });
+      
+      // Stage template
+      const stageTemplate = [
+        { name: 'Prospect', category: 'Pre-Sales' },
+        { name: 'Qualified Lead', category: 'Pre-Sales' },
+        { name: 'Meeting Set', category: 'Pre-Sales' },
+        { name: 'Discovery Call', category: 'Sales' },
+        { name: 'Demo', category: 'Sales' },
+        { name: 'Proposal Sent', category: 'Sales' },
+        { name: 'Proposal Approved', category: 'Sales' },
+        { name: 'Contract Sent', category: 'Sales' },
+        { name: 'Contract Signed', category: 'Sales' },
+        { name: 'Onboarding', category: 'Implementation' },
+        { name: 'Technical Setup', category: 'Implementation' },
+        { name: 'Training', category: 'Implementation' },
+        { name: 'Go Live', category: 'Implementation' },
+        { name: 'Payment Processed', category: 'Finance' }
+      ];
+      
+      const stageProgress: Record<string, string[]> = {
+        'Lead': [],
+        'Qualified': ['Prospect', 'Qualified Lead', 'Meeting Set'],
+        'Demo': ['Prospect', 'Qualified Lead', 'Meeting Set', 'Discovery Call', 'Demo'],
+        'Proposal': ['Prospect', 'Qualified Lead', 'Meeting Set', 'Discovery Call', 'Demo', 'Proposal Sent'],
+        'Contract': ['Prospect', 'Qualified Lead', 'Meeting Set', 'Discovery Call', 'Demo', 'Proposal Sent', 'Proposal Approved', 'Contract Sent', 'Contract Signed'],
+        'Implementation': ['Prospect', 'Qualified Lead', 'Meeting Set', 'Discovery Call', 'Demo', 'Proposal Sent', 'Proposal Approved', 'Contract Sent', 'Contract Signed', 'Onboarding'],
+        'Live': ['Prospect', 'Qualified Lead', 'Meeting Set', 'Discovery Call', 'Demo', 'Proposal Sent', 'Proposal Approved', 'Contract Sent', 'Contract Signed', 'Onboarding', 'Technical Setup', 'Training', 'Go Live', 'Payment Processed']
+      };
+      
+      // Get default owner
+      const { data: staffData } = await supabase.from('staff').select('id').limit(1);
+      const defaultOwnerId = staffData?.[0]?.id || null;
+      
+      let createdCount = 0;
+      let fixedCount = 0;
+      
+      // Process each customer
+      for (const customer of allCustomers) {
+        const existingStages = stagesByCustomer[customer.id] || [];
+        const existingStageNames = existingStages.map(s => s.name?.toLowerCase());
+        
+        // Find missing stages for this customer
+        const missingStages = stageTemplate.filter(
+          t => !existingStageNames.includes(t.name.toLowerCase())
+        );
+        
+        // Create missing stages
+        if (missingStages.length > 0 && missingStages.length < 14) {
+          // Customer has some stages but missing others - add missing ones
+          const completedStages = stageProgress[customer.stage] || [];
+          const stagesToInsert = missingStages.map(stage => ({
+            customer_id: customer.id,
+            name: stage.name,
+            status: completedStages.includes(stage.name) ? 'done' : 'not-started',
+            category: stage.category,
+            owner_id: defaultOwnerId
+          }));
+          
+          const { error } = await supabase.from('lifecycle_stages').insert(stagesToInsert);
+          if (!error) {
+            console.log(`➕ Added ${missingStages.length} missing stages for ${customer.name}`);
+            createdCount++;
+            // Update local cache
+            stagesToInsert.forEach(s => {
+              if (!stagesByCustomer[customer.id]) stagesByCustomer[customer.id] = [];
+              stagesByCustomer[customer.id].push(s);
+            });
+          }
+        } else if (existingStages.length === 0) {
+          // Customer has NO stages - create all
+          const completedStages = stageProgress[customer.stage] || [];
+          const stagesToInsert = stageTemplate.map(stage => ({
+            customer_id: customer.id,
+            name: stage.name,
+            status: completedStages.includes(stage.name) ? 'done' : 'not-started',
+            category: stage.category,
+            owner_id: defaultOwnerId
+          }));
+          
+          const { error } = await supabase.from('lifecycle_stages').insert(stagesToInsert);
+          if (!error) {
+            console.log(`✅ Created all stages for ${customer.name} (${completedStages.length} marked done)`);
+            createdCount++;
+            stagesByCustomer[customer.id] = stagesToInsert;
+          } else {
+            console.error(`❌ Error creating stages for ${customer.name}:`, error.message);
+          }
+        }
+        
+        // Now compute and fix pipeline stage using current stages
+        const currentStages = stagesByCustomer[customer.id] || [];
+        if (currentStages.length > 0) {
+          const computedStage = resolvePipelineStageFromLifecycleStages(currentStages, { includeInProgress: true });
+          
+          if (customer.stage !== computedStage) {
+            const { error } = await supabase
+              .from('customers')
+              .update({ stage: computedStage })
+              .eq('id', customer.id);
+            
+            if (!error) {
+              console.log(`🔄 Fixed ${customer.name}: "${customer.stage}" → "${computedStage}"`);
+              fixedCount++;
+            }
+          }
+        }
+      }
+      
+      console.log(`🔄 AUTO-FIX COMPLETE: Created stages for ${createdCount} customers, fixed ${fixedCount} pipeline stages`);
+      
+      if (createdCount > 0 || fixedCount > 0) {
+        toast.success(`Auto-fix: ${createdCount} customers got stages, ${fixedCount} stages corrected`);
+      }
+      
+    } catch (err) {
+      console.error('❌ Auto-fix error:', err);
+    }
+  };
+
   const fetchCustomers = async (showRefreshIndicator = false) => {
     try {
       if (showRefreshIndicator) {
@@ -147,6 +336,9 @@ const Customers = () => {
       } else {
         setIsLoading(true);
       }
+      
+      // Auto-fix customer stages in background
+      await autoFixCustomerStages();
       
       console.log("Fetching customers from database...");
       
@@ -160,17 +352,32 @@ const Customers = () => {
         throw customersError;
       }
 
-      const { data: allLifecycleStages, error: stagesError } = await supabase
-        .from('lifecycle_stages')
-        .select('customer_id, name, status, updated_at, created_at');
-
-      if (stagesError) {
-        console.error("Lifecycle stages error:", stagesError);
-        throw stagesError;
+      // Fetch ALL lifecycle stages with pagination to avoid 1000 row limit
+      let allLifecycleStages: any[] = [];
+      let offset = 0;
+      const pageSize = 1000;
+      
+      while (true) {
+        const { data: pageStages, error: stagesError } = await supabase
+          .from('lifecycle_stages')
+          .select('customer_id, name, status, updated_at, created_at')
+          .range(offset, offset + pageSize - 1);
+        
+        if (stagesError) {
+          console.error("Lifecycle stages error:", stagesError);
+          throw stagesError;
+        }
+        
+        if (!pageStages || pageStages.length === 0) break;
+        
+        allLifecycleStages = allLifecycleStages.concat(pageStages);
+        
+        if (pageStages.length < pageSize) break;
+        offset += pageSize;
       }
 
       console.log("Customers data fetched:", customers);
-      console.log("Lifecycle stages fetched:", allLifecycleStages);
+      console.log(`Lifecycle stages fetched (paginated): ${allLifecycleStages.length}`);
 
       if (customers && customers.length > 0) {
         // Group all stages by customer (not just completed ones)
@@ -182,9 +389,28 @@ const Customers = () => {
           stagesByCustomer[stage.customer_id].push(stage);
         });
 
+        // Debug: Find Macqueen
+        const macqueenCustomer = customers.find(c => c.name?.toLowerCase().includes('macqueen'));
+        if (macqueenCustomer) {
+          const macqueenStages = stagesByCustomer[macqueenCustomer.id] || [];
+          console.log('🟡 MACQUEEN FETCH DEBUG:');
+          console.log('   Customer ID:', macqueenCustomer.id);
+          console.log('   Customer name:', macqueenCustomer.name);
+          console.log('   DB stage:', macqueenCustomer.stage);
+          console.log('   Number of stages:', macqueenStages.length);
+          console.log('   Stage names:', macqueenStages.map((s: any) => `${s.name} (${s.status})`));
+        }
+
         const formattedCustomers = customers.map(customer => 
           formatDatabaseCustomer(customer, stagesByCustomer[customer.id] || [])
         );
+        
+        // Debug: Check Macqueen after formatting
+        const macqueenFormatted = formattedCustomers.find(c => c.name?.toLowerCase().includes('macqueen'));
+        if (macqueenFormatted) {
+          console.log('🟢 MACQUEEN AFTER FORMAT:');
+          console.log('   Computed stage:', macqueenFormatted.stage);
+        }
         
         setCustomers(formattedCustomers);
         extractUniqueCountries(formattedCustomers);

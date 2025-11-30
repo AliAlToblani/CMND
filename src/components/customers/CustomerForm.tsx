@@ -34,10 +34,10 @@ const customerFormSchema = z.object({
   country: z.string().min(1, "Country is required"),
   industry: z.string().optional(),
   estimated_deal_value: z.number().nullable().optional(),
-  service_type: z.enum(['text', 'voice', 'both']).optional().nullable(),
-  text_plan: z.enum(['basic', 'growth', 'pro', 'scale', 'enterprise', 'large_enterprise']).optional().nullable(),
+  service_type: z.string().optional().nullable(),
+  text_plan: z.string().optional().nullable(),
   text_ai_responses: z.number().optional().nullable(),
-  voice_tier: z.enum(['tier_1', 'tier_2', 'tier_3', 'tier_4']).optional().nullable(),
+  voice_tier: z.string().optional().nullable(),
   voice_hours: z.number().optional().nullable(),
   voice_price_per_hour: z.number().optional().nullable(),
   description: z.string().optional(),
@@ -112,6 +112,37 @@ export function CustomerForm({
       voice_price_per_hour: (initialData as any)?.voice_price_per_hour || null,
     },
   });
+
+  // Reset form when initialData changes (e.g., when loading customer data)
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        name: initialData.name || "",
+        segment: initialData.segment || "",
+        country: initialData.country || "",
+        industry: initialData.industry || "",
+        estimated_deal_value: initialData.estimated_deal_value ?? null,
+        description: initialData.description || "",
+        logo: initialData.logo || "",
+        owner_id: initialData.owner_id || "",
+        contact_name: initialData.contact_name || "",
+        contact_email: initialData.contact_email || "",
+        contact_phone: initialData.contact_phone || "",
+        company_registration_number: initialData.company_registration_number || "",
+        legal_address: initialData.legal_address || "",
+        representative_name: initialData.representative_name || "",
+        representative_title: initialData.representative_title || "",
+        payment_terms_days: initialData.payment_terms_days || 14,
+        currency: initialData.currency || "BD",
+        service_type: (initialData as any)?.service_type || null,
+        text_plan: (initialData as any)?.text_plan || null,
+        text_ai_responses: (initialData as any)?.text_ai_responses || null,
+        voice_tier: (initialData as any)?.voice_tier || null,
+        voice_hours: (initialData as any)?.voice_hours || null,
+        voice_price_per_hour: (initialData as any)?.voice_price_per_hour || null,
+      });
+    }
+  }, [initialData, form]);
 
   // Load countries from database
   useEffect(() => {
@@ -601,123 +632,6 @@ export function CustomerForm({
                   <FormLabel>Contact Phone</FormLabel>
                   <FormControl>
                     <Input placeholder="Enter contact phone" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        </div>
-
-        {/* Legal & Company Information Section */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Legal & Company Information</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField
-              control={form.control}
-              name="company_registration_number"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Company Registration Number</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter registration number" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="currency"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Currency</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select currency" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="BD">BD - Bahraini Dinar</SelectItem>
-                      <SelectItem value="USD">USD - US Dollar</SelectItem>
-                      <SelectItem value="EUR">EUR - Euro</SelectItem>
-                      <SelectItem value="GBP">GBP - British Pound</SelectItem>
-                      <SelectItem value="SAR">SAR - Saudi Riyal</SelectItem>
-                      <SelectItem value="AED">AED - UAE Dirham</SelectItem>
-                      <SelectItem value="KWD">KWD - Kuwaiti Dinar</SelectItem>
-                      <SelectItem value="QAR">QAR - Qatari Riyal</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="legal_address"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>Legal Address</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Enter full legal address" 
-                      className="min-h-[80px]"
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="representative_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Representative Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter representative name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="representative_title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Representative Title</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., CEO, Managing Director" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="payment_terms_days"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Payment Terms (Days)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      placeholder="14"
-                      {...field}
-                      value={field.value ?? ""}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        field.onChange(value === "" ? null : parseInt(value) || null);
-                      }}
-                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

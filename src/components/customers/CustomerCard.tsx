@@ -22,6 +22,16 @@ interface CustomerCardProps {
 export function CustomerCard({ customer, showEditOptions = false, isDetailed = false }: CustomerCardProps) {
   const navigate = useNavigate();
   
+  // Debug logging for Macqueen
+  if (customer.name?.toLowerCase().includes('macqueen')) {
+    console.log('🟣 CUSTOMERCARD - Macqueen:', {
+      name: customer.name,
+      stage: customer.stage,
+      status: customer.status,
+      id: customer.id
+    });
+  }
+  
   const getStatusClass = (status?: string) => {
     switch (status) {
       case "not-started":

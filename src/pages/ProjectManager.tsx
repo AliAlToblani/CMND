@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Customer } from "@/types/customers";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,179 +9,251 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { 
+  ClipboardCheck, 
+  Plus, 
+  Trash2, 
+  CheckCircle2, 
+  UserPlus, 
+  X,
+  Calendar,
+  ArrowRight,
+  Sparkles,
+  Play
+} from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+interface ProjectCustomer {
+  id: string;
+  customer_id: string;
+  customer_name: string;
+  customer_logo?: string;
+  service_type?: string | null;
+  project_manager: string;
+  service_description: string;
+  checklist_items: ChecklistItem[];
+  notes: string;
+  status: 'ongoing' | 'completed' | 'demo';
+  demo_date?: string;
+  created_at: string;
+}
+
+interface ChecklistItem {
+  id: string;
+  label: string;
+  checked: boolean;
+}
+
+interface Customer {
+  id: string;
+  name: string;
+  logo?: string;
+  service_type?: string | null;
+}
+
+// Local storage key for persisting project data
+const STORAGE_KEY = 'project_manager_data';
 
 export default function ProjectManager() {
-  const [ongoingCustomers, setOngoingCustomers] = useState<Customer[]>([]);
-  const [completedCustomers, setCompletedCustomers] = useState<Customer[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [activeTab, setActiveTab] = useState<'ongoing' | 'completed'>('ongoing');
+  const [projects, setProjects] = useState<ProjectCustomer[]>([]);
+  const [selectedProject, setSelectedProject] = useState<ProjectCustomer | null>(null);
+  const [activeTab, setActiveTab] = useState<'ongoing' | 'completed' | 'demo'>('ongoing');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  
+  // For adding new customers
+  const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [addToTab, setAddToTab] = useState<'ongoing' | 'demo'>('ongoing');
+  const [customerSearch, setCustomerSearch] = useState('');
+  
+  // For adding new checklist items
+  const [newChecklistItem, setNewChecklistItem] = useState('');
 
-  // Fetch customers in Implementation stage
+  // Load projects from localStorage on mount
   useEffect(() => {
-    fetchImplementationCustomers();
-  }, [activeTab]);
+    loadProjects();
+    fetchAllCustomers();
+  }, []);
 
-  const fetchImplementationCustomers = async () => {
+  // Save projects to localStorage whenever they change
+  useEffect(() => {
+    if (!loading) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+    }
+  }, [projects, loading]);
+
+  const loadProjects = () => {
     try {
-      setLoading(true);
-
-      // Fetch all lifecycle stages
-      const { data: allStages, error: stagesError } = await supabase
-        .from("lifecycle_stages")
-        .select("customer_id, category, status, name");
-
-      if (stagesError) throw stagesError;
-
-      // Group stages by customer
-      const customerStages = new Map<string, { category: string; status: string; name: string }[]>();
-      (allStages || []).forEach((stage) => {
-        if (!customerStages.has(stage.customer_id)) {
-          customerStages.set(stage.customer_id, []);
-        }
-        customerStages.get(stage.customer_id)!.push({
-          category: stage.category,
-          status: stage.status,
-          name: stage.name,
-        });
-      });
-
-      // Filter customers: completed Pre-Sales & Sales, but NOT completed all Implementation
-      const eligibleCustomerIds: string[] = [];
-      
-      customerStages.forEach((stages, customerId) => {
-        const preSalesStages = stages.filter((s) => s.category === "Pre-Sales");
-        const salesStages = stages.filter((s) => s.category === "Sales");
-        const implementationStages = stages.filter((s) => s.category === "Implementation");
-        const goLiveStage = stages.find((s) => s.name === "Go Live");
-
-        const allPreSalesComplete = preSalesStages.length > 0 && 
-          preSalesStages.every((s) => s.status === "done" || s.status === "completed");
-        
-        const allSalesComplete = salesStages.length > 0 && 
-          salesStages.every((s) => s.status === "done" || s.status === "completed");
-        
-        // Check if Go Live is completed - if yes, exclude from Project Manager
-        const goLiveCompleted = goLiveStage && 
-          (goLiveStage.status === "done" || goLiveStage.status === "completed");
-        
-        // Has at least one incomplete Implementation stage
-        const hasIncompleteImplementation = implementationStages.length > 0 && 
-          implementationStages.some((s) => s.status !== "done" && s.status !== "completed");
-
-        if (allPreSalesComplete && allSalesComplete && hasIncompleteImplementation && !goLiveCompleted) {
-          eligibleCustomerIds.push(customerId);
-        }
-      });
-
-      if (eligibleCustomerIds.length === 0) {
-        setOngoingCustomers([]);
-        setCompletedCustomers([]);
-        setSelectedCustomer(null);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("customers")
-        .select("*")
-        .in("id", eligibleCustomerIds)
-        .order("name");
-
-      if (error) throw error;
-
-      // Split customers into ongoing and completed based on checklist completion
-      const ongoing: Customer[] = [];
-      const completed: Customer[] = [];
-
-      (data || []).forEach((customer) => {
-        const allChecklistsComplete = 
-          customer.checklist_platform_integration &&
-          customer.checklist_ai_integration &&
-          customer.checklist_agent_creation;
-
-        if (allChecklistsComplete) {
-          completed.push(customer as Customer);
-        } else {
-          ongoing.push(customer as Customer);
-        }
-      });
-
-      setOngoingCustomers(ongoing);
-      setCompletedCustomers(completed);
-      
-      // Set selected customer based on active tab
-      if (activeTab === 'ongoing' && ongoing.length > 0) {
-        setSelectedCustomer(ongoing[0]);
-      } else if (activeTab === 'completed' && completed.length > 0) {
-        setSelectedCustomer(completed[0]);
-      } else {
-        setSelectedCustomer(null);
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        setProjects(JSON.parse(stored));
       }
     } catch (error) {
-      console.error("Error fetching implementation customers:", error);
-      toast.error("Failed to load customers");
+      console.error('Error loading projects:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Auto-save field updates with debouncing for text fields
-  const updateCustomerField = async (field: string, value: any) => {
-    if (!selectedCustomer) return;
-
+  const fetchAllCustomers = async () => {
     try {
-      setSaving(true);
-      const { error } = await supabase
-        .from("customers")
-        .update({ [field]: value })
-        .eq("id", selectedCustomer.id);
-
-      if (error) throw error;
-
-      // Update local state
-      const updatedCustomer = { ...selectedCustomer, [field]: value };
-      setSelectedCustomer(updatedCustomer);
-      setOngoingCustomers(
-        ongoingCustomers.map((c) =>
-          c.id === selectedCustomer.id ? updatedCustomer : c
-        )
-      );
-      setCompletedCustomers(
-        completedCustomers.map((c) =>
-          c.id === selectedCustomer.id ? updatedCustomer : c
-        )
-      );
-
-      toast.success("Updated successfully");
+      const { data, error } = await supabase
+        .from('customers')
+        .select('id, name, logo, service_type')
+        .order('name');
       
-      // Re-fetch to move customer between tabs if needed
-      await fetchImplementationCustomers();
+      if (error) throw error;
+      setAllCustomers(data || []);
     } catch (error) {
-      console.error("Error updating customer:", error);
-      toast.error("Failed to update");
-    } finally {
-      setSaving(false);
+      console.error('Error fetching customers:', error);
     }
   };
 
-  // Debounced update for text fields
-  const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
-  const debouncedUpdate = (field: string, value: string) => {
-    if (debounceTimer) clearTimeout(debounceTimer);
-    
-    const timer = setTimeout(() => {
-      updateCustomerField(field, value);
-    }, 500);
-    
-    setDebounceTimer(timer);
+  const addCustomerToProject = () => {
+    if (!selectedCustomerId) {
+      toast.error('Please select a customer');
+      return;
+    }
+
+    const customer = allCustomers.find(c => c.id === selectedCustomerId);
+    if (!customer) return;
+
+    // Check if customer is already in projects
+    if (projects.some(p => p.customer_id === selectedCustomerId)) {
+      toast.error('Customer is already in projects');
+      return;
+    }
+
+    const newProject: ProjectCustomer = {
+      id: crypto.randomUUID(),
+      customer_id: customer.id,
+      customer_name: customer.name,
+      customer_logo: customer.logo,
+      service_type: customer.service_type,
+      project_manager: '',
+      service_description: '',
+      checklist_items: [
+        { id: crypto.randomUUID(), label: 'Agent Creation', checked: false },
+        { id: crypto.randomUUID(), label: 'Channel Integration', checked: false },
+        { id: crypto.randomUUID(), label: 'Custom Function', checked: false },
+      ],
+      notes: '',
+      status: addToTab,
+      demo_date: addToTab === 'demo' ? new Date().toISOString().split('T')[0] : undefined,
+      created_at: new Date().toISOString(),
+    };
+
+    setProjects([...projects, newProject]);
+    setSelectedCustomerId('');
+    setCustomerSearch('');
+    setIsAddDialogOpen(false);
+    setActiveTab(addToTab);
+    setSelectedProject(newProject);
+    toast.success(`${customer.name} added to ${addToTab === 'demo' ? 'Demos' : 'Ongoing'}`);
   };
 
-  const currentCustomers = activeTab === 'ongoing' ? ongoingCustomers : completedCustomers;
+  const removeProject = (projectId: string) => {
+    setProjects(projects.filter(p => p.id !== projectId));
+    if (selectedProject?.id === projectId) {
+      setSelectedProject(null);
+    }
+    toast.success('Customer removed from projects');
+  };
+
+  const updateProject = (projectId: string, updates: Partial<ProjectCustomer>) => {
+    setProjects(projects.map(p => 
+      p.id === projectId ? { ...p, ...updates } : p
+    ));
+    if (selectedProject?.id === projectId) {
+      setSelectedProject({ ...selectedProject, ...updates });
+    }
+  };
+
+  const addChecklistItem = () => {
+    if (!selectedProject || !newChecklistItem.trim()) return;
+
+    const newItem: ChecklistItem = {
+      id: crypto.randomUUID(),
+      label: newChecklistItem.trim(),
+      checked: false,
+    };
+
+    const updatedItems = [...selectedProject.checklist_items, newItem];
+    updateProject(selectedProject.id, { checklist_items: updatedItems });
+    setNewChecklistItem('');
+    toast.success('Checklist item added');
+  };
+
+  const removeChecklistItem = (itemId: string) => {
+    if (!selectedProject) return;
+
+    const updatedItems = selectedProject.checklist_items.filter(item => item.id !== itemId);
+    updateProject(selectedProject.id, { checklist_items: updatedItems });
+    toast.success('Checklist item removed');
+  };
+
+  const toggleChecklistItem = (itemId: string) => {
+    if (!selectedProject) return;
+
+    const updatedItems = selectedProject.checklist_items.map(item =>
+      item.id === itemId ? { ...item, checked: !item.checked } : item
+    );
+    updateProject(selectedProject.id, { checklist_items: updatedItems });
+  };
+
+  const moveToCompleted = () => {
+    if (!selectedProject) return;
+    updateProject(selectedProject.id, { status: 'completed' });
+    setActiveTab('completed');
+    toast.success(`${selectedProject.customer_name} moved to Completed`);
+  };
+
+  const moveToOngoing = () => {
+    if (!selectedProject) return;
+    updateProject(selectedProject.id, { status: 'ongoing' });
+    setActiveTab('ongoing');
+    toast.success(`${selectedProject.customer_name} moved to Ongoing`);
+  };
+
+  const filteredProjects = projects.filter(p => p.status === activeTab);
+  const ongoingCount = projects.filter(p => p.status === 'ongoing').length;
+  const completedCount = projects.filter(p => p.status === 'completed').length;
+  const demoCount = projects.filter(p => p.status === 'demo').length;
+
+  // Get customers not yet in projects for the add dialog
+  const availableCustomers = allCustomers.filter(
+    c => !projects.some(p => p.customer_id === c.id)
+  );
 
   if (loading) {
     return (
@@ -198,6 +269,392 @@ export default function ProjectManager() {
     );
   }
 
+  const renderProjectList = () => (
+    <Card className="lg:col-span-1 border-2 border-border/50">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">
+            {activeTab === 'ongoing' && 'Ongoing Projects'}
+            {activeTab === 'completed' && 'Completed Projects'}
+            {activeTab === 'demo' && 'Scheduled Demos'}
+          </CardTitle>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline" className="gap-1">
+                <UserPlus className="h-4 w-4" />
+                Add
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Customer to Projects</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label>Search Customer</Label>
+                  <Input
+                    placeholder="Type customer name..."
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                    className="mb-2"
+                  />
+                  <div className="border rounded-md max-h-48 overflow-y-auto">
+                    {availableCustomers.length === 0 ? (
+                      <div className="p-3 text-sm text-muted-foreground text-center">
+                        All customers are already in projects
+                      </div>
+                    ) : availableCustomers.filter(c => 
+                      c.name.toLowerCase().includes(customerSearch.toLowerCase())
+                    ).length === 0 ? (
+                      <div className="p-3 text-sm text-muted-foreground text-center">
+                        No customers found matching "{customerSearch}"
+                      </div>
+                    ) : (
+                      availableCustomers
+                        .filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()))
+                        .map(customer => (
+                          <div
+                            key={customer.id}
+                            className={`p-3 cursor-pointer hover:bg-muted transition-colors border-b last:border-b-0 ${
+                              selectedCustomerId === customer.id ? 'bg-primary/10 border-primary' : ''
+                            }`}
+                            onClick={() => setSelectedCustomerId(customer.id)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">{customer.name}</span>
+                              <Badge variant={customer.service_type ? "secondary" : "outline"} className="text-xs">
+                                {customer.service_type || 'No Service Type'}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Add to</Label>
+                  <Select value={addToTab} onValueChange={(v) => setAddToTab(v as 'ongoing' | 'demo')}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ongoing">Ongoing Projects</SelectItem>
+                      <SelectItem value="demo">Demos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={addCustomerToProject} className="w-full" disabled={!selectedCustomerId}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Customer
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        <ScrollArea className="h-[550px]">
+          <div className="space-y-2 p-4">
+            {filteredProjects.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <ClipboardCheck className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">No {activeTab} projects yet</p>
+                <p className="text-xs mt-1">Click "Add" to get started</p>
+              </div>
+            ) : (
+              filteredProjects.map((project) => (
+                <Card
+                  key={project.id}
+                  className={`cursor-pointer transition-all hover:shadow-md group ${
+                    selectedProject?.id === project.id
+                      ? "border-primary bg-primary/5 shadow-md"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                  onClick={() => setSelectedProject(project)}
+                >
+                  <CardContent className="p-3 flex items-center gap-3">
+                    <Avatar className="h-10 w-10 shrink-0">
+                      <AvatarImage src={project.customer_logo || undefined} alt={project.customer_name} />
+                      <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary font-semibold">
+                        {project.customer_name.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-sm truncate">{project.customer_name}</h4>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <Badge variant={project.service_type ? 'secondary' : 'outline'} className="text-xs h-5">
+                          {project.service_type 
+                            ? project.service_type.charAt(0).toUpperCase() + project.service_type.slice(1)
+                            : 'N/A'}
+                        </Badge>
+                        {project.project_manager && (
+                          <span className="text-xs text-muted-foreground truncate">
+                            {project.project_manager}
+                          </span>
+                        )}
+                      </div>
+                      {activeTab === 'demo' && project.demo_date && (
+                        <p className="text-xs text-blue-500 flex items-center gap-1 mt-0.5">
+                          <Calendar className="h-3 w-3" />
+                          {new Date(project.demo_date).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {activeTab !== 'completed' && (
+                        <Badge variant="outline" className="text-xs">
+                          {project.checklist_items.filter(i => i.checked).length}/{project.checklist_items.length}
+                        </Badge>
+                      )}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove from Projects?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will remove {project.customer_name} from the project manager. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => removeProject(project.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Remove
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+      </CardContent>
+    </Card>
+  );
+
+  const renderProjectDetails = () => {
+    if (!selectedProject) {
+      return (
+        <Card className="lg:col-span-2 border-2 border-dashed border-border/50">
+          <CardContent className="flex flex-col items-center justify-center h-[600px] text-muted-foreground">
+            <Sparkles className="h-16 w-16 mb-4 opacity-30" />
+            <h3 className="text-lg font-medium mb-2">Select a Project</h3>
+            <p className="text-sm text-center max-w-sm">
+              Choose a customer from the list to view and edit their project details
+            </p>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <Card className="lg:col-span-2 border-2 border-border/50">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-12 w-12">
+                <AvatarImage src={selectedProject.customer_logo || undefined} alt={selectedProject.customer_name} />
+                <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary text-lg font-semibold">
+                  {selectedProject.customer_name.substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <CardTitle className="text-xl">{selectedProject.customer_name}</CardTitle>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant={
+                    selectedProject.status === 'completed' ? 'default' : 
+                    selectedProject.status === 'demo' ? 'secondary' : 'outline'
+                  }>
+                    {selectedProject.status === 'ongoing' && 'Ongoing'}
+                    {selectedProject.status === 'completed' && 'Completed'}
+                    {selectedProject.status === 'demo' && 'Demo Scheduled'}
+                  </Badge>
+                  <Badge variant={selectedProject.service_type ? 'secondary' : 'destructive'}>
+                    {selectedProject.service_type 
+                      ? `Service: ${selectedProject.service_type.charAt(0).toUpperCase() + selectedProject.service_type.slice(1)}`
+                      : 'Service Type: Not Available'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              {selectedProject.status === 'demo' && (
+                <>
+                  <Button size="sm" variant="outline" onClick={moveToOngoing}>
+                    <ArrowRight className="h-4 w-4 mr-1" />
+                    Move to Ongoing
+                  </Button>
+                  <Button size="sm" onClick={moveToCompleted} className="bg-green-600 hover:bg-green-700">
+                    <CheckCircle2 className="h-4 w-4 mr-1" />
+                    Complete
+                  </Button>
+                </>
+              )}
+              {selectedProject.status === 'ongoing' && (
+                <Button size="sm" onClick={moveToCompleted} className="bg-green-600 hover:bg-green-700">
+                  <CheckCircle2 className="h-4 w-4 mr-1" />
+                  Complete
+                </Button>
+              )}
+              {selectedProject.status === 'completed' && (
+                <Button size="sm" variant="outline" onClick={moveToOngoing}>
+                  <ArrowRight className="h-4 w-4 mr-1" />
+                  Reopen
+                </Button>
+              )}
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="sm" variant="destructive">
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Project?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will remove {selectedProject.customer_name} from the project manager. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => removeProject(selectedProject.id)}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Project Manager */}
+            <div className="space-y-2">
+              <Label htmlFor="project-manager">Project Manager</Label>
+              <Input
+                id="project-manager"
+                placeholder="Enter project manager name"
+                value={selectedProject.project_manager}
+                onChange={(e) => updateProject(selectedProject.id, { project_manager: e.target.value })}
+                className="bg-background"
+              />
+            </div>
+
+            {/* Demo Date (only for demos) */}
+            {selectedProject.status === 'demo' && (
+              <div className="space-y-2">
+                <Label htmlFor="demo-date">Demo Date</Label>
+                <Input
+                  id="demo-date"
+                  type="date"
+                  value={selectedProject.demo_date || ''}
+                  onChange={(e) => updateProject(selectedProject.id, { demo_date: e.target.value })}
+                  className="bg-background"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Service Description */}
+          <div className="space-y-2">
+            <Label htmlFor="service-description">Service Description</Label>
+            <Textarea
+              id="service-description"
+              placeholder="Describe the services being implemented for this customer..."
+              value={selectedProject.service_description}
+              onChange={(e) => updateProject(selectedProject.id, { service_description: e.target.value })}
+              rows={3}
+              className="resize-none bg-background"
+            />
+          </div>
+
+          {/* Implementation Checklist */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold">Implementation Checklist</Label>
+              <Badge variant="secondary">
+                {selectedProject.checklist_items.filter(i => i.checked).length} / {selectedProject.checklist_items.length} completed
+              </Badge>
+            </div>
+            
+            <div className="space-y-2 rounded-lg border border-border/50 p-3 bg-muted/30">
+              {selectedProject.checklist_items.map((item) => (
+                <div key={item.id} className="flex items-center gap-3 group">
+                  <Checkbox
+                    id={item.id}
+                    checked={item.checked}
+                    onCheckedChange={() => toggleChecklistItem(item.id)}
+                  />
+                  <Label
+                    htmlFor={item.id}
+                    className={`flex-1 text-sm font-normal cursor-pointer ${
+                      item.checked ? 'line-through text-muted-foreground' : ''
+                    }`}
+                  >
+                    {item.label}
+                  </Label>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive"
+                    onClick={() => removeChecklistItem(item.id)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+              
+              {/* Add new checklist item */}
+              <div className="flex items-center gap-2 pt-2 border-t border-border/50 mt-2">
+                <Input
+                  placeholder="Add new item..."
+                  value={newChecklistItem}
+                  onChange={(e) => setNewChecklistItem(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addChecklistItem()}
+                  className="h-8 text-sm bg-background"
+                />
+                <Button size="sm" variant="outline" onClick={addChecklistItem} disabled={!newChecklistItem.trim()}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Implementation Notes */}
+          <div className="space-y-2">
+            <Label htmlFor="implementation-notes">Notes</Label>
+            <Textarea
+              id="implementation-notes"
+              placeholder="Add notes about the implementation process..."
+              value={selectedProject.notes}
+              onChange={(e) => updateProject(selectedProject.id, { notes: e.target.value })}
+              rows={4}
+              className="resize-none bg-background"
+            />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <DashboardLayout>
       <div className="max-w-7xl mx-auto">
@@ -205,375 +662,52 @@ export default function ProjectManager() {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
             Project Manager
           </h1>
-          <p className="text-muted-foreground mt-2">Manage Implementation Stage Customers</p>
+          <p className="text-muted-foreground mt-2">
+            Manage customer implementations, demos, and project progress
+          </p>
         </div>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'ongoing' | 'completed')}>
-          <TabsList>
+        <Tabs value={activeTab} onValueChange={(v) => {
+          setActiveTab(v as 'ongoing' | 'completed' | 'demo');
+          setSelectedProject(null);
+        }}>
+          <TabsList className="mb-6">
             <TabsTrigger value="ongoing" className="gap-2">
+              <ClipboardCheck className="h-4 w-4" />
               Ongoing
-              <Badge variant="secondary">{ongoingCustomers.length}</Badge>
+              <Badge variant="secondary" className="ml-1">{ongoingCount}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="demo" className="gap-2">
+              <Play className="h-4 w-4" />
+              Demos
+              <Badge variant="secondary" className="ml-1">{demoCount}</Badge>
             </TabsTrigger>
             <TabsTrigger value="completed" className="gap-2">
+              <CheckCircle2 className="h-4 w-4" />
               Completed
-              <Badge variant="secondary">{completedCustomers.length}</Badge>
+              <Badge variant="secondary" className="ml-1">{completedCount}</Badge>
             </TabsTrigger>
           </TabsList>
 
-          {/* Ongoing Tab */}
-          <TabsContent value="ongoing" className="mt-6">
-            {ongoingCustomers.length === 0 ? (
-              <Card className="border-dashed">
-                <CardContent className="flex flex-col items-center justify-center py-16">
-                  <ClipboardCheck className="h-16 w-16 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Active Implementations</h3>
-                  <p className="text-muted-foreground text-center max-w-md">
-                    Customers will appear here when they reach the Implementation stage
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Panel - Customer List */}
-                <Card className="lg:col-span-1">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Implementation Customers</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <ScrollArea className="h-[600px]">
-                      <div className="space-y-2 p-4">
-                        {ongoingCustomers.map((customer) => (
-                          <Card
-                            key={customer.id}
-                            className={`cursor-pointer transition-all hover:shadow-md ${
-                              selectedCustomer?.id === customer.id
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-primary/50"
-                            }`}
-                            onClick={() => setSelectedCustomer(customer)}
-                          >
-                            <CardContent className="p-4 flex items-center gap-3">
-                              <Avatar className="h-10 w-10">
-                                <AvatarImage src={customer.logo || undefined} alt={customer.name} />
-                                <AvatarFallback className="bg-primary/10 text-primary">
-                                  {customer.name.substring(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold text-sm truncate">{customer.name}</h4>
-                                <p className="text-xs text-muted-foreground truncate">
-                                  {customer.project_manager || "No PM assigned"}
-                                </p>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
-
-                {/* Right Panel - Customer Details */}
-                {selectedCustomer && (
-                  <Card className="lg:col-span-2">
-                    <CardHeader>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage src={selectedCustomer.logo || undefined} alt={selectedCustomer.name} />
-                          <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                            {selectedCustomer.name.substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <CardTitle className="text-xl">{selectedCustomer.name}</CardTitle>
-                          <p className="text-sm text-muted-foreground">Implementation Details</p>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      {/* Project Manager Field */}
-                      <div className="space-y-2">
-                        <Label htmlFor="project-manager">Project Manager</Label>
-                        <Input
-                          id="project-manager"
-                          placeholder="Enter project manager name"
-                          defaultValue={selectedCustomer.project_manager || ""}
-                          onBlur={(e) => updateCustomerField("project_manager", e.target.value)}
-                          onChange={(e) => {
-                            const updatedCustomer = { ...selectedCustomer, project_manager: e.target.value };
-                            setSelectedCustomer(updatedCustomer);
-                          }}
-                          maxLength={100}
-                          disabled={saving}
-                          className="max-w-md"
-                        />
-                      </div>
-
-                      {/* Implementation Checklists */}
-                      <div className="space-y-4">
-                        <Label className="text-base font-semibold">Implementation Checklist</Label>
-                        <div className="space-y-3 pl-2">
-                          <div className="flex items-center space-x-3">
-                            <Checkbox
-                              id="platform-integration"
-                              checked={selectedCustomer.checklist_platform_integration || false}
-                              onCheckedChange={(checked) =>
-                                updateCustomerField("checklist_platform_integration", checked)
-                              }
-                              disabled={saving}
-                            />
-                            <Label
-                              htmlFor="platform-integration"
-                              className="text-sm font-normal cursor-pointer"
-                            >
-                              Platform Integration
-                            </Label>
-                          </div>
-
-                          <div className="flex items-center space-x-3">
-                            <Checkbox
-                              id="ai-integration"
-                              checked={selectedCustomer.checklist_ai_integration || false}
-                              onCheckedChange={(checked) =>
-                                updateCustomerField("checklist_ai_integration", checked)
-                              }
-                              disabled={saving}
-                            />
-                            <Label
-                              htmlFor="ai-integration"
-                              className="text-sm font-normal cursor-pointer"
-                            >
-                              AI Integration
-                            </Label>
-                          </div>
-
-                          <div className="flex items-center space-x-3">
-                            <Checkbox
-                              id="agent-creation"
-                              checked={selectedCustomer.checklist_agent_creation || false}
-                              onCheckedChange={(checked) =>
-                                updateCustomerField("checklist_agent_creation", checked)
-                              }
-                              disabled={saving}
-                            />
-                            <Label
-                              htmlFor="agent-creation"
-                              className="text-sm font-normal cursor-pointer"
-                            >
-                              AI Agent Creation
-                            </Label>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Implementation Notes */}
-                      <div className="space-y-2">
-                        <Label htmlFor="implementation-notes">Implementation Notes</Label>
-                        <Textarea
-                          id="implementation-notes"
-                          placeholder="Add notes about the implementation process..."
-                          defaultValue={selectedCustomer.implementation_notes || ""}
-                          onChange={(e) => {
-                            const updatedCustomer = { ...selectedCustomer, implementation_notes: e.target.value };
-                            setSelectedCustomer(updatedCustomer);
-                            debouncedUpdate("implementation_notes", e.target.value);
-                          }}
-                          rows={6}
-                          maxLength={5000}
-                          disabled={saving}
-                          className="resize-none"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          {selectedCustomer.implementation_notes?.length || 0} / 5000 characters
-                        </p>
-                      </div>
-
-                      {saving && (
-                        <p className="text-xs text-muted-foreground animate-pulse">Saving...</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
+          <TabsContent value="ongoing" className="mt-0">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {renderProjectList()}
+              {renderProjectDetails()}
+            </div>
           </TabsContent>
 
-          {/* Completed Tab */}
-          <TabsContent value="completed" className="mt-6">
-            {completedCustomers.length === 0 ? (
-              <Card className="border-dashed">
-                <CardContent className="flex flex-col items-center justify-center py-16">
-                  <ClipboardCheck className="h-16 w-16 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No Completed Implementations</h3>
-                  <p className="text-muted-foreground text-center max-w-md">
-                    Customers will appear here when all implementation checklists are completed
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Panel - Customer List */}
-                <Card className="lg:col-span-1">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Completed Implementations</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <ScrollArea className="h-[600px]">
-                      <div className="space-y-2 p-4">
-                        {completedCustomers.map((customer) => (
-                          <Card
-                            key={customer.id}
-                            className={`cursor-pointer transition-all hover:shadow-md ${
-                              selectedCustomer?.id === customer.id
-                                ? "border-primary bg-primary/5"
-                                : "border-border hover:border-primary/50"
-                            }`}
-                            onClick={() => setSelectedCustomer(customer)}
-                          >
-                            <CardContent className="p-4 flex items-center gap-3">
-                              <Avatar className="h-10 w-10">
-                                <AvatarImage src={customer.logo || undefined} alt={customer.name} />
-                                <AvatarFallback className="bg-primary/10 text-primary">
-                                  {customer.name.substring(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-semibold text-sm truncate">{customer.name}</h4>
-                                <p className="text-xs text-muted-foreground truncate">
-                                  {customer.project_manager || "No PM assigned"}
-                                </p>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
+          <TabsContent value="demo" className="mt-0">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {renderProjectList()}
+              {renderProjectDetails()}
+            </div>
+          </TabsContent>
 
-                {/* Right Panel - Customer Details */}
-                {selectedCustomer && (
-                  <Card className="lg:col-span-2">
-                    <CardHeader>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage src={selectedCustomer.logo || undefined} alt={selectedCustomer.name} />
-                          <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                            {selectedCustomer.name.substring(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <CardTitle className="text-xl">{selectedCustomer.name}</CardTitle>
-                          <p className="text-sm text-muted-foreground">Implementation Details</p>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      {/* Project Manager Field */}
-                      <div className="space-y-2">
-                        <Label htmlFor="project-manager-completed">Project Manager</Label>
-                        <Input
-                          id="project-manager-completed"
-                          placeholder="Enter project manager name"
-                          defaultValue={selectedCustomer.project_manager || ""}
-                          onBlur={(e) => updateCustomerField("project_manager", e.target.value)}
-                          onChange={(e) => {
-                            const updatedCustomer = { ...selectedCustomer, project_manager: e.target.value };
-                            setSelectedCustomer(updatedCustomer);
-                          }}
-                          maxLength={100}
-                          disabled={saving}
-                          className="max-w-md"
-                        />
-                      </div>
-
-                      {/* Implementation Checklists */}
-                      <div className="space-y-4">
-                        <Label className="text-base font-semibold">Implementation Checklist</Label>
-                        <div className="space-y-3 pl-2">
-                          <div className="flex items-center space-x-3">
-                            <Checkbox
-                              id="platform-integration-completed"
-                              checked={selectedCustomer.checklist_platform_integration || false}
-                              onCheckedChange={(checked) =>
-                                updateCustomerField("checklist_platform_integration", checked)
-                              }
-                              disabled={saving}
-                            />
-                            <Label
-                              htmlFor="platform-integration-completed"
-                              className="text-sm font-normal cursor-pointer"
-                            >
-                              Platform Integration
-                            </Label>
-                          </div>
-
-                          <div className="flex items-center space-x-3">
-                            <Checkbox
-                              id="ai-integration-completed"
-                              checked={selectedCustomer.checklist_ai_integration || false}
-                              onCheckedChange={(checked) =>
-                                updateCustomerField("checklist_ai_integration", checked)
-                              }
-                              disabled={saving}
-                            />
-                            <Label
-                              htmlFor="ai-integration-completed"
-                              className="text-sm font-normal cursor-pointer"
-                            >
-                              AI Integration
-                            </Label>
-                          </div>
-
-                          <div className="flex items-center space-x-3">
-                            <Checkbox
-                              id="agent-creation-completed"
-                              checked={selectedCustomer.checklist_agent_creation || false}
-                              onCheckedChange={(checked) =>
-                                updateCustomerField("checklist_agent_creation", checked)
-                              }
-                              disabled={saving}
-                            />
-                            <Label
-                              htmlFor="agent-creation-completed"
-                              className="text-sm font-normal cursor-pointer"
-                            >
-                              AI Agent Creation
-                            </Label>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Implementation Notes */}
-                      <div className="space-y-2">
-                        <Label htmlFor="implementation-notes-completed">Implementation Notes</Label>
-                        <Textarea
-                          id="implementation-notes-completed"
-                          placeholder="Add notes about the implementation process..."
-                          defaultValue={selectedCustomer.implementation_notes || ""}
-                          onChange={(e) => {
-                            const updatedCustomer = { ...selectedCustomer, implementation_notes: e.target.value };
-                            setSelectedCustomer(updatedCustomer);
-                            debouncedUpdate("implementation_notes", e.target.value);
-                          }}
-                          rows={6}
-                          maxLength={5000}
-                          disabled={saving}
-                          className="resize-none"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          {selectedCustomer.implementation_notes?.length || 0} / 5000 characters
-                        </p>
-                      </div>
-
-                      {saving && (
-                        <p className="text-xs text-muted-foreground animate-pulse">Saving...</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
+          <TabsContent value="completed" className="mt-0">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {renderProjectList()}
+              {renderProjectDetails()}
+            </div>
           </TabsContent>
         </Tabs>
       </div>

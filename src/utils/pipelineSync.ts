@@ -6,6 +6,15 @@ import { getFurthestPipelineStageFromNames } from "@/utils/pipelineRules";
 
 
 const computePipelineStage = (stages: any[]): string => {
+  // Implementation stage names - expanded list
+  const implementationStageNames = [
+    "Onboarding", "Technical Setup", "Training", "Kick Off Meeting",
+    "Kick-Off Meeting", "Kick-off Meeting", "Kickoff Meeting",
+    "Requirements Gathering", "Account Setup", "Data Migration",
+    "Invoice Generation", "Payment Processing", "Implementation",
+    "Setup", "Configuration", "Integration"
+  ];
+
   const reached = stages
     .filter((s: any) => isCompletedLike(s.status) || isInProgressLike(s.status))
     .map((s: any) => {
@@ -16,57 +25,46 @@ const computePipelineStage = (stages: any[]): string => {
       return canonical;
     });
 
+  // Check if ANY implementation stage is done or in-progress
+  const hasImplementationActivity = stages.some((s: any) => {
+    const canonical = canonicalizeStageName(s.name);
+    const normalizedName = s.name?.toLowerCase() || '';
+    const isImplStage = implementationStageNames.some(name => 
+      canonical === name || 
+      canonical.toLowerCase() === name.toLowerCase() ||
+      normalizedName.includes(name.toLowerCase())
+    );
+    const isActive = isCompletedLike(s.status) || isInProgressLike(s.status);
+    if (isImplStage && isActive) {
+      console.log(`      ✅ Found active implementation stage: "${s.name}" (${s.status})`);
+    }
+    return isImplStage && isActive;
+  });
+
   const basePipelineStage = getFurthestPipelineStageFromNames(reached);
 
-  // Determine completion status for implementation + go-live
-  const hasOnboardingCompleted = stages.some(
-    (s: any) =>
-      canonicalizeStageName(s.name) === "Onboarding" && isCompletedLike(s.status)
-  );
-  const hasTechnicalSetupCompleted = stages.some(
-    (s: any) =>
-      canonicalizeStageName(s.name) === "Technical Setup" && isCompletedLike(s.status)
-  );
-  const hasTrainingCompleted = stages.some(
-    (s: any) =>
-      canonicalizeStageName(s.name) === "Training" && isCompletedLike(s.status)
-  );
+  // Determine completion status for go-live
   const hasGoLiveCompleted = stages.some(
     (s: any) =>
       canonicalizeStageName(s.name) === "Go Live" && isCompletedLike(s.status)
   );
 
-  const allImplementationCompleted =
-    hasOnboardingCompleted && hasTechnicalSetupCompleted && hasTrainingCompleted;
-  const liveEligible = allImplementationCompleted && hasGoLiveCompleted;
-
   let finalPipelineStage = basePipelineStage;
 
-  // Enforce: Live only when ALL implementation stages + Go Live are completed
-  if (basePipelineStage === "Live" && !liveEligible) {
-    const implementationReached = stages.some((s: any) => {
-      const canonical = canonicalizeStageName(s.name);
-      const isImplStage =
-        canonical === "Onboarding" ||
-        canonical === "Technical Setup" ||
-        canonical === "Training";
-      return (
-        isImplStage &&
-        (isCompletedLike(s.status) || isInProgressLike(s.status))
-      );
-    });
+  // KEY FIX: If we have implementation activity but base stage is Contract or earlier, bump to Implementation
+  if (hasImplementationActivity && ["Lead", "Qualified", "Demo", "Proposal", "Contract"].includes(basePipelineStage)) {
+    console.log(`      🔄 Bumping from ${basePipelineStage} to Implementation (has implementation activity)`);
+    finalPipelineStage = "Implementation";
+  }
 
-    finalPipelineStage = implementationReached ? "Implementation" : "Contract";
-
-    console.log(
-      `      Live gated -> using ${finalPipelineStage} instead (implCompleted=${allImplementationCompleted}, goLiveCompleted=${hasGoLiveCompleted})`
-    );
+  // Enforce: Live only when Go Live is completed
+  if (finalPipelineStage === "Live" && !hasGoLiveCompleted) {
+    finalPipelineStage = hasImplementationActivity ? "Implementation" : "Contract";
+    console.log(`      Live gated -> using ${finalPipelineStage} instead (goLiveCompleted=${hasGoLiveCompleted})`);
   }
 
   console.log(
-    `      Reached stages: [${reached.join(
-      ", "
-    )}] -> Base pipeline: ${basePipelineStage} -> Final: ${finalPipelineStage}`
+    `      Reached stages: [${reached.join(", ")}] -> Base: ${basePipelineStage} -> Final: ${finalPipelineStage}`
   );
 
   return finalPipelineStage;
@@ -102,17 +100,31 @@ export const syncCustomerPipelineStages = async (): Promise<boolean> => {
 
     console.log(`📊 Found ${customers?.length || 0} non-churned customers to sync`);
 
-    // Fetch all lifecycle stages
-    const { data: allLifecycleStages, error: stagesError } = await supabase
-      .from('lifecycle_stages')
-      .select('customer_id, name, status');
-
-    if (stagesError) {
-      console.error("❌ Error fetching lifecycle stages:", stagesError);
-      return false;
+    // Fetch ALL lifecycle stages with pagination to avoid 1000 row limit
+    let allLifecycleStages: any[] = [];
+    let offset = 0;
+    const pageSize = 1000;
+    
+    while (true) {
+      const { data: pageStages, error: stagesError } = await supabase
+        .from('lifecycle_stages')
+        .select('customer_id, name, status')
+        .range(offset, offset + pageSize - 1);
+      
+      if (stagesError) {
+        console.error("❌ Error fetching lifecycle stages:", stagesError);
+        return false;
+      }
+      
+      if (!pageStages || pageStages.length === 0) break;
+      
+      allLifecycleStages = allLifecycleStages.concat(pageStages);
+      
+      if (pageStages.length < pageSize) break;
+      offset += pageSize;
     }
 
-    console.log(`📋 Found ${allLifecycleStages?.length || 0} lifecycle stages`);
+    console.log(`📋 Found ${allLifecycleStages.length} lifecycle stages (paginated)`);
     
     // Debug: Check if Gulf Air exists in both datasets
     const gulfAirCustomer = customers?.find(c => c.name?.toLowerCase().includes('gulf air'));
@@ -167,9 +179,9 @@ export const syncCustomerPipelineStages = async (): Promise<boolean> => {
         .filter(s => isInProgressLike(s.status))
         .map(s => s.name);
       
-      // Special detailed logging for Gulf Air
-      if (customer.name?.toLowerCase().includes('gulf air')) {
-        console.log(`🔴🔴🔴 GULF AIR SYNC DETAILS:`);
+      // Special detailed logging for Gulf Air and Macqueen
+      if (customer.name?.toLowerCase().includes('gulf air') || customer.name?.toLowerCase().includes('macqueen')) {
+        console.log(`🔴🔴🔴 ${customer.name.toUpperCase()} SYNC DETAILS:`);
         console.log(`   Customer ID: ${customer.id}`);
         console.log(`   Stages found for this customer ID: ${customerStages.length}`);
         console.log(`   All stages:`, customerStages.map(s => ({ name: s.name, status: s.status, canonical: canonicalizeStageName(s.name) })));
@@ -180,6 +192,13 @@ export const syncCustomerPipelineStages = async (): Promise<boolean> => {
         console.log(`   Current DB: stage="${customer.stage}", status="${customer.status}"`);
       }
       
+      // IMPORTANT: Don't downgrade customers with no lifecycle stages
+      // If a customer has 0 stages, preserve their existing stage (may have been manually set)
+      if (customerStages.length === 0) {
+        console.log(`⏭️ SKIPPING ${customer.name}: No lifecycle stages - preserving current stage "${customer.stage}"`);
+        continue;
+      }
+
       // Only update if stage or status has changed
       if (customer.stage !== newPipelineStage || customer.status !== newOperationalStatus) {
         console.log(`🔄 UPDATING ${customer.name}: Stage ${customer.stage} -> ${newPipelineStage}, Status ${customer.status} -> ${newOperationalStatus}`);
