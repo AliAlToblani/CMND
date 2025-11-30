@@ -71,8 +71,11 @@ serve(async (req) => {
 
       const emailContent = buildInvitationEmailContent(invitation);
 
+      // Use configured sender or Resend's test email (onboarding@resend.dev works without domain verification)
+      const fromEmail = Deno.env.get("SENDER_EMAIL") || "DOO Command <onboarding@resend.dev>";
+      
       const result = await resend.emails.send({
-        from: "DOO Command <hello@doo.ooo>",
+        from: fromEmail,
         to: [invitation.email],
         subject: `You're invited to join ${invitation.companyName || 'our team'} on DOO Command`,
         html: emailContent,
