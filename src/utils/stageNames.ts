@@ -126,11 +126,7 @@ const STAGE_ALIASES: Record<string, string> = {
   // Invoice Generation variations
   'invoice generation': 'Invoice Generation',
   'generate invoice': 'Invoice Generation',
-  'invoicing': 'Invoice Generation',
-  
-  // Payment Processing variations
-  'payment processing': 'Payment Processing',
-  'process payment': 'Payment Processing'
+  'invoicing': 'Invoice Generation'
 };
 
 // Get canonical stage name from any variation
