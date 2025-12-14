@@ -149,12 +149,6 @@ export default function ProjectManager() {
     const customer = allCustomers.find(c => c.id === selectedCustomerId);
     if (!customer) return;
 
-    // Check if customer is already in projects
-    if (projects.some(p => p.customer_id === selectedCustomerId)) {
-      toast.error('Customer is already in projects');
-      return;
-    }
-
     const newProject: ProjectCustomer = {
       id: crypto.randomUUID(),
       customer_id: customer.id,
@@ -251,22 +245,8 @@ export default function ProjectManager() {
   const completedCount = projects.filter(p => p.status === 'completed').length;
   const demoCount = projects.filter(p => p.status === 'demo').length;
 
-  // Get customers not yet in projects for the add dialog
-  // Only consider projects that still have valid customer references
-  const validProjects = projects.filter(p => 
-    allCustomers.some(c => c.id === p.customer_id)
-  );
-  const availableCustomers = allCustomers.filter(
-    c => !validProjects.some(p => p.customer_id === c.id)
-  );
-  
-  // Clear invalid projects from localStorage if any were found
-  const clearAllProjects = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    setProjects([]);
-    setSelectedProject(null);
-    toast.success('All projects cleared');
-  };
+  // All customers are available to add - allow adding same customer multiple times if needed
+  const availableCustomers = allCustomers;
 
   if (loading) {
     return (
@@ -313,16 +293,8 @@ export default function ProjectManager() {
                   />
                   <div className="border rounded-md max-h-48 overflow-y-auto">
                     {availableCustomers.length === 0 ? (
-                      <div className="p-3 text-sm text-muted-foreground text-center space-y-2">
-                        <p>All customers are already in projects</p>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={clearAllProjects}
-                          className="text-xs"
-                        >
-                          Clear All Projects
-                        </Button>
+                      <div className="p-3 text-sm text-muted-foreground text-center">
+                        No customers found
                       </div>
                     ) : availableCustomers.filter(c => 
                       c.name.toLowerCase().includes(customerSearch.toLowerCase())
