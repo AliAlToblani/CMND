@@ -252,9 +252,21 @@ export default function ProjectManager() {
   const demoCount = projects.filter(p => p.status === 'demo').length;
 
   // Get customers not yet in projects for the add dialog
-  const availableCustomers = allCustomers.filter(
-    c => !projects.some(p => p.customer_id === c.id)
+  // Only consider projects that still have valid customer references
+  const validProjects = projects.filter(p => 
+    allCustomers.some(c => c.id === p.customer_id)
   );
+  const availableCustomers = allCustomers.filter(
+    c => !validProjects.some(p => p.customer_id === c.id)
+  );
+  
+  // Clear invalid projects from localStorage if any were found
+  const clearAllProjects = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setProjects([]);
+    setSelectedProject(null);
+    toast.success('All projects cleared');
+  };
 
   if (loading) {
     return (
@@ -301,8 +313,16 @@ export default function ProjectManager() {
                   />
                   <div className="border rounded-md max-h-48 overflow-y-auto">
                     {availableCustomers.length === 0 ? (
-                      <div className="p-3 text-sm text-muted-foreground text-center">
-                        All customers are already in projects
+                      <div className="p-3 text-sm text-muted-foreground text-center space-y-2">
+                        <p>All customers are already in projects</p>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={clearAllProjects}
+                          className="text-xs"
+                        >
+                          Clear All Projects
+                        </Button>
                       </div>
                     ) : availableCustomers.filter(c => 
                       c.name.toLowerCase().includes(customerSearch.toLowerCase())
