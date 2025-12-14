@@ -78,6 +78,7 @@ interface Customer {
   logo?: string;
   service_type?: string | null;
   project_owner?: string | null;
+  [key: string]: any; // Allow additional properties from database
 }
 
 // Local storage key for persisting project data
@@ -130,10 +131,13 @@ export default function ProjectManager() {
     try {
       const { data, error } = await supabase
         .from('customers')
-        .select('id, name, logo, service_type, project_owner')
+        .select('*')
         .order('name');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching customers:', error);
+        return;
+      }
       setAllCustomers(data || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
