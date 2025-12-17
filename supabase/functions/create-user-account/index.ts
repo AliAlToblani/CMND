@@ -85,19 +85,33 @@ serve(async (req) => {
 
     console.log(`User created with ID: ${userData.user.id}`);
 
-    // Update or create profile with role
+    // Wait a moment for the trigger to create the profile
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Update profile with role (trigger creates basic profile, we just update the role)
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
-      .upsert({
-        id: userData.user.id,
-        email,
+      .update({
         full_name,
         role: role || 'user',
-      }, { onConflict: 'id' });
+      })
+      .eq('id', userData.user.id);
 
     if (profileError) {
       console.error("Error updating profile:", profileError);
-      // Don't fail the request, user is created
+      // Try upsert as fallback
+      const { error: upsertError } = await supabaseAdmin
+        .from("profiles")
+        .upsert({
+          id: userData.user.id,
+          email,
+          full_name,
+          role: role || 'user',
+        }, { onConflict: 'id' });
+      
+      if (upsertError) {
+        console.error("Error upserting profile:", upsertError);
+      }
     }
 
     // Log the activity
