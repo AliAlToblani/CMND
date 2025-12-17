@@ -50,7 +50,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { createNotification, CreateNotificationParams } from "@/utils/notificationHelpers";
 import { Notification } from "@/types/notifications";
-import { logUserCreated } from "@/utils/activityLogger";
+import { logUserCreated, logActivity } from "@/utils/activityLogger";
 
 interface TeamMember {
   id: string;
@@ -84,8 +84,14 @@ const createAccountSchema = z.object({
   role: z.enum(["admin", "user"]),
 });
 
+const editMemberSchema = z.object({
+  full_name: z.string().min(2, { message: "Name must be at least 2 characters" }),
+  role: z.enum(["admin", "user"]),
+});
+
 type InviteFormValues = z.infer<typeof inviteFormSchema>;
 type CreateAccountFormValues = z.infer<typeof createAccountSchema>;
+type EditMemberFormValues = z.infer<typeof editMemberSchema>;
 
 const TeamManagementPage = () => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -99,6 +105,8 @@ const TeamManagementPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [memberToEdit, setMemberToEdit] = useState<TeamMember | null>(null);
 
   const form = useForm<InviteFormValues>({
     resolver: zodResolver(inviteFormSchema),
@@ -114,6 +122,14 @@ const TeamManagementPage = () => {
       email: "",
       full_name: "",
       password: "",
+      role: "user",
+    },
+  });
+
+  const editMemberForm = useForm<EditMemberFormValues>({
+    resolver: zodResolver(editMemberSchema),
+    defaultValues: {
+      full_name: "",
       role: "user",
     },
   });
@@ -382,10 +398,50 @@ const TeamManagementPage = () => {
   };
 
   const handleEditMember = (member: TeamMember) => {
-    setEditMember(member);
-    form.setValue('email', member.email);
-    form.setValue('role', member.role);
-    setInviteDialogOpen(true);
+    setMemberToEdit(member);
+    editMemberForm.reset({
+      full_name: member.full_name || '',
+      role: member.role,
+    });
+    setEditDialogOpen(true);
+  };
+
+  const onUpdateMember: SubmitHandler<EditMemberFormValues> = async (data) => {
+    if (!memberToEdit) return;
+    
+    try {
+      setIsSubmitting(true);
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: data.full_name,
+          role: data.role,
+        })
+        .eq('id', memberToEdit.id);
+
+      if (error) throw error;
+
+      toast.success(`${data.full_name} updated successfully!`);
+      
+      // Log the activity
+      await logActivity({
+        action: 'user_updated',
+        entityType: 'user',
+        entityId: memberToEdit.id,
+        entityName: data.full_name,
+        details: { role: data.role }
+      });
+
+      setEditDialogOpen(false);
+      setMemberToEdit(null);
+      fetchTeamMembers();
+    } catch (error) {
+      console.error("Error updating team member:", error);
+      toast.error("Failed to update team member");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDeleteMember = async (memberId: string) => {
@@ -886,6 +942,96 @@ const TeamManagementPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Member Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={(open) => {
+        setEditDialogOpen(open);
+        if (!open) {
+          setMemberToEdit(null);
+          editMemberForm.reset();
+        }
+      }}>
+        <DialogContent className="sm:max-w-[425px] glass-card">
+          <DialogHeader>
+            <DialogTitle>Edit Team Member</DialogTitle>
+            <DialogDescription>
+              Update {memberToEdit?.full_name || memberToEdit?.email}'s details and access level.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...editMemberForm}>
+            <form onSubmit={editMemberForm.handleSubmit(onUpdateMember)} className="space-y-4">
+              <div className="p-3 bg-muted/30 rounded-lg">
+                <p className="text-sm text-muted-foreground">Email</p>
+                <p className="font-medium">{memberToEdit?.email}</p>
+              </div>
+              <FormField
+                control={editMemberForm.control}
+                name="full_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <Input 
+                        placeholder="John Doe" 
+                        {...field} 
+                        className="glass-input"
+                        disabled={isSubmitting}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={editMemberForm.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                      disabled={isSubmitting}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="glass-input">
+                          <SelectValue placeholder="Select a role" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent className="glass-card">
+                        <SelectItem value="admin">
+                          <div className="flex items-center gap-2">
+                            <Shield className="h-4 w-4 text-purple-500" />
+                            Admin
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="user">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-blue-500" />
+                            User
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {field.value === 'admin' ? 'Full access to all features and settings' : 'Standard access to platform features'}
+                    </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter className="gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)} disabled={isSubmitting}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="glass-button" disabled={isSubmitting}>
+                  {isSubmitting ? "Saving..." : "Save Changes"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };
