@@ -10,11 +10,12 @@ export interface CreateNotificationParams {
   message: string;
   related_id?: string;
   related_type?: string;
+  user_id?: string; // Target specific user for the notification
 }
 
 export const createNotification = async (params: CreateNotificationParams): Promise<void> => {
   try {
-    const { type, title, message, related_id, related_type } = params;
+    const { type, title, message, related_id, related_type, user_id } = params;
     
     console.log("Creating notification:", params);
     
@@ -27,7 +28,8 @@ export const createNotification = async (params: CreateNotificationParams): Prom
         message,
         is_read: false,
         related_id,
-        related_type
+        related_type,
+        user_id: user_id || null // Target specific user if provided
       });
       
     if (error) {

@@ -103,15 +103,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, []);
 
-  // Fetch notifications
+  // Fetch notifications for current user
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Fetch notifications for this user (user_id matches OR user_id is null for global notifications)
         const { data, error } = await supabase
           .from('notifications')
           .select('*')
+          .or(`user_id.eq.${user.id},user_id.is.null`)
           .order('created_at', { ascending: false })
-          .limit(5);
+          .limit(10);
 
         if (error) throw error;
 
@@ -127,22 +132,38 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
     fetchNotifications();
 
-    // Subscribe to notifications
-    const channel = supabase
-      .channel('public:notifications')
-      .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'notifications' },
-        (payload) => {
-          setNotifications(prev => [payload.new as Notification, ...prev.slice(0, 4)]);
-          if (!(payload.new as Notification).is_read) {
-            setUnreadCount(count => count + 1);
+    // Subscribe to notifications for current user
+    const setupSubscription = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const channel = supabase
+        .channel('user_notifications')
+        .on('postgres_changes', 
+          { event: 'INSERT', schema: 'public', table: 'notifications' },
+          (payload) => {
+            const newNotification = payload.new as Notification & { user_id?: string };
+            // Only add if it's for this user or global
+            if (!newNotification.user_id || newNotification.user_id === user.id) {
+              setNotifications(prev => [newNotification as Notification, ...prev.slice(0, 9)]);
+              if (!newNotification.is_read) {
+                setUnreadCount(count => count + 1);
+              }
+            }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+
+      return channel;
+    };
+
+    let channel: any;
+    setupSubscription().then(c => channel = c);
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, []);
 

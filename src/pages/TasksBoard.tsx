@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { createNotification } from "@/utils/notificationHelpers";
 import { Task } from "@/types/tasks";
+import { logActivity } from "@/utils/activityLogger";
 
 const TasksBoard = () => {
   const [isAddingTask, setIsAddingTask] = useState(false);
@@ -50,8 +51,7 @@ const TasksBoard = () => {
         .from('tasks')
         .select(`
           *,
-          customers(name),
-          staff(name)
+          customers(name)
         `)
         .order('created_at', { ascending: false });
         
@@ -60,16 +60,26 @@ const TasksBoard = () => {
         return [];
       }
       
-      return data.map(task => {
-        const customerName = task.customers?.name || null;
-        const staffName = task.staff?.name || null;
+      // Fetch assignee names from profiles
+      const tasksWithAssignees = await Promise.all(data.map(async (task) => {
+        let assigneeName = null;
+        if (task.assigned_to) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, email')
+            .eq('id', task.assigned_to)
+            .single();
+          assigneeName = profile?.full_name || profile?.email || null;
+        }
         
         return {
           ...task,
-          customer_name: customerName,
-          assigned_to_name: staffName
+          customer_name: task.customers?.name || null,
+          assigned_to_name: assigneeName
         };
-      }) as Task[];
+      }));
+      
+      return tasksWithAssignees as Task[];
     }
   });
 
@@ -90,20 +100,24 @@ const TasksBoard = () => {
     }
   });
 
-  const { data: staff = [] } = useQuery({
-    queryKey: ['staff-list'],
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ['team-members-list'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('staff')
-        .select('id, name')
-        .order('name');
+        .from('profiles')
+        .select('id, full_name, email')
+        .order('full_name');
         
       if (error) {
-        console.error("Error fetching staff:", error);
+        console.error("Error fetching team members:", error);
         return [];
       }
       
-      return data;
+      // Map to consistent format with name field
+      return data.map(member => ({
+        id: member.id,
+        name: member.full_name || member.email || 'Unknown'
+      }));
     }
   });
 
@@ -123,13 +137,27 @@ const TasksBoard = () => {
         
       if (error) throw error;
       
+      // Log the task creation activity
+      await logActivity({
+        action: 'task_created',
+        entityType: 'task' as any,
+        entityId: data[0].id,
+        entityName: newTask.title,
+        details: { 
+          assigned_to: newTask.assigned_to,
+          status: newTask.status 
+        }
+      });
+      
+      // Send notification to the assigned user
       if (newTask.assigned_to && newTask.assigned_to !== 'unassigned') {
         await createNotification({
           type: 'team',
-          title: 'Task Assigned',
-          message: `You have been assigned to a new task: ${newTask.title}`,
+          title: 'Task Assigned to You',
+          message: `You have been assigned a new task: ${newTask.title}`,
           related_id: data[0].id,
-          related_type: 'task'
+          related_type: 'task',
+          user_id: newTask.assigned_to // Send to the assigned user
         });
       }
       
@@ -420,7 +448,7 @@ const TasksBoard = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="unassigned">Unassigned</SelectItem>
-                        {staff.map((person) => (
+                        {teamMembers.map((person) => (
                           <SelectItem key={person.id} value={person.id}>
                             {person.name}
                           </SelectItem>
@@ -545,7 +573,7 @@ const TasksBoard = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="unassigned">Unassigned</SelectItem>
-                      {staff.map((person) => (
+                      {teamMembers.map((person) => (
                         <SelectItem key={person.id} value={person.id}>
                           {person.name}
                         </SelectItem>
