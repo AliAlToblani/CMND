@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCurrency } from "@/utils/customerUtils";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, Loader2, DollarSign } from "lucide-react";
 
 interface MonthlyRevenue {
   month: string;
@@ -20,14 +20,15 @@ interface RevenueTrendChartProps {
 export const RevenueTrendChart = ({ isRefreshing, countries, dateFrom, dateTo }: RevenueTrendChartProps) => {
   const [data, setData] = useState<MonthlyRevenue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalRevenue, setTotalRevenue] = useState(0);
 
   const fetchRevenueTrend = async () => {
     setLoading(true);
     try {
       let query = supabase
         .from('contracts')
-        .select('created_at, setup_fee, annual_rate, status, customers!inner(country)')
-        .in('status', ['active', 'pending', 'expired'])
+        .select('created_at, setup_fee, annual_rate, value, status, customers!inner(country)')
+        .or('status.eq.active,status.eq.pending,status.is.null')
         .order('created_at', { ascending: true });
 
       if (countries && countries.length > 0) {
@@ -44,39 +45,49 @@ export const RevenueTrendChart = ({ isRefreshing, countries, dateFrom, dateTo }:
 
       if (error) throw error;
 
+      // Get last 3 months
+      const now = new Date();
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const last3Months: string[] = [];
+      for (let i = 2; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        last3Months.push(`${monthNames[d.getMonth()]} ${d.getFullYear()}`);
+      }
+
       // Calculate cumulative revenue
       let cumulativeRevenue = 0;
-      const cumulativeData: { date: Date; revenue: number; month: string }[] = [];
+      const monthlyData = new Map<string, number>();
 
       contracts?.forEach(contract => {
-        cumulativeRevenue += (contract.setup_fee || 0) + (contract.annual_rate || 0);
+        const contractValue = (contract.setup_fee > 0 || contract.annual_rate > 0) 
+          ? (contract.setup_fee || 0) + (contract.annual_rate || 0)
+          : (contract.value || 0);
+        cumulativeRevenue += contractValue;
+        
         const date = new Date(contract.created_at);
-        cumulativeData.push({
-          date,
-          revenue: cumulativeRevenue,
-          month: date.toLocaleString('default', { month: 'short', year: 'numeric' })
-        });
+        const monthKey = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+        
+        // Store cumulative value at each month
+        monthlyData.set(monthKey, cumulativeRevenue);
       });
 
-      // Group by month (keep only last value per month for cleaner chart)
-      const monthlyGrouped = new Map<string, number>();
-      cumulativeData.forEach(item => {
-        const existing = monthlyGrouped.get(item.month);
-        if (!existing || item.revenue > existing) {
-          monthlyGrouped.set(item.month, item.revenue);
+      // Build chart data for last 3 months with cumulative values
+      let lastKnownValue = 0;
+      const chartData: MonthlyRevenue[] = last3Months.map(monthKey => {
+        const value = monthlyData.get(monthKey);
+        if (value !== undefined) {
+          lastKnownValue = value;
         }
+        return {
+          month: monthKey.split(' ')[0], // Just month name
+          revenue: lastKnownValue
+        };
       });
 
-      // Convert to array format for chart
-      const sortedData = Array.from(monthlyGrouped.entries())
-        .map(([month, revenue]) => ({ month, revenue }))
-        .sort((a, b) => {
-          const dateA = new Date(a.month);
-          const dateB = new Date(b.month);
-          return dateA.getTime() - dateB.getTime();
-        });
-
-      setData(sortedData);
+      console.log('[RevenueTrendChart] Last 3 months cumulative:', chartData);
+      
+      setData(chartData);
+      setTotalRevenue(cumulativeRevenue);
     } catch (error) {
       console.error("Error fetching revenue trend:", error);
     } finally {
@@ -88,100 +99,85 @@ export const RevenueTrendChart = ({ isRefreshing, countries, dateFrom, dateTo }:
     fetchRevenueTrend();
   }, [isRefreshing, countries, dateFrom, dateTo]);
 
-  if (loading) {
-    return (
-    <Card className="overflow-hidden border-0 shadow-xl bg-gradient-to-br from-card to-card/80 h-[500px]">
-        <CardHeader className="border-b border-border/50 bg-gradient-to-r from-primary/5 to-transparent pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <CardTitle className="text-xl font-bold">Total Revenue Growth</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">Cumulative revenue over time</p>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="h-64 flex items-center justify-center">
-            <p className="text-muted-foreground">Loading...</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (data.length < 2) {
-    return (
-      <Card className="overflow-hidden border-0 shadow-xl bg-gradient-to-br from-card to-card/80 h-[500px]">
-        <CardHeader className="border-b border-border/50 bg-gradient-to-r from-primary/5 to-transparent pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <CardTitle className="text-xl font-bold">Total Revenue Growth</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">Cumulative revenue over time</p>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="h-64 flex flex-col items-center justify-center text-center">
-            <TrendingUp className="h-12 w-12 mb-2 opacity-50 text-muted-foreground" />
-            <p className="text-muted-foreground">Insufficient data to display revenue growth</p>
-            <p className="text-sm text-muted-foreground">At least 2 data points required</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <Card className="overflow-hidden border-0 shadow-xl bg-gradient-to-br from-card to-card/80 h-[500px] flex flex-col">
-      <CardHeader className="border-b border-border/50 bg-gradient-to-r from-primary/5 to-transparent pb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-            <TrendingUp className="h-5 w-5 text-primary" />
+    <Card className="border-0 shadow-xl bg-gradient-to-br from-card via-card to-card/90 min-h-[500px] flex flex-col">
+      <CardHeader className="border-b border-border/50 pb-4 bg-gradient-to-r from-primary/5 via-transparent to-primary/5">
+<div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg">
+              <DollarSign className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div>
+              <CardTitle className="text-xl font-bold">Revenue Growth</CardTitle>
+              <p className="text-xs text-muted-foreground mt-0.5">Cumulative revenue trend</p>
+            </div>
           </div>
-          <div>
-            <CardTitle className="text-xl font-bold">Total Revenue Growth</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">Cumulative revenue over time</p>
-          </div>
-        </div>
       </CardHeader>
-      <CardContent className="p-6">
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-            <XAxis 
-              dataKey="month" 
-              className="text-xs"
-              tick={{ fill: 'hsl(var(--muted-foreground))' }}
-            />
-            <YAxis 
-              tickFormatter={(value) => formatCurrency(value, false)}
-              className="text-xs"
-              tick={{ fill: 'hsl(var(--muted-foreground))' }}
-            />
-            <Tooltip
-              formatter={(value: number) => [`Total Revenue: ${formatCurrency(value)}`, '']}
-              labelFormatter={(label) => `Month: ${label}`}
-              contentStyle={{
-                backgroundColor: 'hsl(var(--background))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '6px',
-              }}
-            />
-            <Line 
-              type="monotone" 
-              dataKey="revenue" 
-              stroke="hsl(var(--primary))" 
-              strokeWidth={3}
-              dot={{ fill: 'hsl(var(--primary))', r: 4 }}
-              name="Total Revenue"
-            />
-          </LineChart>
-        </ResponsiveContainer>
+      <CardContent className="p-4 flex-1 flex flex-col gap-4">
+        {loading ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-12 gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading revenue data...</p>
+          </div>
+        ) : data.length < 1 ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center py-12">
+            <TrendingUp className="h-12 w-12 mb-3 opacity-30 text-muted-foreground" />
+            <p className="text-muted-foreground font-medium">No revenue data</p>
+            <p className="text-sm text-muted-foreground">Add contracts to see revenue trends</p>
+          </div>
+        ) : (
+          <>
+            {/* Total Revenue */}
+            <div className="text-center p-4 rounded-lg bg-gradient-to-r from-emerald-500/10 to-green-500/10 border border-emerald-200/50">
+              <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalRevenue)}</p>
+              <p className="text-xs text-muted-foreground">Total Revenue</p>
+            </div>
+
+            {/* Chart */}
+            <div className="h-[280px] w-full">
+              <ResponsiveContainer width="100%" height={280}>
+                <AreaChart data={data}>
+                  <defs>
+                    <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" vertical={false} />
+                  <XAxis 
+                    dataKey="month" 
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis 
+                    tickFormatter={(value) => formatCurrency(value, false)}
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => [formatCurrency(value), 'Cumulative Revenue']}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--background))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="revenue" 
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={3}
+                    fill="url(#revenueGradient)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

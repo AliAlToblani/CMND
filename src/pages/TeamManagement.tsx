@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserPlus, Users, User, Mail, Shield, MoreVertical, Trash2, Edit2 } from "lucide-react";
+import { UserPlus, Users, User, Mail, Shield, MoreVertical, Trash2, Edit2, Key, Eye, EyeOff, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Select,
   SelectContent,
@@ -75,7 +76,15 @@ const inviteFormSchema = z.object({
   role: z.enum(["admin", "user"]),
 });
 
+const createAccountSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email address" }),
+  full_name: z.string().min(2, { message: "Name must be at least 2 characters" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+  role: z.enum(["admin", "user"]),
+});
+
 type InviteFormValues = z.infer<typeof inviteFormSchema>;
+type CreateAccountFormValues = z.infer<typeof createAccountSchema>;
 
 const TeamManagementPage = () => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -85,11 +94,25 @@ const TeamManagementPage = () => {
   const [editMember, setEditMember] = useState<TeamMember | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invitationLink, setInvitationLink] = useState<string>('');
+  const [dialogTab, setDialogTab] = useState<'create' | 'invite'>('create');
+  const [showPassword, setShowPassword] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const form = useForm<InviteFormValues>({
     resolver: zodResolver(inviteFormSchema),
     defaultValues: {
       email: "",
+      role: "user",
+    },
+  });
+
+  const createAccountForm = useForm<CreateAccountFormValues>({
+    resolver: zodResolver(createAccountSchema),
+    defaultValues: {
+      email: "",
+      full_name: "",
+      password: "",
       role: "user",
     },
   });
@@ -162,6 +185,72 @@ const TeamManagementPage = () => {
       return { user, profile };
     }
     return { user: null, profile: null };
+  };
+
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
+  const copyToClipboard = async (text: string, field: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+    toast.success(`${field} copied to clipboard!`);
+  };
+
+  const onCreateAccount: SubmitHandler<CreateAccountFormValues> = async (data) => {
+    try {
+      setIsSubmitting(true);
+      
+      console.log('Creating account for:', data.email);
+
+      const response = await supabase.functions.invoke('create-user-account', {
+        body: {
+          email: data.email,
+          password: data.password,
+          full_name: data.full_name,
+          role: data.role,
+        }
+      });
+
+      console.log('Create account response:', response);
+
+      if (response.error) {
+        console.error('Error creating account:', response.error);
+        toast.error(response.error.message || 'Failed to create account');
+        return;
+      }
+
+      if (response.data?.error) {
+        console.error('Account creation error:', response.data.error);
+        toast.error(response.data.error);
+        return;
+      }
+
+      // Store credentials to show to admin
+      setCreatedCredentials({ email: data.email, password: data.password });
+      
+      toast.success(`Account created successfully for ${data.email}!`);
+      
+      await createTeamNotification({
+        type: 'team',
+        title: 'Team Member Added',
+        message: `${data.full_name} (${data.email}) has been added as ${data.role}`,
+      });
+
+      createAccountForm.reset();
+      fetchTeamMembers();
+    } catch (error) {
+      console.error("Error creating account:", error);
+      toast.error("Failed to create account");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const onSubmit: SubmitHandler<InviteFormValues> = async (data) => {
@@ -352,103 +441,311 @@ const TeamManagementPage = () => {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-bold">Team Management</h1>
-          <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+          <Dialog open={inviteDialogOpen} onOpenChange={(open) => {
+              setInviteDialogOpen(open);
+              if (!open) {
+                setCreatedCredentials(null);
+                setInvitationLink('');
+                createAccountForm.reset();
+                form.reset();
+              }
+            }}>
             <DialogTrigger asChild>
               <Button className="glass-button">
                 <UserPlus className="mr-2 h-4 w-4" />
-                Invite Team Member
+                Add Team Member
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] glass-card">
+            <DialogContent className="sm:max-w-[500px] glass-card">
               <DialogHeader>
-                <DialogTitle>Invite Team Member</DialogTitle>
+                <DialogTitle>Add Team Member</DialogTitle>
                 <DialogDescription>
-                  Send an invitation email to a new team member. They'll receive a link to create their account.
+                  Create an account directly or send an invitation link.
                 </DialogDescription>
               </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="john.doe@example.com" 
-                            type="email" 
-                            {...field} 
-                            className="glass-input"
-                            disabled={isSubmitting}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="role"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Role</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          defaultValue={field.value}
-                          value={field.value}
-                          disabled={isSubmitting}
-                        >
-                          <FormControl>
-                            <SelectTrigger className="glass-input">
-                              <SelectValue placeholder="Select a role" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent className="glass-card">
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="user">User</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  {invitationLink && (
-                    <div className="space-y-3 p-4 bg-muted/30 rounded-lg border border-muted">
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-muted-foreground" />
-                        <p className="text-sm font-medium">Manual Invitation Link:</p>
+              
+              <Tabs value={dialogTab} onValueChange={(v) => setDialogTab(v as 'create' | 'invite')} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="create" className="flex items-center gap-2">
+                    <Key className="h-4 w-4" />
+                    Create Account
+                  </TabsTrigger>
+                  <TabsTrigger value="invite" className="flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Send Invite
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Create Account Tab */}
+                <TabsContent value="create" className="mt-4">
+                  {createdCredentials ? (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Check className="h-5 w-5 text-green-600" />
+                          <p className="font-semibold text-green-700 dark:text-green-400">Account Created Successfully!</p>
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Share these credentials with the team member:
+                        </p>
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Input 
+                              value={createdCredentials.email} 
+                              readOnly 
+                              className="font-mono text-sm bg-background"
+                            />
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              size="icon"
+                              onClick={() => copyToClipboard(createdCredentials.email, 'Email')}
+                            >
+                              {copiedField === 'Email' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Input 
+                              value={createdCredentials.password} 
+                              readOnly 
+                              type={showPassword ? "text" : "password"}
+                              className="font-mono text-sm bg-background"
+                            />
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              size="icon"
+                              onClick={() => setShowPassword(!showPassword)}
+                            >
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              size="icon"
+                              onClick={() => copyToClipboard(createdCredentials.password, 'Password')}
+                            >
+                              {copiedField === 'Password' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Input 
-                          value={invitationLink} 
-                          readOnly 
-                          className="text-xs font-mono bg-background"
-                        />
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          size="sm"
-                          onClick={copyInvitationLink}
-                          className="shrink-0"
-                        >
-                          Copy Link
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Share this link manually since the email failed to send.
-                      </p>
+                      <Button 
+                        className="w-full" 
+                        onClick={() => {
+                          setCreatedCredentials(null);
+                          createAccountForm.reset();
+                        }}
+                      >
+                        Create Another Account
+                      </Button>
                     </div>
+                  ) : (
+                    <Form {...createAccountForm}>
+                      <form onSubmit={createAccountForm.handleSubmit(onCreateAccount)} className="space-y-4">
+                        <FormField
+                          control={createAccountForm.control}
+                          name="full_name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Full Name</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="John Doe" 
+                                  {...field} 
+                                  className="glass-input"
+                                  disabled={isSubmitting}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createAccountForm.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Email</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="john.doe@example.com" 
+                                  type="email" 
+                                  {...field} 
+                                  className="glass-input"
+                                  disabled={isSubmitting}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createAccountForm.control}
+                          name="password"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Password</FormLabel>
+                              <div className="flex gap-2">
+                                <FormControl>
+                                  <div className="relative flex-1">
+                                    <Input 
+                                      placeholder="Min 6 characters" 
+                                      type={showPassword ? "text" : "password"}
+                                      {...field} 
+                                      className="glass-input pr-10"
+                                      disabled={isSubmitting}
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="absolute right-0 top-0 h-full px-3"
+                                      onClick={() => setShowPassword(!showPassword)}
+                                    >
+                                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </Button>
+                                  </div>
+                                </FormControl>
+                                <Button 
+                                  type="button" 
+                                  variant="outline"
+                                  onClick={() => {
+                                    const pwd = generatePassword();
+                                    createAccountForm.setValue('password', pwd);
+                                  }}
+                                  disabled={isSubmitting}
+                                >
+                                  Generate
+                                </Button>
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={createAccountForm.control}
+                          name="role"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Role</FormLabel>
+                              <Select 
+                                onValueChange={field.onChange} 
+                                defaultValue={field.value}
+                                value={field.value}
+                                disabled={isSubmitting}
+                              >
+                                <FormControl>
+                                  <SelectTrigger className="glass-input">
+                                    <SelectValue placeholder="Select a role" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent className="glass-card">
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                  <SelectItem value="user">User</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <DialogFooter>
+                          <Button type="submit" className="glass-button w-full" disabled={isSubmitting}>
+                            {isSubmitting ? "Creating Account..." : "Create Account"}
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </Form>
                   )}
-                  
-                  <DialogFooter>
-                    <Button type="submit" className="glass-button" disabled={isSubmitting}>
-                      {isSubmitting ? "Sending Invitation..." : "Send Invitation"}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Form>
+                </TabsContent>
+
+                {/* Send Invite Tab */}
+                <TabsContent value="invite" className="mt-4">
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="john.doe@example.com" 
+                                type="email" 
+                                {...field} 
+                                className="glass-input"
+                                disabled={isSubmitting}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="role"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Role</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              defaultValue={field.value}
+                              value={field.value}
+                              disabled={isSubmitting}
+                            >
+                              <FormControl>
+                                <SelectTrigger className="glass-input">
+                                  <SelectValue placeholder="Select a role" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent className="glass-card">
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="user">User</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      {invitationLink && (
+                        <div className="space-y-3 p-4 bg-muted/30 rounded-lg border border-muted">
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-muted-foreground" />
+                            <p className="text-sm font-medium">Manual Invitation Link:</p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Input 
+                              value={invitationLink} 
+                              readOnly 
+                              className="text-xs font-mono bg-background"
+                            />
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              size="sm"
+                              onClick={copyInvitationLink}
+                              className="shrink-0"
+                            >
+                              Copy Link
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Share this link manually since the email failed to send.
+                          </p>
+                        </div>
+                      )}
+                      
+                      <DialogFooter>
+                        <Button type="submit" className="glass-button w-full" disabled={isSubmitting}>
+                          {isSubmitting ? "Sending Invitation..." : "Send Invitation"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </TabsContent>
+              </Tabs>
             </DialogContent>
           </Dialog>
         </div>
