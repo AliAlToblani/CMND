@@ -30,7 +30,6 @@ import {
 import { RevenueTrendChart } from "@/components/analytics/RevenueTrendChart";
 import { UpdatesPanel } from "@/components/analytics/UpdatesPanel";
 import { PendingContracts } from "@/components/analytics/PendingContracts";
-import { ActivityLog } from "@/components/analytics/ActivityLog";
 import { DashboardFilters } from "@/components/analytics/DashboardFilters";
 import { buildFilteredUrl } from "@/utils/filterUtils";
 
@@ -451,18 +450,15 @@ const Index = () => {
                 Analytics Overview
               </h2>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-8">
-              <div className="xl:col-span-1">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
+              <div className="lg:col-span-1">
                 <UpdatesPanel 
                   countries={selectedCountries.length > 0 ? selectedCountries : undefined}
                   dateFrom={dateRange.from}
                   dateTo={dateRange.to}
                 />
               </div>
-              <div className="xl:col-span-1">
-                <ActivityLog />
-              </div>
-              <div className="xl:col-span-1">
+              <div className="lg:col-span-1">
                 <RevenueTrendChart 
                   isRefreshing={isRefreshing}
                   countries={selectedCountries.length > 0 ? selectedCountries : undefined}
@@ -470,7 +466,7 @@ const Index = () => {
                   dateTo={dateRange.to}
                 />
               </div>
-              <div className="xl:col-span-1">
+              <div className="lg:col-span-1">
                 <PendingContracts 
                   isRefreshing={isRefreshing}
                   countries={selectedCountries.length > 0 ? selectedCountries : undefined}

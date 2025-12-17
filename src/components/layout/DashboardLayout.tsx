@@ -11,7 +11,13 @@ import {
   User,
   Check,
   Settings,
-  LogOut
+  LogOut,
+  Activity,
+  Users,
+  HandHeart,
+  Edit,
+  Trash2,
+  Plus
 } from "lucide-react";
 import { 
   DropdownMenu,
@@ -27,7 +33,19 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Notification } from "@/types/notifications";
+import { formatDistanceToNow } from "date-fns";
+
+interface ActivityLogEntry {
+  id: string;
+  user_name: string | null;
+  user_email: string | null;
+  action: string;
+  entity_type: string;
+  entity_name: string | null;
+  created_at: string;
+}
 import { useProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/contexts/AuthContext";
 import { getInitials } from "@/utils/avatarUtils";
@@ -43,6 +61,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [theme, setTheme] = useState<"light" | "dark">("light"); // Default to light
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [activityLogs, setActivityLogs] = useState<ActivityLogEntry[]>([]);
+  const [bellTab, setBellTab] = useState<'notifications' | 'activity'>('notifications');
   const { profile } = useProfile();
   const { signOut } = useAuth();
   const navigate = useNavigate();
@@ -126,6 +146,45 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     };
   }, []);
 
+  // Fetch activity logs
+  useEffect(() => {
+    const fetchActivityLogs = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('activity_logs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) {
+          console.error("Error fetching activity logs:", error);
+          return;
+        }
+
+        setActivityLogs(data || []);
+      } catch (error) {
+        console.error("Error fetching activity logs:", error);
+      }
+    };
+
+    fetchActivityLogs();
+
+    // Subscribe to activity logs
+    const channel = supabase
+      .channel('activity_logs_header')
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'activity_logs' },
+        (payload) => {
+          setActivityLogs(prev => [payload.new as ActivityLogEntry, ...prev.slice(0, 9)]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   // Mark notification as read
   const markAsRead = async (id: string) => {
     try {
@@ -173,6 +232,33 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   };
 
+  // Get activity icon based on entity type
+  const getActivityIcon = (entityType: string) => {
+    switch (entityType) {
+      case 'user':
+        return <User className="h-4 w-4 text-violet-500" />;
+      case 'customer':
+        return <Users className="h-4 w-4 text-emerald-500" />;
+      case 'contract':
+        return <FileText className="h-4 w-4 text-blue-500" />;
+      case 'partnership':
+        return <HandHeart className="h-4 w-4 text-amber-500" />;
+      default:
+        return <Activity className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
+  // Get action icon
+  const getActionIcon = (action: string) => {
+    if (action.includes('created') || action.includes('added')) return <Plus className="h-3 w-3 text-green-500" />;
+    if (action.includes('updated') || action.includes('edited')) return <Edit className="h-3 w-3 text-blue-500" />;
+    if (action.includes('deleted') || action.includes('removed')) return <Trash2 className="h-3 w-3 text-red-500" />;
+    return <Activity className="h-3 w-3 text-gray-500" />;
+  };
+
+  // Format action text
+  const formatAction = (action: string) => action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full dashboard-background">
@@ -207,51 +293,114 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     )}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="glass-dropdown w-80" align="end">
-                  <DropdownMenuLabel className="flex items-center justify-between">
-                    <span>Recent Notifications</span>
-                    {unreadCount > 0 && (
-                      <Badge variant="secondary" className="ml-2">
-                        {unreadCount} Unread
-                      </Badge>
-                    )}
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-white/10" />
-                  <ScrollArea className="max-h-[300px]">
-                    {notifications.length > 0 ? (
-                      notifications.map(notification => (
-                        <DropdownMenuItem 
-                          key={notification.id}
-                          className={`py-2 cursor-pointer ${!notification.is_read ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`}
-                          onClick={() => markAsRead(notification.id)}
+                <DropdownMenuContent className="glass-dropdown w-96 p-0" align="end">
+                  <Tabs value={bellTab} onValueChange={(v) => setBellTab(v as 'notifications' | 'activity')} className="w-full">
+                    <div className="px-3 pt-3">
+                      <TabsList className="grid w-full grid-cols-2 h-9">
+                        <TabsTrigger value="notifications" className="text-xs flex items-center gap-1.5">
+                          <Bell className="h-3.5 w-3.5" />
+                          Notifications
+                          {unreadCount > 0 && (
+                            <Badge variant="destructive" className="h-4 px-1 text-[10px]">
+                              {unreadCount}
+                            </Badge>
+                          )}
+                        </TabsTrigger>
+                        <TabsTrigger value="activity" className="text-xs flex items-center gap-1.5">
+                          <Activity className="h-3.5 w-3.5" />
+                          Activity Log
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
+
+                    <TabsContent value="notifications" className="mt-0">
+                      <ScrollArea className="max-h-[320px]">
+                        <div className="p-2">
+                          {notifications.length > 0 ? (
+                            notifications.map(notification => (
+                              <div 
+                                key={notification.id}
+                                className={`p-2.5 rounded-lg cursor-pointer transition-colors hover:bg-accent/50 mb-1 ${!notification.is_read ? 'bg-blue-50 dark:bg-blue-900/10' : ''}`}
+                                onClick={() => markAsRead(notification.id)}
+                              >
+                                <div className="flex items-start space-x-2">
+                                  <div className="mt-0.5">
+                                    {getNotificationIcon(notification.type)}
+                                  </div>
+                                  <div className="flex-1 space-y-0.5 min-w-0">
+                                    <p className="text-sm font-medium truncate">{notification.title}</p>
+                                    <p className="text-xs text-muted-foreground line-clamp-2">{notification.message}</p>
+                                    <p className="text-[10px] text-muted-foreground/70">
+                                      {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                                    </p>
+                                  </div>
+                                  {!notification.is_read && (
+                                    <div className="h-2 w-2 bg-blue-500 rounded-full mt-1 flex-shrink-0"></div>
+                                  )}
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="py-8 text-center text-muted-foreground">
+                              <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                              <p className="text-sm">No notifications yet</p>
+                            </div>
+                          )}
+                        </div>
+                      </ScrollArea>
+                      <div className="border-t border-border/50 p-2">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="w-full text-xs"
+                          onClick={viewAllNotifications}
                         >
-                          <div className="flex items-start space-x-2">
-                            <div className="mt-0.5">
-                              {getNotificationIcon(notification.type)}
-                            </div>
-                            <div className="flex-1 space-y-1">
-                              <p className="text-sm font-medium">{notification.title}</p>
-                              <p className="text-xs text-muted-foreground">{notification.message}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(notification.created_at).toLocaleString()}
-                              </p>
-                            </div>
-                            {!notification.is_read && (
-                              <div className="h-2 w-2 bg-blue-500 rounded-full mt-1"></div>
-                            )}
-                          </div>
-                        </DropdownMenuItem>
-                      ))
-                    ) : (
-                      <div className="py-4 text-center text-muted-foreground">
-                        <p className="text-sm">No notifications yet</p>
+                          View All Notifications
+                        </Button>
                       </div>
-                    )}
-                  </ScrollArea>
-                  <DropdownMenuSeparator className="bg-white/10" />
-                  <DropdownMenuItem className="text-center justify-center" onClick={viewAllNotifications}>
-                    View All Notifications
-                  </DropdownMenuItem>
+                    </TabsContent>
+
+                    <TabsContent value="activity" className="mt-0">
+                      <ScrollArea className="max-h-[320px]">
+                        <div className="p-2">
+                          {activityLogs.length > 0 ? (
+                            activityLogs.map(log => (
+                              <div 
+                                key={log.id}
+                                className="p-2.5 rounded-lg hover:bg-accent/50 transition-colors mb-1"
+                              >
+                                <div className="flex items-start space-x-2">
+                                  <div className="mt-0.5">
+                                    {getActivityIcon(log.entity_type)}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-sm font-medium truncate">
+                                        {log.user_name || log.user_email || 'System'}
+                                      </span>
+                                      {getActionIcon(log.action)}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                      {formatAction(log.action)} {log.entity_name || log.entity_type}
+                                    </p>
+                                    <p className="text-[10px] text-muted-foreground/70">
+                                      {formatDistanceToNow(new Date(log.created_at), { addSuffix: true })}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="py-8 text-center text-muted-foreground">
+                              <Activity className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                              <p className="text-sm">No activity yet</p>
+                              <p className="text-xs text-muted-foreground/70">Actions will appear here</p>
+                            </div>
+                          )}
+                        </div>
+                      </ScrollArea>
+                    </TabsContent>
+                  </Tabs>
                 </DropdownMenuContent>
               </DropdownMenu>
               
