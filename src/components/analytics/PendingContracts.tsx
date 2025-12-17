@@ -135,12 +135,12 @@ export function PendingContracts({ isRefreshing, countries, dateFrom, dateTo }: 
                 <p className="text-[10px] text-muted-foreground">Pending</p>
               </div>
               <div className="text-center p-3 rounded-lg bg-emerald-500/10">
-                <p className="text-lg font-bold text-emerald-600">{formatCurrency(totalValue)}</p>
+                <p className="text-lg font-bold text-emerald-600">{new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(totalValue)}</p>
                 <p className="text-[10px] text-muted-foreground">Total Value</p>
               </div>
               <div className="text-center p-3 rounded-lg bg-blue-500/10">
                 <p className="text-lg font-bold text-blue-600">
-                  {contracts.length > 0 ? formatCurrency(totalValue / contracts.length) : '$0'}
+                  {contracts.length > 0 ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(totalValue / contracts.length) : '$0'}
                 </p>
                 <p className="text-[10px] text-muted-foreground">Avg Value</p>
               </div>
