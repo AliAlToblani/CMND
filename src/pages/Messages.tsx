@@ -134,7 +134,7 @@ const MessagesPage = () => {
       case "sent":
         return <Check className="h-3 w-3" />;
       case "delivered":
-        return <CheckCheck className="h-3 w-3 text-gray-500" />;
+        return <CheckCheck className="h-3 w-3 text-muted-foreground" />;
       case "read":
         return <CheckCheck className="h-3 w-3 text-blue-500" />;
       default:

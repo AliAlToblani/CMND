@@ -242,7 +242,7 @@ export const PitchToPayDetail = ({ countries, dateFrom, dateTo }: PitchToPayDeta
                     <span className="text-sm font-bold">{range.percentage.toFixed(1)}%</span>
                   </div>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-muted rounded-full h-2">
                   <div 
                     className="bg-primary h-2 rounded-full transition-all duration-300"
                     style={{ width: `${range.percentage}%` }}
@@ -290,7 +290,7 @@ export const PitchToPayDetail = ({ countries, dateFrom, dateTo }: PitchToPayDeta
         <CardContent>
           <div className="space-y-4">
             {data.map((customer) => (
-              <div key={customer.customer_id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+              <div key={customer.customer_id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
                 <div className="space-y-2 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold">{customer.customer_name}</span>

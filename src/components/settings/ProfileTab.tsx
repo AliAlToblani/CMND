@@ -99,7 +99,7 @@ export const ProfileTab = () => {
               type="email" 
               value={formData.email}
               disabled
-              className="glass-input bg-gray-50 dark:bg-gray-800" 
+              className="glass-input bg-muted/50 dark:bg-gray-800" 
             />
             <p className="text-xs text-muted-foreground">Email cannot be changed</p>
           </div>

@@ -56,7 +56,7 @@ export const PipelineStage: React.FC<PipelineStageProps> = ({
     `}>
       {/* Stage Header */}
       <div className="mb-6">
-        <h3 className="font-semibold text-base text-gray-900 dark:text-gray-100 mb-4">
+        <h3 className="font-semibold text-base text-foreground dark:text-gray-100 mb-4">
           {stage.stageName}
         </h3>
         <div className={`
@@ -70,7 +70,7 @@ export const PipelineStage: React.FC<PipelineStageProps> = ({
       {/* Customer Content */}
       <div className="flex-1 overflow-visible">
         {isEmpty ? (
-          <div className="flex flex-col items-center justify-center h-24 text-gray-500 dark:text-gray-400">
+          <div className="flex flex-col items-center justify-center h-24 text-muted-foreground dark:text-muted-foreground">
             <div className="text-sm text-center">
               No customers in this stage
             </div>
@@ -110,8 +110,8 @@ export const PipelineStage: React.FC<PipelineStageProps> = ({
             {/* Expanded Customer List */}
             {isExpanded && hasOverflow && (
               <div className="animate-fade-in space-y-5 overflow-visible">
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-5">
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-5 font-medium uppercase tracking-wide">
+                <div className="border-t border-border dark:border-gray-700 pt-5">
+                  <div className="text-sm text-muted-foreground dark:text-muted-foreground mb-5 font-medium uppercase tracking-wide">
                     Additional Customers ({overflowCount})
                   </div>
                   
@@ -128,7 +128,7 @@ export const PipelineStage: React.FC<PipelineStageProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full h-10 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 border border-gray-200 dark:border-gray-700"
+                  className="w-full h-10 text-sm text-muted-foreground dark:text-muted-foreground hover:text-foreground dark:hover:text-gray-100 hover:bg-muted dark:hover:bg-gray-800 transition-colors duration-200 border border-border dark:border-gray-700"
                   onClick={toggleExpansion}
                 >
                   <ChevronUp className="h-4 w-4 mr-2" />
@@ -138,7 +138,7 @@ export const PipelineStage: React.FC<PipelineStageProps> = ({
             )}
             
             {/* Additional Info - Always show customer count */}
-            <div className="text-sm text-gray-600 dark:text-gray-400 pt-4 border-t border-gray-100 dark:border-gray-700">
+            <div className="text-sm text-muted-foreground dark:text-muted-foreground pt-4 border-t border-border dark:border-gray-700">
               <span>{stage.customerCount} customers</span>
             </div>
           </div>

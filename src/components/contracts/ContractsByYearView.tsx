@@ -47,7 +47,7 @@ const statusBadge = (status?: string | null) => {
     case "expired":
       return <span className={`${base} border-red-200 bg-red-100 text-red-800`}>Expired</span>;
     case "draft":
-      return <span className={`${base} border-gray-200 bg-gray-100 text-gray-800`}>Draft</span>;
+      return <span className={`${base} border-border bg-muted text-foreground`}>Draft</span>;
     default:
       return <span className={`${base} border-muted bg-muted/50 text-foreground`}>{status || "-"}</span>;
   }

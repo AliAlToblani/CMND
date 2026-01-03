@@ -24,17 +24,17 @@ export const MonthlyRenewalsView: React.FC<MonthlyRenewalsViewProps> = ({
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="h-4 w-4 bg-gray-200 rounded"></div>
-                  <div className="h-5 bg-gray-200 rounded w-32"></div>
+                  <div className="h-4 w-4 bg-muted rounded"></div>
+                  <div className="h-5 bg-muted rounded w-32"></div>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <div className="h-4 bg-gray-200 rounded w-24 mb-1"></div>
-                    <div className="h-4 bg-gray-200 rounded w-16"></div>
+                    <div className="h-4 bg-muted rounded w-24 mb-1"></div>
+                    <div className="h-4 bg-muted rounded w-16"></div>
                   </div>
                   <div className="flex -space-x-2">
                     {[...Array(3)].map((_, j) => (
-                      <div key={j} className="h-8 w-8 bg-gray-200 rounded-full border-2 border-white"></div>
+                      <div key={j} className="h-8 w-8 bg-muted rounded-full border-2 border-white"></div>
                     ))}
                   </div>
                 </div>
@@ -50,11 +50,11 @@ export const MonthlyRenewalsView: React.FC<MonthlyRenewalsViewProps> = ({
     return (
       <Card>
         <CardContent className="p-12 text-center">
-          <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+          <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-foreground dark:text-gray-100 mb-2">
             No subscription renewals found
           </h3>
-          <p className="text-gray-500 dark:text-gray-400">
+          <p className="text-muted-foreground dark:text-muted-foreground">
             No customers have completed their "Go Live" stage or match your current filters.
           </p>
         </CardContent>

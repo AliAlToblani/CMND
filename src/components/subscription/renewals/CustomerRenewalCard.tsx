@@ -39,9 +39,9 @@ export const CustomerRenewalCard: React.FC<CustomerRenewalCardProps> = ({
           </Avatar>
           <div className="flex-1">
             <h3 className="font-semibold text-xl mb-1">{customer.name}</h3>
-            <div className="flex items-center gap-3 text-sm text-gray-600">
+            <div className="flex items-center gap-3 text-sm text-muted-foreground">
               {customer.segment && (
-                <span className="px-2 py-1 bg-gray-100 rounded-full text-xs">
+                <span className="px-2 py-1 bg-muted rounded-full text-xs">
                   {customer.segment}
                 </span>
               )}
@@ -54,14 +54,14 @@ export const CustomerRenewalCard: React.FC<CustomerRenewalCardProps> = ({
 
         <div className="space-y-4 mb-6">
           <div className="flex justify-between items-center">
-            <span className="text-gray-600 text-sm">Number of Contracts</span>
+            <span className="text-muted-foreground text-sm">Number of Contracts</span>
             <span className="font-semibold text-lg">
               {customer.contractCount} {customer.contractCount === 1 ? 'Contract' : 'Contracts'}
             </span>
           </div>
           
           <div className="flex justify-between items-center">
-            <span className="text-gray-600 text-sm">Total Lifetime Value</span>
+            <span className="text-muted-foreground text-sm">Total Lifetime Value</span>
             <span className="font-bold text-xl text-green-600">
               {formatCurrency(customer.lifetimeValue)}
             </span>

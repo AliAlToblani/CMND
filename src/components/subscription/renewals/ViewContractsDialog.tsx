@@ -99,9 +99,9 @@ export const ViewContractsDialog: React.FC<ViewContractsDialogProps> = ({
                 <Card key={i} className="animate-pulse">
                   <CardContent className="p-4">
                     <div className="space-y-2">
-                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+                      <div className="h-4 bg-muted rounded w-3/4"></div>
+                      <div className="h-3 bg-muted rounded w-1/2"></div>
+                      <div className="h-3 bg-muted rounded w-1/3"></div>
                     </div>
                   </CardContent>
                 </Card>
@@ -109,9 +109,9 @@ export const ViewContractsDialog: React.FC<ViewContractsDialogProps> = ({
             </div>
           ) : contracts.length === 0 ? (
             <div className="text-center py-8">
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Contracts Found</h3>
-              <p className="text-gray-500">No contracts have been created for this customer yet.</p>
+              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No Contracts Found</h3>
+              <p className="text-muted-foreground">No contracts have been created for this customer yet.</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -131,27 +131,27 @@ export const ViewContractsDialog: React.FC<ViewContractsDialogProps> = ({
                     
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-gray-500" />
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <div className="text-xs text-gray-600 uppercase tracking-wide">Start Date</div>
+                          <div className="text-xs text-muted-foreground uppercase tracking-wide">Start Date</div>
                           <div className="font-medium">{formatDate(contract.start_date)}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-gray-500" />
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
                         <div>
-                          <div className="text-xs text-gray-600 uppercase tracking-wide">End Date</div>
+                          <div className="text-xs text-muted-foreground uppercase tracking-wide">End Date</div>
                           <div className="font-medium">{formatDate(contract.end_date)}</div>
                         </div>
                       </div>
                     </div>
 
                     {/* Contract Value */}
-                    <div className="p-4 bg-gray-50 rounded-lg mb-4">
+                    <div className="p-4 bg-muted/50 rounded-lg mb-4">
                       <div className="flex items-center gap-2">
                         <DollarSign className="h-4 w-4 text-green-500" />
                         <div>
-                          <div className="text-xs text-gray-600 uppercase tracking-wide">Contract Value</div>
+                          <div className="text-xs text-muted-foreground uppercase tracking-wide">Contract Value</div>
                           <div className="font-bold text-green-600">
                             {formatCurrency(calculateContractValue(contract))}
                           </div>
@@ -164,7 +164,7 @@ export const ViewContractsDialog: React.FC<ViewContractsDialogProps> = ({
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-orange-500" />
                           <div>
-                            <div className="text-xs text-gray-600 uppercase tracking-wide">Next Renewal</div>
+                            <div className="text-xs text-muted-foreground uppercase tracking-wide">Next Renewal</div>
                             <div className="font-medium">{formatDate(contract.renewal_date)}</div>
                           </div>
                         </div>
@@ -174,8 +174,8 @@ export const ViewContractsDialog: React.FC<ViewContractsDialogProps> = ({
                     {contract.terms && (
                       <div className="pt-4 border-t">
                         <div className="text-sm">
-                          <div className="text-xs text-gray-600 uppercase tracking-wide mb-2">Terms</div>
-                          <div className="text-gray-800 bg-white p-3 rounded border">
+                          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Terms</div>
+                          <div className="text-foreground bg-background p-3 rounded border">
                             {contract.terms}
                           </div>
                         </div>

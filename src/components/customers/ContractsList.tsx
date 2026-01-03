@@ -353,8 +353,8 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
       case "active": return "bg-green-100 text-green-800";
       case "pending": return "bg-yellow-100 text-yellow-800";
       case "expired": return "bg-red-100 text-red-800";
-      case "draft": return "bg-gray-100 text-gray-800";
-      default: return "bg-gray-100 text-gray-800";
+      case "draft": return "bg-muted text-foreground";
+      default: return "bg-muted text-foreground";
     }
   };
 
@@ -378,8 +378,8 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
                   <TrendingUp className="h-6 w-6 text-green-600" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-semibold text-gray-900">Total Lifetime Value</h4>
-                  <p className="text-sm text-gray-600">
+                  <h4 className="text-lg font-semibold text-foreground">Total Lifetime Value</h4>
+                  <p className="text-sm text-muted-foreground">
                     {contracts.length} {contracts.length === 1 ? 'Contract' : 'Contracts'} 
                     {activeContracts > 0 && ` • ${activeContracts} Active`}
                   </p>
@@ -390,7 +390,7 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
                   {formatCurrency(totalValue)}
                 </div>
                 {contracts.length > 0 && (
-                  <div className="text-sm text-gray-500 mt-1">
+                  <div className="text-sm text-muted-foreground mt-1">
                     <div>Setup: {formatCurrency(totalSetupFees)}</div>
                     <div>Annual: {formatCurrency(totalAnnualRates)}</div>
                   </div>
@@ -407,7 +407,7 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
               <DollarSign className="h-5 w-5 text-green-600" />
               All Contracts
             </h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Manage all contracts for {customerName}
             </p>
           </div>
@@ -456,38 +456,38 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
                     </div>
                     
                     {/* Contract Value Breakdown */}
-                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                    <div className="bg-muted/50 rounded-lg p-4 mb-4">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="flex items-center gap-2">
                           <DollarSign className="h-4 w-4 text-blue-500" />
                           <div>
-                            <div className="text-xs text-gray-600 uppercase tracking-wide">Setup Fee</div>
+                            <div className="text-xs text-muted-foreground uppercase tracking-wide">Setup Fee</div>
                             <div className="text-lg font-bold text-blue-600">
                               {formatCurrency(contract.setup_fee || 0)}
                             </div>
-                            <div className="text-xs text-gray-500">One-time</div>
+                            <div className="text-xs text-muted-foreground">One-time</div>
                           </div>
                         </div>
                         
                         <div className="flex items-center gap-2">
                           <DollarSign className="h-4 w-4 text-purple-500" />
                           <div>
-                            <div className="text-xs text-gray-600 uppercase tracking-wide">Annual Rate</div>
+                            <div className="text-xs text-muted-foreground uppercase tracking-wide">Annual Rate</div>
                             <div className="text-lg font-bold text-purple-600">
                               {formatCurrency(contract.annual_rate || 0)}
                             </div>
-                            <div className="text-xs text-gray-500">Per year</div>
+                            <div className="text-xs text-muted-foreground">Per year</div>
                           </div>
                         </div>
                         
                         <div className="flex items-center gap-2">
                           <DollarSign className="h-4 w-4 text-green-500" />
                           <div>
-                            <div className="text-xs text-gray-600 uppercase tracking-wide">Total Value</div>
+                            <div className="text-xs text-muted-foreground uppercase tracking-wide">Total Value</div>
                             <div className="text-lg font-bold text-green-600">
                               {formatCurrency((contract.setup_fee || 0) + (contract.annual_rate || 0))}
                             </div>
-                            <div className="text-xs text-gray-500">Combined</div>
+                            <div className="text-xs text-muted-foreground">Combined</div>
                           </div>
                         </div>
                       </div>
@@ -495,14 +495,14 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
                     
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <span className="text-gray-600">Start Date:</span>
+                        <span className="text-muted-foreground">Start Date:</span>
                         <div className="font-medium flex items-center gap-1 mt-1">
                           <Calendar className="h-3 w-3" />
                           {format(new Date(contract.start_date), "MMM dd, yyyy")}
                         </div>
                       </div>
                       <div>
-                        <span className="text-gray-600">End Date:</span>
+                        <span className="text-muted-foreground">End Date:</span>
                         <div className="font-medium flex items-center gap-1 mt-1">
                           <Calendar className="h-3 w-3" />
                           {format(new Date(contract.end_date), "MMM dd, yyyy")}
@@ -513,8 +513,8 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
                     {contract.terms && (
                       <div className="mt-4 pt-4 border-t">
                         <div className="text-sm">
-                          <div className="text-xs text-gray-600 uppercase tracking-wide mb-2">Terms</div>
-                          <div className="text-gray-800 bg-white p-3 rounded border text-sm">
+                          <div className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Terms</div>
+                          <div className="text-foreground bg-background p-3 rounded border text-sm">
                             {contract.terms}
                           </div>
                         </div>
@@ -525,14 +525,14 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
               ))}
 
               {contracts.length === 0 && (
-                <Card className="border-dashed border-2 border-gray-300">
+                <Card className="border-dashed border-2 border-border">
                   <CardContent className="pt-6">
                     <div className="text-center py-8">
-                      <div className="text-gray-400 mb-4">
+                      <div className="text-muted-foreground mb-4">
                         <DollarSign className="h-16 w-16 mx-auto" />
                       </div>
-                      <h3 className="text-xl font-medium text-gray-900 mb-2">No contracts yet</h3>
-                      <p className="text-gray-600 mb-6 max-w-sm mx-auto">
+                      <h3 className="text-xl font-medium text-foreground mb-2">No contracts yet</h3>
+                      <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
                         Add contracts to track setup fees, annual rates and renewal dates for {customerName}. Each contract will contribute to the total lifetime value.
                       </p>
                       <Button type="button" onClick={handleAddContract} size="lg">
@@ -672,7 +672,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
       onClick={handleDialogClick}
     >
       <div 
-        className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" 
+        className="bg-background rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" 
         onClick={handleDialogClick}
       >
         <h3 className="text-lg font-semibold mb-4">
@@ -686,7 +686,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
               type="text"
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
               placeholder="Enter contract name"
               onClick={handleDialogClick}
@@ -700,7 +700,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
                 type="number"
                 value={formData.setup_fee || ''}
                 onChange={(e) => handleInputChange('setup_fee', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 min="0"
                 step="0.01"
                 placeholder="0"
@@ -714,7 +714,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
                 type="number"
                 value={formData.annual_rate || ''}
                 onChange={(e) => handleInputChange('annual_rate', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                 min="0"
                 step="0.01"
                 placeholder="0"
@@ -729,7 +729,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
             <select
               value={formData.payment_frequency || 'annual'}
               onChange={(e) => handleInputChange('payment_frequency', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-background"
               onClick={handleDialogClick}
             >
               <option value="annual">Annual</option>
@@ -758,7 +758,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
                 type="date"
                 value={formData.start_date}
                 onChange={(e) => handleInputChange('start_date', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
                 onClick={handleDialogClick}
               />
@@ -770,7 +770,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
                 type="date"
                 value={formData.end_date}
                 onChange={(e) => handleInputChange('end_date', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
                 onClick={handleDialogClick}
               />
@@ -782,7 +782,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
             <select
               value={formData.status}
               onChange={(e) => handleInputChange('status', e.target.value as Contract["status"])}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               onClick={handleDialogClick}
             >
               <option value="draft">Draft</option>
@@ -797,7 +797,7 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
             <textarea
               value={formData.terms || ""}
               onChange={(e) => handleInputChange('terms', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               rows={3}
               placeholder="Enter contract terms and conditions..."
               onClick={handleDialogClick}

@@ -41,7 +41,7 @@ export const CustomerTimeline: React.FC<CustomerTimelineProps> = ({ customer }) 
   const formattedAnnualRate = customer.annual_rate ? formatCurrency(customer.annual_rate) : null;
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg border p-6 hover:shadow-md transition-shadow">
+    <div className="bg-card rounded-lg border p-6 hover:shadow-md transition-shadow">
       {/* Customer Info Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
@@ -49,8 +49,8 @@ export const CustomerTimeline: React.FC<CustomerTimelineProps> = ({ customer }) 
             <img src={customer.logo} alt={customer.name} className="h-10 w-10 rounded-lg object-cover" />
           )}
           <div>
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100">{customer.name}</h3>
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+            <h3 className="font-semibold text-foreground dark:text-gray-100">{customer.name}</h3>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground dark:text-muted-foreground">
               <span className="flex items-center gap-1">
                 {getCountryFlag(customer.country)} {customer.country || 'Global'}
               </span>
@@ -65,7 +65,7 @@ export const CustomerTimeline: React.FC<CustomerTimelineProps> = ({ customer }) 
 
       {/* Timeline Progress Bar */}
       <div className="mb-4">
-        <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
+        <div className="flex items-center justify-between text-sm text-muted-foreground dark:text-muted-foreground mb-2">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
             {customer.go_live_date ? new Date(customer.go_live_date).toLocaleDateString('en-GB', {
@@ -80,7 +80,7 @@ export const CustomerTimeline: React.FC<CustomerTimelineProps> = ({ customer }) 
         </div>
         
         {customer.subscription_end_date && customer.go_live_date ? (
-          <div className="relative h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+          <div className="relative h-4 bg-muted dark:bg-gray-700 rounded-full overflow-hidden">
             <div 
               className={`h-full bg-gradient-to-r ${getStatusColor(customer.status)} transition-all duration-300`}
               style={{ width: `${Math.min(100, Math.max(0, customer.progressPercentage))}%` }}
@@ -92,8 +92,8 @@ export const CustomerTimeline: React.FC<CustomerTimelineProps> = ({ customer }) 
             />
           </div>
         ) : (
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
-            <span className="text-xs text-gray-500">Missing date information</span>
+          <div className="h-4 bg-muted dark:bg-gray-700 rounded-full flex items-center justify-center">
+            <span className="text-xs text-muted-foreground">Missing date information</span>
           </div>
         )}
       </div>
@@ -109,7 +109,7 @@ export const CustomerTimeline: React.FC<CustomerTimelineProps> = ({ customer }) 
               </div>
             )}
           </div>
-          <div className="text-gray-600 dark:text-gray-400">
+          <div className="text-muted-foreground dark:text-muted-foreground">
             {customer.delta > 0 ? (
               <span className="font-medium">{customer.delta} days until contract end</span>
             ) : customer.delta === 0 ? (

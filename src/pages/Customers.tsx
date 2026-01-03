@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { CustomerCard } from "@/components/customers/CustomerCard";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, ArrowUpDown, RefreshCw, Download, Upload, FileDown } from "lucide-react";
+import { Plus, Search, ArrowUpDown, RefreshCw, Download, Upload, FileDown, Filter, X } from "lucide-react";
 import { 
   Select,
   SelectContent,
@@ -10,6 +10,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -33,6 +36,8 @@ const Customers = () => {
   const [countryFilter, setCountryFilter] = useState("all");
   const [stageFilter, setStageFilter] = useState("all");
   const [segmentFilter, setSegmentFilter] = useState("all");
+  const [dealOwnerFilter, setDealOwnerFilter] = useState("all");
+  const [projectOwnerFilter, setProjectOwnerFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc" | "none">("none");
   const [sortBy, setSortBy] = useState<"name" | "contractSize">("name");
@@ -40,10 +45,12 @@ const Customers = () => {
   const [uniqueCountries, setUniqueCountries] = useState<string[]>([]);
   const [uniqueStages, setUniqueStages] = useState<string[]>([]);
   const [uniqueSegments, setUniqueSegments] = useState<string[]>([]);
+  const [users, setUsers] = useState<{ id: string; full_name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const itemsPerPage = 24; // Show 24 customers per page for 3-column grid
 
 // Pipeline rules are centralized in utils/pipelineRules.ts
@@ -123,6 +130,8 @@ const Customers = () => {
       completedStages,
       furthestCompletedStage,
       lastUpdatedStage,
+      deal_owner: dbCustomer.deal_owner || null,
+      project_owner: dbCustomer.project_owner || null,
       owner: {
         id: dbCustomer.owner_id || "unknown",
         name: "Unassigned",
@@ -474,9 +483,27 @@ const Customers = () => {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .order('full_name');
+      
+      if (error) {
+        console.error('Error fetching users:', error);
+        return;
+      }
+      setUsers(data?.filter(u => u.full_name) || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
   useEffect(() => {
     // Fetch customers directly without sync on every load (sync only on manual refresh)
-      fetchCustomers();
+    fetchCustomers();
+    fetchUsers();
   }, []);
 
   // Real-time subscription for live updates across users
@@ -527,7 +554,7 @@ const Customers = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, countryFilter, stageFilter, segmentFilter]);
+  }, [searchTerm, countryFilter, stageFilter, segmentFilter, dealOwnerFilter, projectOwnerFilter]);
 
   // Removed window focus auto-refresh for performance
 
@@ -589,6 +616,14 @@ const Customers = () => {
     if (segmentFilter !== "all" && customer.segment !== segmentFilter) {
       return false;
     }
+
+    if (dealOwnerFilter !== "all" && customer.deal_owner !== dealOwnerFilter) {
+      return false;
+    }
+
+    if (projectOwnerFilter !== "all" && customer.project_owner !== projectOwnerFilter) {
+      return false;
+    }
     
     if (
       searchTerm &&
@@ -643,7 +678,7 @@ const Customers = () => {
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-wrap">
           <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               type="text"
               placeholder="Search customers..."
@@ -653,60 +688,147 @@ const Customers = () => {
             />
           </div>
           
-          <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="not-started">Not Started</SelectItem>
-              <SelectItem value="in-progress">In Progress</SelectItem>
-              <SelectItem value="done">Done</SelectItem>
-              <SelectItem value="blocked">Blocked</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Consolidated Filters Button */}
+          <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Filter className="h-4 w-4" />
+                Filters
+                {(filter !== "all" || countryFilter !== "all" || stageFilter !== "all" || 
+                  segmentFilter !== "all" || dealOwnerFilter !== "all" || projectOwnerFilter !== "all") && (
+                  <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                    {[filter, countryFilter, stageFilter, segmentFilter, dealOwnerFilter, projectOwnerFilter]
+                      .filter(f => f !== "all").length}
+                  </Badge>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-4" align="start">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium">Filters</h4>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => {
+                      setFilter("all");
+                      setCountryFilter("all");
+                      setStageFilter("all");
+                      setSegmentFilter("all");
+                      setDealOwnerFilter("all");
+                      setProjectOwnerFilter("all");
+                    }}
+                    className="h-8 text-xs"
+                  >
+                    Clear All
+                  </Button>
+                </div>
 
-          <Select value={countryFilter} onValueChange={setCountryFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Filter by country" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Countries</SelectItem>
-              {uniqueCountries.map(country => (
-                <SelectItem key={country} value={country}>
-                  {country}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Status</Label>
+                    <Select value={filter} onValueChange={setFilter}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="All Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="not-started">Not Started</SelectItem>
+                        <SelectItem value="in-progress">In Progress</SelectItem>
+                        <SelectItem value="done">Done</SelectItem>
+                        <SelectItem value="blocked">Blocked</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-          <Select value={stageFilter} onValueChange={setStageFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Filter by stage" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Stages</SelectItem>
-              {uniqueStages.map(stage => (
-                <SelectItem key={stage} value={stage}>
-                  {stage}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Country</Label>
+                    <Select value={countryFilter} onValueChange={setCountryFilter}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="All Countries" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Countries</SelectItem>
+                        {uniqueCountries.map(country => (
+                          <SelectItem key={country} value={country}>
+                            {country}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-          <Select value={segmentFilter} onValueChange={setSegmentFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Filter by segment" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Segments</SelectItem>
-              {uniqueSegments.map(segment => (
-                <SelectItem key={segment} value={segment}>
-                  {segment}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Stage</Label>
+                    <Select value={stageFilter} onValueChange={setStageFilter}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="All Stages" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Stages</SelectItem>
+                        {uniqueStages.map(stage => (
+                          <SelectItem key={stage} value={stage}>
+                            {stage}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Segment</Label>
+                    <Select value={segmentFilter} onValueChange={setSegmentFilter}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="All Segments" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Segments</SelectItem>
+                        {uniqueSegments.map(segment => (
+                          <SelectItem key={segment} value={segment}>
+                            {segment}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Deal Owner</Label>
+                    <Select value={dealOwnerFilter} onValueChange={setDealOwnerFilter}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="All Deal Owners" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Deal Owners</SelectItem>
+                        {users.map(user => (
+                          <SelectItem key={user.id} value={user.full_name}>
+                            {user.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Project Owner</Label>
+                    <Select value={projectOwnerFilter} onValueChange={setProjectOwnerFilter}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="All Project Owners" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Project Owners</SelectItem>
+                        {users.map(user => (
+                          <SelectItem key={user.id} value={user.full_name}>
+                            {user.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
           
           <Button
             variant="outline" 
@@ -771,7 +893,7 @@ const Customers = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
             {isLoading ? (
               Array(6).fill(0).map((_, index) => (
-                <div key={index} className="h-48 bg-gray-100 animate-pulse rounded-md"></div>
+                <div key={index} className="h-48 bg-muted animate-pulse rounded-md"></div>
               ))
             ) : (
               filteredCustomers
@@ -783,7 +905,7 @@ const Customers = () => {
             
             {!isLoading && filteredCustomers.length === 0 && customers.length === 0 && (
               <div className="col-span-3 py-16 text-center">
-                <p className="text-gray-500 dark:text-gray-400 mb-4">No customers found in the database.</p>
+                <p className="text-muted-foreground dark:text-muted-foreground mb-4">No customers found in the database.</p>
                 <Button onClick={handleImportSampleData} disabled={isImporting}>
                   <Download className={`mr-2 h-4 w-4 ${isImporting ? 'animate-spin' : ''}`} />
                   Import Sample Data
@@ -793,7 +915,7 @@ const Customers = () => {
 
             {!isLoading && filteredCustomers.length === 0 && customers.length > 0 && (
               <div className="col-span-3 py-16 text-center">
-                <p className="text-gray-500 dark:text-gray-400">No customers match your current filters.</p>
+                <p className="text-muted-foreground dark:text-muted-foreground">No customers match your current filters.</p>
               </div>
             )}
           </div>

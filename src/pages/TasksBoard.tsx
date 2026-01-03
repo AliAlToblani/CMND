@@ -842,7 +842,7 @@ const TasksBoard = () => {
               
               {/* Add Column */}
               {addingColumn ? (
-                <div className="min-w-[280px] p-3 border-2 border-dashed border-gray-300 rounded-md bg-muted/20">
+                <div className="min-w-[280px] p-3 border-2 border-dashed border-border rounded-md bg-muted/20">
                   <div className="space-y-3">
                     <Input
                       placeholder="Column name..."

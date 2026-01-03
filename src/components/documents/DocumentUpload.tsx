@@ -220,12 +220,12 @@ export function DocumentUpload({
         onDragOver={handleDrag}
         onDrop={handleDrop}
       >
-        <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+        <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
         <div className="space-y-2">
           <p className="text-lg font-medium">
             {isUploading ? 'Uploading...' : 'Drop files here or click to upload'}
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             PDF and Word documents up to 50MB
           </p>
           <Input
@@ -258,7 +258,7 @@ export function DocumentUpload({
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{doc.name}</p>
                 {doc.file_size && (
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     {(doc.file_size / 1024 / 1024).toFixed(2)} MB
                   </p>
                 )}

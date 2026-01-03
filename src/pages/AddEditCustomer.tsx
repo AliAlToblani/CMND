@@ -134,6 +134,7 @@ export default function AddEditCustomer() {
             contact_phone: data.contact_phone || "",
             // Service plan fields
             service_type: data.service_type || null,
+            deal_owner: (data as any).deal_owner || null,
             project_owner: (data as any).project_owner || null,
             text_plan: data.text_plan || null,
             text_ai_responses: data.text_ai_responses ?? null,
@@ -262,6 +263,7 @@ export default function AddEditCustomer() {
         contact_phone: nullIfEmpty(data.contact_phone),
         // Service plan fields - must match database enum values or be null
         service_type: nullIfEmpty(data.service_type),
+        deal_owner: nullIfEmpty((data as any).deal_owner),
         project_owner: nullIfEmpty(data.project_owner),
         text_plan: nullIfEmpty(data.text_plan),
         text_ai_responses: data.text_ai_responses ?? null,

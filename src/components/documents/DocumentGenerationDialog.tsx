@@ -250,7 +250,7 @@ export const DocumentGenerationDialog = ({
                 <span>Successfully Generated</span>
               </div>
               {generatedDocuments.map((doc, idx) => (
-                <div key={idx} className="flex items-center justify-between py-2 px-3 bg-white dark:bg-gray-900 rounded border">
+                <div key={idx} className="flex items-center justify-between py-2 px-3 bg-card rounded border">
                   <span className="text-sm font-medium">
                     {DOCUMENT_LABELS[doc.type as keyof typeof DOCUMENT_LABELS]}
                   </span>

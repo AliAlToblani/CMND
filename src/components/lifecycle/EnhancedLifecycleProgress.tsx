@@ -118,7 +118,7 @@ export function EnhancedLifecycleProgress({
       case 'in-progress':
         return <Clock className="h-6 w-6 text-blue-500" />;
       default:
-        return <Circle className="h-6 w-6 text-gray-400" />;
+        return <Circle className="h-6 w-6 text-muted-foreground" />;
     }
   };
 
@@ -135,10 +135,10 @@ export function EnhancedLifecycleProgress({
             className={cn(
               "relative w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all duration-300 hover:scale-105 p-0",
               category.status === 'completed' 
-                ? "bg-green-50 border-green-500 hover:bg-green-100" 
+                ? "bg-green-500/10 border-green-500 hover:bg-green-500/20" 
                 : category.status === 'in-progress'
-                ? "bg-blue-50 border-blue-500 hover:bg-blue-100"
-                : "bg-gray-50 border-gray-300 hover:bg-gray-100"
+                ? "bg-blue-500/10 border-blue-500 hover:bg-blue-500/20"
+                : "bg-muted border-muted-foreground/30 hover:bg-muted/80"
             )}
             onClick={() => toggleCategory(category.name)}
           >
@@ -149,7 +149,7 @@ export function EnhancedLifecycleProgress({
               <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-transparent" />
             )}
             {category.status === 'not-started' && (
-              <div className="w-6 h-6 rounded-full border-2 border-gray-300" />
+              <div className="w-6 h-6 rounded-full border-2 border-muted-foreground/30" />
             )}
           </Button>
           
@@ -160,15 +160,15 @@ export function EnhancedLifecycleProgress({
               className="h-auto p-2 flex flex-col items-center justify-center"
               onClick={() => toggleCategory(category.name)}
             >
-              <p className="text-sm font-medium text-gray-900 mb-1 text-center">{category.name}</p>
+              <p className="text-sm font-medium text-foreground mb-1 text-center">{category.name}</p>
               <Badge variant="outline" className="text-xs">
                 {category.total > 0 ? `${category.completed}/${category.total}` : '0/0'}
               </Badge>
-              <p className="text-xs text-gray-500 mt-1">{category.percentage}%</p>
+              <p className="text-xs text-muted-foreground mt-1">{category.percentage}%</p>
               {isExpanded ? (
-                <ChevronUp className="h-3 w-3 mt-1 text-gray-500" />
+                <ChevronUp className="h-3 w-3 mt-1 text-muted-foreground" />
               ) : (
-                <ChevronDown className="h-3 w-3 mt-1 text-gray-500" />
+                <ChevronDown className="h-3 w-3 mt-1 text-muted-foreground" />
               )}
             </Button>
           </div>
@@ -176,7 +176,7 @@ export function EnhancedLifecycleProgress({
         
         {/* Connection Line */}
         {!isLast && (
-          <div className="flex-1 h-px bg-gray-300 mx-4 mt-[-40px]" />
+          <div className="flex-1 h-px bg-border mx-4 mt-[-40px]" />
         )}
       </div>
     );
@@ -190,8 +190,8 @@ export function EnhancedLifecycleProgress({
         <CardContent className="p-6">
           <div className="text-center py-8">
             <div className="animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto mb-2"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/2 mx-auto"></div>
+              <div className="h-4 bg-muted rounded w-3/4 mx-auto mb-2"></div>
+              <div className="h-3 bg-muted rounded w-1/2 mx-auto"></div>
             </div>
             <p className="text-muted-foreground mt-4">Loading lifecycle stages...</p>
           </div>
@@ -206,10 +206,10 @@ export function EnhancedLifecycleProgress({
         {/* Overall Progress Header */}
         <div className="mb-6">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="text-lg font-semibold text-gray-900">Customer Lifecycle Progress</h3>
+            <h3 className="text-lg font-semibold text-foreground">Customer Lifecycle Progress</h3>
             <div className="text-right">
-              <p className="text-2xl font-bold text-gray-900">{overallProgress.percentage}%</p>
-              <p className="text-sm text-gray-500">
+              <p className="text-2xl font-bold text-foreground">{overallProgress.percentage}%</p>
+              <p className="text-sm text-muted-foreground">
                 {overallProgress.completed} of {overallProgress.total} completed
               </p>
             </div>
@@ -219,7 +219,7 @@ export function EnhancedLifecycleProgress({
           <div className="relative">
             <Progress 
               value={overallProgress.percentage} 
-              className="h-3 bg-gray-200 rounded-full overflow-hidden"
+              className="h-3 bg-muted rounded-full overflow-hidden"
             />
             <div 
               className="absolute top-0 left-0 h-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-500 ease-out"
@@ -230,7 +230,7 @@ export function EnhancedLifecycleProgress({
 
         {/* Visual Stepper */}
         <div className="space-y-4">
-          <h4 className="text-md font-medium text-gray-800 mb-4">Stage Progress</h4>
+          <h4 className="text-md font-medium text-foreground mb-4">Stage Progress</h4>
           
           {/* Desktop Horizontal Stepper */}
           <div className="hidden md:flex justify-between items-start">
@@ -240,24 +240,24 @@ export function EnhancedLifecycleProgress({
           {/* Mobile Vertical Stepper */}
           <div className="md:hidden space-y-4">
             {categoryProgress.map((category, index) => (
-              <div key={category.name} className="flex items-center space-x-4 p-3 rounded-lg bg-gray-50">
+              <div key={category.name} className="flex items-center space-x-4 p-3 rounded-lg bg-muted/50">
                 <div className={cn(
                   "w-10 h-10 rounded-full border-2 flex items-center justify-center flex-shrink-0",
                   category.status === 'completed' 
-                    ? "bg-green-50 border-green-500" 
+                    ? "bg-green-500/10 border-green-500" 
                     : category.status === 'in-progress'
-                    ? "bg-blue-50 border-blue-500"
-                    : "bg-gray-50 border-gray-300"
+                    ? "bg-blue-500/10 border-blue-500"
+                    : "bg-muted border-muted-foreground/30"
                 )}>
                   {getStepperIcon(category)}
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-gray-900">{category.name}</p>
+                  <p className="font-medium text-foreground">{category.name}</p>
                   <div className="flex items-center space-x-2 mt-1">
                     <Badge variant="outline" className="text-xs">
                       {category.completed}/{category.total}
                     </Badge>
-                    <span className="text-sm text-gray-500">{category.percentage}%</span>
+                    <span className="text-sm text-muted-foreground">{category.percentage}%</span>
                   </div>
                 </div>
               </div>

@@ -127,7 +127,7 @@ export const CustomerAvatarUpload = forwardRef<CustomerAvatarUploadRef, Customer
   return (
     <div className={`flex flex-col items-center space-y-3 ${className}`}>
       <div className="relative">
-        <Avatar className="h-20 w-20 cursor-pointer border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors" onClick={handleClick}>
+        <Avatar className="h-20 w-20 cursor-pointer border-2 border-dashed border-border hover:border-border transition-colors" onClick={handleClick}>
           <AvatarImage src={currentUrl} alt={customerName} />
           <AvatarFallback className="bg-gradient-to-br from-purple-400 to-blue-500 text-white text-lg">
             {customerName ? getInitials(customerName) : "?"}

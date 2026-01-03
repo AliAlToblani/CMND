@@ -44,9 +44,9 @@ export const MonthlyRenewalBlock: React.FC<MonthlyRenewalBlockProps> = ({
         >
           <div className="flex items-center gap-3">
             {isExpanded ? (
-              <ChevronDown className="h-4 w-4 text-gray-500" />
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
             ) : (
-              <ChevronRight className="h-4 w-4 text-gray-500" />
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
             )}
             <div className="flex items-center gap-2">
               <Calendar className="h-4 w-4 text-blue-600" />
@@ -55,7 +55,7 @@ export const MonthlyRenewalBlock: React.FC<MonthlyRenewalBlockProps> = ({
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-muted-foreground">
                 {customers.length} Contract Renewal{customers.length !== 1 ? 's' : ''}
               </div>
               <div className="font-semibold text-green-600 flex items-center gap-1">
@@ -73,7 +73,7 @@ export const MonthlyRenewalBlock: React.FC<MonthlyRenewalBlockProps> = ({
                 </Avatar>
               ))}
               {customers.length > 5 && (
-                <div className="h-8 w-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-medium">
+                <div className="h-8 w-8 rounded-full bg-muted border-2 border-white flex items-center justify-center text-xs font-medium">
                   +{customers.length - 5}
                 </div>
               )}
@@ -84,7 +84,7 @@ export const MonthlyRenewalBlock: React.FC<MonthlyRenewalBlockProps> = ({
         {isExpanded && (
           <div className="mt-4 space-y-3 border-t pt-4">
             {customers.map((customer) => (
-              <div key={customer.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
+              <div key={customer.id} className="flex items-center justify-between py-2 border-b border-border last:border-b-0">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
                     <AvatarImage src={customer.logo || ""} alt={customer.name} />
@@ -94,7 +94,7 @@ export const MonthlyRenewalBlock: React.FC<MonthlyRenewalBlockProps> = ({
                   </Avatar>
                   <div>
                     <div className="font-medium">{customer.name}</div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-muted-foreground">
                       Owner: {customer.owner_id || 'Unassigned'} • 
                       Renewal: {customer.subscription_end_date ? 
                         new Date(customer.subscription_end_date).toLocaleDateString('en-GB', {

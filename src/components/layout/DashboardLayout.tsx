@@ -249,7 +249,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       case 'team':
         return <User className="h-4 w-4 text-pink-500" />;
       default:
-        return <Bell className="h-4 w-4 text-gray-500" />;
+        return <Bell className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -265,7 +265,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       case 'partnership':
         return <HandHeart className="h-4 w-4 text-amber-500" />;
       default:
-        return <Activity className="h-4 w-4 text-gray-500" />;
+        return <Activity className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -274,7 +274,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     if (action.includes('created') || action.includes('added')) return <Plus className="h-3 w-3 text-green-500" />;
     if (action.includes('updated') || action.includes('edited')) return <Edit className="h-3 w-3 text-blue-500" />;
     if (action.includes('deleted') || action.includes('removed')) return <Trash2 className="h-3 w-3 text-red-500" />;
-    return <Activity className="h-3 w-3 text-gray-500" />;
+    return <Activity className="h-3 w-3 text-muted-foreground" />;
   };
 
   // Format action text
@@ -287,26 +287,26 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="flex-1 flex flex-col overflow-hidden">
           <header className="backdrop-blur-md bg-background/30 border-b border-border/30 h-16 flex items-center justify-between px-6 z-10">
             <div className="flex items-center">
-              <SidebarTrigger className="hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded-md transition-colors text-gray-700 dark:text-gray-200" />
+              <SidebarTrigger className="hover:bg-muted dark:hover:bg-gray-800 p-2 rounded-md transition-colors text-foreground dark:text-gray-200" />
             </div>
             <div className="flex items-center space-x-4">
               <Button 
                 variant="ghost" 
                 size="icon"
-                className="rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+                className="rounded-full hover:bg-muted dark:hover:bg-gray-800"
                 onClick={toggleTheme}
               >
                 {theme === "light" ? (
-                  <Moon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                  <Moon className="h-5 w-5 text-muted-foreground dark:text-gray-300" />
                 ) : (
-                  <Sun className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                  <Sun className="h-5 w-5 text-muted-foreground dark:text-gray-300" />
                 )}
               </Button>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 relative">
-                    <Bell className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                  <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted dark:hover:bg-gray-800 relative">
+                    <Bell className="h-5 w-5 text-muted-foreground dark:text-gray-300" />
                     {unreadCount > 0 && (
                       <span className="absolute top-0 right-0 h-4 w-4 bg-doo-purple-500 rounded-full flex items-center justify-center text-xs text-white">
                         {unreadCount > 9 ? '9+' : unreadCount}

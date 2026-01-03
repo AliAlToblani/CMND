@@ -56,8 +56,8 @@ export const PipelineVisualization: React.FC<PipelineVisualizationProps> = ({
           <div className="flex gap-4 pb-4">
             {Array(6).fill(0).map((_, index) => (
               <div key={index} className="flex-shrink-0">
-                <div className="h-32 w-48 bg-gray-200 animate-pulse rounded-lg"></div>
-                {index < 5 && <div className="h-1 w-12 bg-gray-200 animate-pulse mt-16 ml-48"></div>}
+                <div className="h-32 w-48 bg-muted animate-pulse rounded-lg"></div>
+                {index < 5 && <div className="h-1 w-12 bg-muted animate-pulse mt-16 ml-48"></div>}
               </div>
             ))}
           </div>

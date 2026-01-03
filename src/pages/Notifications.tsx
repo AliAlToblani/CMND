@@ -63,7 +63,7 @@ const NotificationsPage = () => {
     if (action.includes('customer')) return <Building className="h-4 w-4 text-blue-500" />;
     if (action.includes('task')) return <ClipboardList className="h-4 w-4 text-purple-500" />;
     if (action.includes('user')) return <User className="h-4 w-4 text-green-500" />;
-    return <Activity className="h-4 w-4 text-gray-500" />;
+    return <Activity className="h-4 w-4 text-muted-foreground" />;
   };
 
   const formatAction = (action: string) => {
@@ -144,7 +144,7 @@ const NotificationsPage = () => {
       case "team":
         return <UserPlus className="h-5 w-5 text-pink-500" />;
       default:
-        return <Bell className="h-5 w-5 text-gray-500" />;
+        return <Bell className="h-5 w-5 text-muted-foreground" />;
     }
   };
 
@@ -218,7 +218,7 @@ const NotificationsPage = () => {
                               className={`p-4 glass-card rounded-lg transition-all animate-slide-in ${!notification.is_read ? 'bg-blue-50 dark:bg-blue-900/10 border-l-4 border-blue-500' : ''}`}
                             >
                               <div className="flex items-start gap-4">
-                                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                                <div className="flex-shrink-0 h-10 w-10 rounded-full bg-muted dark:bg-gray-800 flex items-center justify-center">
                                   {getNotificationIcon(notification.type)}
                                 </div>
                                 <div className="flex-grow">

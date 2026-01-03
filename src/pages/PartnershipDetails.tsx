@@ -109,9 +109,9 @@ const PartnershipDetails = () => {
     return (
       <DashboardLayout>
         <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-32 bg-gray-200 rounded"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
+          <div className="h-8 bg-muted rounded w-1/4"></div>
+          <div className="h-32 bg-muted rounded"></div>
+          <div className="h-64 bg-muted rounded"></div>
         </div>
       </DashboardLayout>
     );
@@ -121,8 +121,8 @@ const PartnershipDetails = () => {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
-          <HandHeart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+          <HandHeart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-foreground dark:text-gray-100 mb-2">
             Partnership not found
           </h3>
           <Link to="/partnerships">
@@ -196,9 +196,9 @@ const PartnershipDetails = () => {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-gray-500" />
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Country</p>
+                    <p className="text-sm text-muted-foreground dark:text-muted-foreground">Country</p>
                     <p className="font-medium">{partnership.country}</p>
                   </div>
                 </div>
@@ -210,9 +210,9 @@ const PartnershipDetails = () => {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Start Date</p>
+                    <p className="text-sm text-muted-foreground dark:text-muted-foreground">Start Date</p>
                     <p className="font-medium">{new Date(partnership.start_date).toLocaleDateString()}</p>
                   </div>
                 </div>
@@ -224,9 +224,9 @@ const PartnershipDetails = () => {
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-gray-500" />
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Expected Value</p>
+                    <p className="text-sm text-muted-foreground dark:text-muted-foreground">Expected Value</p>
                     <p className="font-medium text-green-600">${partnership.expected_value.toLocaleString()}</p>
                   </div>
                 </div>
@@ -237,9 +237,9 @@ const PartnershipDetails = () => {
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-gray-500" />
+                <Users className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Contacts</p>
+                  <p className="text-sm text-muted-foreground dark:text-muted-foreground">Contacts</p>
                   <p className="font-medium">{contacts.length}</p>
                 </div>
               </div>
@@ -264,7 +264,7 @@ const PartnershipDetails = () => {
                   <CardTitle>Description</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                  <p className="text-foreground dark:text-gray-300 whitespace-pre-wrap">
                     {partnership.description}
                   </p>
                 </CardContent>
@@ -277,7 +277,7 @@ const PartnershipDetails = () => {
                   <CardTitle>Notes</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                  <p className="text-foreground dark:text-gray-300 whitespace-pre-wrap">
                     {partnership.notes}
                   </p>
                 </CardContent>
@@ -336,7 +336,7 @@ const PartnershipDetails = () => {
               </CardHeader>
               <CardContent>
                 {contacts.length === 0 ? (
-                  <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+                  <p className="text-muted-foreground dark:text-muted-foreground text-center py-8">
                     No contacts added yet.
                   </p>
                 ) : (
@@ -352,16 +352,16 @@ const PartnershipDetails = () => {
                               )}
                             </h4>
                             {contact.role && (
-                              <p className="text-sm text-gray-600 dark:text-gray-400">{contact.role}</p>
+                              <p className="text-sm text-muted-foreground dark:text-muted-foreground">{contact.role}</p>
                             )}
                             <div className="mt-2 space-y-1">
                               {contact.email && (
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                <p className="text-sm text-muted-foreground dark:text-muted-foreground">
                                   Email: {contact.email}
                                 </p>
                               )}
                               {contact.phone && (
-                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                <p className="text-sm text-muted-foreground dark:text-muted-foreground">
                                   Phone: {contact.phone}
                                 </p>
                               )}
@@ -386,7 +386,7 @@ const PartnershipDetails = () => {
               </CardHeader>
               <CardContent>
                 {documents.length === 0 ? (
-                  <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+                  <p className="text-muted-foreground dark:text-muted-foreground text-center py-8">
                     No documents uploaded yet.
                   </p>
                 ) : (
@@ -396,15 +396,15 @@ const PartnershipDetails = () => {
                         <div className="flex justify-between items-start">
                           <div>
                             <h4 className="font-medium">{document.name}</h4>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                            <p className="text-sm text-muted-foreground dark:text-muted-foreground">
                               Type: {document.document_type}
                             </p>
                             {document.file_size && (
-                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                              <p className="text-sm text-muted-foreground dark:text-muted-foreground">
                                 Size: {(document.file_size / 1024 / 1024).toFixed(2)} MB
                               </p>
                             )}
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                            <p className="text-sm text-muted-foreground dark:text-muted-foreground">
                               Uploaded: {new Date(document.created_at).toLocaleDateString()}
                             </p>
                           </div>
@@ -427,7 +427,7 @@ const PartnershipDetails = () => {
               </CardHeader>
               <CardContent>
                 {timeline.length === 0 ? (
-                  <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+                  <p className="text-muted-foreground dark:text-muted-foreground text-center py-8">
                     No activity recorded yet.
                   </p>
                 ) : (
@@ -437,10 +437,10 @@ const PartnershipDetails = () => {
                         <div className="flex justify-between items-start">
                           <div>
                             <h4 className="font-medium">{event.event_type}</h4>
-                            <p className="text-gray-700 dark:text-gray-300 mt-1">
+                            <p className="text-foreground dark:text-gray-300 mt-1">
                               {event.event_description}
                             </p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                            <p className="text-sm text-muted-foreground dark:text-muted-foreground mt-2">
                               {new Date(event.created_at).toLocaleString()}
                               {event.created_by_name && ` • ${event.created_by_name}`}
                             </p>

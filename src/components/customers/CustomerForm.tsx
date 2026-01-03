@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/form";
 import { industryOptions } from "@/data/defaultLifecycleStages";
 import { getActiveCountries } from "@/utils/countryUtils";
+import { supabase } from "@/integrations/supabase/client";
 import { CustomerAvatarUpload, CustomerAvatarUploadRef } from "./CustomerAvatarUpload";
 import { ContractsList, Contract, ContractsListRef } from "./ContractsList";
 import { DocumentUpload, Document as UploadDocument } from "@/components/documents/DocumentUpload";
@@ -35,6 +36,7 @@ const customerFormSchema = z.object({
   industry: z.string().optional(),
   estimated_deal_value: z.number().nullable().optional(),
   service_type: z.string().optional().nullable(),
+  deal_owner: z.string().optional().nullable(),
   project_owner: z.string().optional().nullable(),
   text_plan: z.string().optional().nullable(),
   text_ai_responses: z.number().optional().nullable(),
@@ -76,6 +78,7 @@ export function CustomerForm({
   
   const [countryOptions, setCountryOptions] = useState<string[]>([]);
   const [loadingCountries, setLoadingCountries] = useState(true);
+  const [users, setUsers] = useState<{ id: string; full_name: string }[]>([]);
   const avatarUploadRef = useRef<CustomerAvatarUploadRef>(null);
   const contractsListRef = useRef<ContractsListRef>(null);
   
@@ -106,6 +109,7 @@ export function CustomerForm({
       payment_terms_days: initialData?.payment_terms_days || 14,
       currency: initialData?.currency || "BD",
       service_type: (initialData as any)?.service_type || null,
+      deal_owner: (initialData as any)?.deal_owner || null,
       project_owner: (initialData as any)?.project_owner || null,
       text_plan: (initialData as any)?.text_plan || null,
       text_ai_responses: (initialData as any)?.text_ai_responses || null,
@@ -137,6 +141,7 @@ export function CustomerForm({
         payment_terms_days: initialData.payment_terms_days || 14,
         currency: initialData.currency || "BD",
         service_type: (initialData as any)?.service_type || null,
+        deal_owner: (initialData as any)?.deal_owner || null,
         project_owner: (initialData as any)?.project_owner || null,
         text_plan: (initialData as any)?.text_plan || null,
         text_ai_responses: (initialData as any)?.text_ai_responses || null,
@@ -147,9 +152,10 @@ export function CustomerForm({
     }
   }, [initialData, form]);
 
-  // Load countries from database
+  // Load countries and users from database
   useEffect(() => {
     loadCountries();
+    fetchUsers();
   }, []);
 
   const loadCountries = async () => {
@@ -161,6 +167,23 @@ export function CustomerForm({
       console.error('Error loading countries:', error);
     } finally {
       setLoadingCountries(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .order('full_name');
+      
+      if (error) {
+        console.error('Error fetching users:', error);
+        return;
+      }
+      setUsers(data?.filter(u => u.full_name) || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
     }
   };
 
@@ -393,13 +416,28 @@ export function CustomerForm({
 
               <FormField
                 control={form.control}
-                name="owner_id"
+                name="deal_owner"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Deal Owner</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter deal owner name" {...field} />
-                    </FormControl>
+                    <Select 
+                      onValueChange={(value) => field.onChange(value === 'unassigned' ? null : value)} 
+                      value={field.value || 'unassigned'}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select deal owner" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {users.map((user) => (
+                          <SelectItem key={user.id} value={user.full_name}>
+                            {user.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -439,13 +477,24 @@ export function CustomerForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Project Owner</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="Enter project owner name" 
-                        {...field} 
-                        value={field.value || ""} 
-                      />
-                    </FormControl>
+                    <Select 
+                      onValueChange={(value) => field.onChange(value === 'unassigned' ? null : value)} 
+                      value={field.value || 'unassigned'}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select project owner" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {users.map((user) => (
+                          <SelectItem key={user.id} value={user.full_name}>
+                            {user.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

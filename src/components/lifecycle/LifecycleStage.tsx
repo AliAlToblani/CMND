@@ -92,7 +92,7 @@ export function LifecycleStageComponent({
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "not-started":
-        return <Circle className="h-4 w-4 text-gray-500" />;
+        return <Circle className="h-4 w-4 text-muted-foreground" />;
       case "in-progress":
         return <Clock className="h-4 w-4 text-blue-500 animate-pulse" />;
       case "done":
@@ -100,7 +100,7 @@ export function LifecycleStageComponent({
       case "blocked":
         return <AlertCircle className="h-4 w-4 text-red-500" />;
       case "not-applicable":
-        return <Slash className="h-4 w-4 text-gray-400" />;
+        return <Slash className="h-4 w-4 text-muted-foreground" />;
       default:
         return null;
     }
@@ -117,7 +117,7 @@ export function LifecycleStageComponent({
       case "blocked":
         return <Badge className="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 text-xs">Blocked</Badge>;
       case "not-applicable":
-        return <Badge variant="outline" className="border-gray-300 text-gray-500 text-xs">Not Applicable</Badge>;
+        return <Badge variant="outline" className="border-border text-muted-foreground text-xs">Not Applicable</Badge>;
       default:
         return <Badge className="text-xs">{status}</Badge>;
     }
@@ -279,7 +279,7 @@ ${category ? `Category: ${category}` : ''}`;
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-40">
             <DropdownMenuItem onClick={() => handleStatusChange("not-started")}>
-              <Circle className="h-4 w-4 mr-2 text-gray-500" />
+              <Circle className="h-4 w-4 mr-2 text-muted-foreground" />
               Not Started
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handleStatusChange("in-progress")}>
@@ -295,7 +295,7 @@ ${category ? `Category: ${category}` : ''}`;
               Blocked
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handleStatusChange("not-applicable")}>
-              <Slash className="h-4 w-4 mr-2 text-gray-400" />
+              <Slash className="h-4 w-4 mr-2 text-muted-foreground" />
               Not Applicable
             </DropdownMenuItem>
           </DropdownMenuContent>

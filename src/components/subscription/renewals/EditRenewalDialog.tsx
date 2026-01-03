@@ -71,7 +71,7 @@ export const EditRenewalDialog: React.FC<EditRenewalDialogProps> = ({
               id="current-date"
               value={formatDate(currentDate)}
               disabled
-              className="bg-gray-50"
+              className="bg-muted/50"
             />
           </div>
           <div className="space-y-2">

@@ -388,7 +388,7 @@ const SettingsPage = () => {
                           
                           <div className="glass-card p-4 rounded-lg flex items-center justify-between">
                             <div className="flex items-center">
-                              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-bold">+</div>
+                              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold">+</div>
                               <div className="ml-3">
                                 <p className="text-sm font-medium">Connect New Service</p>
                                 <p className="text-xs text-muted-foreground">Add a new integration</p>

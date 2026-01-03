@@ -2,7 +2,6 @@
 import React, { memo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import { User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { CustomerData } from "@/types/customers";
@@ -103,16 +102,26 @@ function CustomerCardComponent({ customer, showEditOptions = false, isDetailed =
             </div>
           </div>
           
+          {/* Deal Owner & Project Owner */}
+          {(customer.deal_owner || customer.project_owner) && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {customer.deal_owner && (
+                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-blue-200">
+                  Deal: {customer.deal_owner}
+                </Badge>
+              )}
+              {customer.project_owner && (
+                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300 border-green-200">
+                  Project: {customer.project_owner}
+                </Badge>
+              )}
+            </div>
+          )}
+
           <div className="mt-3 flex items-center justify-between">
             <span className={getStatusClass(customer.status)}>
               {(customer.status || "not-started").replace("-", " ")}
             </span>
-            {customer.owner.name && customer.owner.name !== "Unassigned" && (
-              <div className="flex items-center text-xs text-muted-foreground">
-                <User className="h-3 w-3 mr-1" />
-                <span>{customer.owner.name}</span>
-              </div>
-            )}
           </div>
         </div>
       </CardContent>

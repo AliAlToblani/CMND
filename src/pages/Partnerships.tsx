@@ -131,7 +131,7 @@ const Partnerships = () => {
               <HandHeart className="h-6 w-6 text-doo-purple-600" />
               Partnerships
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-muted-foreground dark:text-muted-foreground">
               Manage your resellers, consultants, and strategic alliances
             </p>
           </div>
@@ -149,7 +149,7 @@ const Partnerships = () => {
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
                 <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Search partnerships..."
                     value={searchTerm}
@@ -216,11 +216,11 @@ const Partnerships = () => {
             {[...Array(6)].map((_, i) => (
               <Card key={i} className="animate-pulse">
                 <CardContent className="p-6">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2 mb-4"></div>
+                  <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                  <div className="h-3 bg-muted rounded w-1/2 mb-4"></div>
                   <div className="space-y-2">
-                    <div className="h-3 bg-gray-200 rounded"></div>
-                    <div className="h-3 bg-gray-200 rounded w-5/6"></div>
+                    <div className="h-3 bg-muted rounded"></div>
+                    <div className="h-3 bg-muted rounded w-5/6"></div>
                   </div>
                 </CardContent>
               </Card>
@@ -229,11 +229,11 @@ const Partnerships = () => {
         ) : filteredPartnerships.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
-              <HandHeart className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+              <HandHeart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground dark:text-gray-100 mb-2">
                 No partnerships found
               </h3>
-              <p className="text-gray-500 dark:text-gray-400 mb-4">
+              <p className="text-muted-foreground dark:text-muted-foreground mb-4">
                 {searchTerm || typeFilter !== "all" || statusFilter !== "all"
                   ? "Try adjusting your filters to see more results."
                   : "Get started by adding your first partnership."}
@@ -256,10 +256,10 @@ const Partnerships = () => {
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <CardTitle className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                        <CardTitle className="text-lg font-semibold text-foreground dark:text-gray-100 mb-1">
                           {partnership.name}
                         </CardTitle>
-                        <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground dark:text-muted-foreground">
                           <span>{partnership.country || 'Global'}</span>
                         </div>
                       </div>
@@ -271,14 +271,14 @@ const Partnerships = () => {
                   <CardContent className="pt-0 flex-1">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">Type:</span>
+                        <span className="text-muted-foreground dark:text-muted-foreground">Type:</span>
                         <Badge variant="outline">
                           {PARTNERSHIP_TYPE_LABELS[partnership.partnership_type] || 'Unknown Type'}
                         </Badge>
                       </div>
                       
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">Start Date:</span>
+                        <span className="text-muted-foreground dark:text-muted-foreground">Start Date:</span>
                         <span className="font-medium">
                           {partnership.start_date 
                             ? new Date(partnership.start_date).toLocaleDateString()

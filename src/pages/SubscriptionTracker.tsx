@@ -43,7 +43,7 @@ const SubscriptionTracker = () => {
               <Clock className="h-6 w-6 text-doo-purple-600" />
               Subscription Tracker
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-muted-foreground dark:text-muted-foreground">
               Monitor customers who have completed their Go Live stage
             </p>
           </div>

@@ -67,7 +67,7 @@ export const CustomerDot: React.FC<CustomerDotProps> = ({ customer }) => {
         <TooltipContent className="p-3 max-w-xs">
           <div className="space-y-2">
             <div className="font-semibold text-sm">{customer.name}</div>
-            <div className="text-xs text-gray-600 dark:text-gray-300">
+            <div className="text-xs text-muted-foreground dark:text-gray-300">
               <div>Contract: {formatValue(customer.contractSize)}</div>
               <div>Owner: {customer.owner.name}</div>
               <div>Country: {customer.country}</div>

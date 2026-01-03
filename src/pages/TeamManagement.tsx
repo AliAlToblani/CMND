@@ -470,10 +470,8 @@ const TeamManagementPage = () => {
 
   const handleDeleteMember = async (memberId: string) => {
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', memberId);
+      // Call the database function to delete user from auth.users
+      const { error } = await supabase.rpc('delete_user_account', { user_id: memberId });
 
       if (error) throw error;
 
@@ -489,7 +487,7 @@ const TeamManagementPage = () => {
       setTeamMembers(teamMembers.filter(member => member.id !== memberId));
     } catch (error) {
       console.error("Error deleting team member:", error);
-      toast.error("Failed to remove team member");
+      toast.error(`Failed to remove team member: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 

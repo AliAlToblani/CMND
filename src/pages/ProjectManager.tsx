@@ -98,6 +98,12 @@ export default function ProjectManager() {
   
   // For adding new checklist items
   const [newChecklistItem, setNewChecklistItem] = useState('');
+  
+  // For filtering by assignee
+  const [selectedAssignee, setSelectedAssignee] = useState<string>('all');
+  
+  // Users list for assignee dropdown
+  const [users, setUsers] = useState<{ id: string; full_name: string }[]>([]);
 
   // Load projects from database (shared across all users)
   const loadProjects = useCallback(async () => {
@@ -168,10 +174,28 @@ export default function ProjectManager() {
     }
   };
 
+  const fetchUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .order('full_name');
+      
+      if (error) {
+        console.error('Error fetching users:', error);
+        return;
+      }
+      setUsers(data?.filter(u => u.full_name) || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
   // Initial load from database
   useEffect(() => {
     loadProjects();
     fetchAllCustomers();
+    fetchUsers();
   }, []);
 
   // Real-time subscription for live updates across users
@@ -381,7 +405,11 @@ export default function ProjectManager() {
     toast.success(`${selectedProject.customer_name} moved to Ongoing`);
   };
 
-  const filteredProjects = projects.filter(p => p.status === activeTab);
+  const filteredProjects = projects.filter(p => {
+    const matchesStatus = p.status === activeTab;
+    const matchesAssignee = selectedAssignee === 'all' || p.project_manager === selectedAssignee;
+    return matchesStatus && matchesAssignee;
+  });
   const ongoingCount = projects.filter(p => p.status === 'ongoing').length;
   const completedCount = projects.filter(p => p.status === 'completed').length;
   const demoCount = projects.filter(p => p.status === 'demo').length;
@@ -687,13 +715,22 @@ export default function ProjectManager() {
             {/* Project Manager */}
             <div className="space-y-2">
               <Label htmlFor="project-manager">Project Manager</Label>
-              <Input
-                id="project-manager"
-                placeholder="Enter project manager name"
-                value={selectedProject.project_manager}
-                onChange={(e) => updateProject(selectedProject.id, { project_manager: e.target.value })}
-                className="bg-background"
-              />
+              <Select
+                value={selectedProject.project_manager || 'unassigned'}
+                onValueChange={(value) => updateProject(selectedProject.id, { project_manager: value === 'unassigned' ? '' : value })}
+              >
+                <SelectTrigger className="bg-background">
+                  <SelectValue placeholder="Select assignee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.full_name}>
+                      {user.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Demo Date (only for demos) */}
@@ -809,23 +846,40 @@ export default function ProjectManager() {
           setActiveTab(v as 'ongoing' | 'completed' | 'demo');
           setSelectedProject(null);
         }}>
-          <TabsList className="mb-6">
-            <TabsTrigger value="ongoing" className="gap-2">
-              <ClipboardCheck className="h-4 w-4" />
-              Ongoing
-              <Badge variant="secondary" className="ml-1">{ongoingCount}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="demo" className="gap-2">
-              <Play className="h-4 w-4" />
-              Demos
-              <Badge variant="secondary" className="ml-1">{demoCount}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="completed" className="gap-2">
-              <CheckCircle2 className="h-4 w-4" />
-              Completed
-              <Badge variant="secondary" className="ml-1">{completedCount}</Badge>
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between mb-6 gap-4">
+            <TabsList>
+              <TabsTrigger value="ongoing" className="gap-2">
+                <ClipboardCheck className="h-4 w-4" />
+                Ongoing
+                <Badge variant="secondary" className="ml-1">{ongoingCount}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="demo" className="gap-2">
+                <Play className="h-4 w-4" />
+                Demos
+                <Badge variant="secondary" className="ml-1">{demoCount}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="completed" className="gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                Completed
+                <Badge variant="secondary" className="ml-1">{completedCount}</Badge>
+              </TabsTrigger>
+            </TabsList>
+            
+            {/* Assignee Filter */}
+            <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by assignee" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Assignees</SelectItem>
+                {users.map((user) => (
+                  <SelectItem key={user.id} value={user.full_name}>
+                    {user.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           <TabsContent value="ongoing" className="mt-0">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

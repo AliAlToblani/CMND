@@ -217,6 +217,8 @@ export interface CustomerData {
   completedStages?: string[];
   furthestCompletedStage?: string;
   lastUpdatedStage?: string;
+  deal_owner?: string | null;
+  project_owner?: string | null;
   owner: {
     id: string;
     name: string;

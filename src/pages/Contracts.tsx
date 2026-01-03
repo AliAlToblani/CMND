@@ -47,7 +47,7 @@ const getStatusBadge = (status: string) => {
     case "expired":
       return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">Expired</Badge>;
     case "draft":
-      return <Badge variant="outline" className="bg-gray-100 text-gray-800 border-gray-200">Draft</Badge>;
+      return <Badge variant="outline" className="bg-muted text-foreground border-border">Draft</Badge>;
     default:
       return <Badge variant="outline">{status}</Badge>;
   }
@@ -430,7 +430,7 @@ const ContractsPage = () => {
                         Array(3).fill(0).map((_, index) => (
                           <TableRow key={`loading-${index}`}>
                             <TableCell colSpan={8}>
-                              <div className="h-12 bg-gray-100 animate-pulse rounded"></div>
+                              <div className="h-12 bg-muted animate-pulse rounded"></div>
                             </TableCell>
                           </TableRow>
                         ))
