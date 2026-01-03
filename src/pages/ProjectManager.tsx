@@ -157,8 +157,12 @@ export default function ProjectManager() {
     }
   }, [selectedProject?.id]);
 
+  // Track which customers have contracts
+  const [customersWithContracts, setCustomersWithContracts] = useState<Set<string>>(new Set());
+
   const fetchAllCustomers = async () => {
     try {
+      // Fetch customers
       const { data, error } = await supabase
         .from('customers')
         .select('*')
@@ -169,6 +173,16 @@ export default function ProjectManager() {
         return;
       }
       setAllCustomers(data || []);
+
+      // Fetch contracts to see which customers have them
+      const { data: contracts, error: contractsError } = await supabase
+        .from('contracts')
+        .select('customer_id');
+      
+      if (!contractsError && contracts) {
+        const customerIdsWithContracts = new Set(contracts.map(c => c.customer_id).filter(Boolean));
+        setCustomersWithContracts(customerIdsWithContracts as Set<string>);
+      }
     } catch (error) {
       console.error('Error fetching customers:', error);
     }
@@ -509,7 +523,9 @@ export default function ProjectManager() {
                     ) : (
                       availableCustomers
                         .filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()))
-                        .map(customer => (
+                        .map(customer => {
+                          const hasContract = customersWithContracts.has(customer.id);
+                          return (
                           <div
                             key={customer.id}
                             className={`p-3 cursor-pointer hover:bg-muted transition-colors border-b last:border-b-0 ${
@@ -519,12 +535,23 @@ export default function ProjectManager() {
                           >
                             <div className="flex items-center justify-between">
                               <span className="font-medium">{customer.name}</span>
-                              <Badge variant={customer.service_type ? "secondary" : "outline"} className="text-xs">
-                                {customer.service_type || 'No Service Type'}
-                              </Badge>
+                              <div className="flex items-center gap-2">
+                                <Badge 
+                                  variant={hasContract ? "default" : "destructive"} 
+                                  className={`text-xs ${hasContract ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                                >
+                                  {hasContract ? '✓ Contract' : 'No Contract'}
+                                </Badge>
+                                {customer.service_type && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {customer.service_type}
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        ))
+                          );
+                        })
                     )}
                   </div>
                 </div>
