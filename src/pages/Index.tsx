@@ -142,23 +142,24 @@ const Index = () => {
       try {
         setLoading(true);
         
+        // Optimized: Only select columns needed for dashboard
         const { data, error } = await supabase
           .from('customers')
-          .select('*')
+          .select('id, name, logo, segment, country, stage, status, contract_size, owner_id')
           .order('contract_size', { ascending: false });
 
         if (error) {
           throw error;
         }
 
-        if (data && data.length > 0) {
-          const formattedCustomers: CustomerData[] = data.map(customer => ({
+        const formatCustomerData = (customerData: any[]): CustomerData[] => 
+          customerData.map(customer => ({
             id: customer.id,
             name: customer.name,
             logo: customer.logo || undefined,
             segment: customer.segment || "Unknown Segment",
             country: customer.country || "Unknown Country",
-            stage: customer.stage || "Lead", // Use synced stage or default
+            stage: customer.stage || "Lead",
             status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
             contractSize: customer.contract_size || 0,
             owner: {
@@ -167,40 +168,18 @@ const Index = () => {
               role: "Sales"
             }
           }));
-          setCustomers(formattedCustomers);
+
+        if (data && data.length > 0) {
+          setCustomers(formatCustomerData(data));
         } else {
-          // If no customers in DB, try to sync them again
+          // If no customers in DB, try to sync them
           await syncCustomersToDatabase();
-          // Try one more fetch
-          const { data: retryData, error: retryError } = await supabase
+          const { data: retryData } = await supabase
             .from('customers')
-            .select('*')
+            .select('id, name, logo, segment, country, stage, status, contract_size, owner_id')
             .order('contract_size', { ascending: false });
             
-          if (retryError) {
-            throw retryError;
-          }
-          
-          if (retryData && retryData.length > 0) {
-            const formattedCustomers: CustomerData[] = retryData.map(customer => ({
-              id: customer.id,
-              name: customer.name,
-              logo: customer.logo || undefined,
-              segment: customer.segment || "Unknown Segment",
-              country: customer.country || "Unknown Country",
-              stage: customer.stage || "New",
-              status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
-              contractSize: customer.contract_size || 0,
-              owner: {
-                id: customer.owner_id || "unknown",
-                name: "Account Manager",
-                role: "Sales"
-              }
-            }));
-            setCustomers(formattedCustomers);
-          } else {
-            setCustomers([]);
-          }
+          setCustomers(retryData ? formatCustomerData(retryData) : []);
         }
       } catch (error) {
         console.error("Error fetching customers:", error);
@@ -286,9 +265,16 @@ const Index = () => {
       onClick: () => navigate(buildFilteredUrl('/analytics/total-customers', selectedCountries, dateRange.from, dateRange.to))
     },
     {
+      title: "Live Customers",
+      value: `${arrData.liveCustomers.length}`,
+      description: "Active contracts",
+      icon: <LifeBuoy className="h-6 w-6" />,
+      onClick: () => navigate(buildFilteredUrl('/analytics/live-customers', selectedCountries, dateRange.from, dateRange.to))
+    },
+    {
       title: "Total Contracts",
       value: `${totalContracts}`,
-      description: "Active & pending contracts",
+      description: "Active & pending",
       icon: <FileText className="h-6 w-6" />,
       onClick: () => navigate(buildFilteredUrl('/analytics/total-contracts', selectedCountries, dateRange.from, dateRange.to))
     },
@@ -302,37 +288,30 @@ const Index = () => {
     {
       title: "Total ARR",
       value: formattedARR,
-      change: { value: 14, type: "increase" as const },
+      description: "Annual recurring",
       icon: <BarChart3 className="h-6 w-6" />,
       onClick: () => navigate(buildFilteredUrl('/analytics/total-arr', selectedCountries, dateRange.from, dateRange.to))
     },
     {
-      title: "Live Customers",
-      value: `${arrData.liveCustomers.length}`,
-      change: { value: 5, type: "increase" as const },
-      icon: <LifeBuoy className="h-6 w-6" />,
-      onClick: () => navigate(buildFilteredUrl('/analytics/live-customers', selectedCountries, dateRange.from, dateRange.to))
+      title: "MRR",
+      value: formattedMRR,
+      description: "Monthly recurring",
+      icon: <TrendingUp className="h-6 w-6" />,
+      onClick: () => navigate(buildFilteredUrl('/analytics/mrr', selectedCountries, dateRange.from, dateRange.to))
     },
     {
-      title: "Pitch to Pay",
-      value: metrics.pitchToPayDays > 0 ? `${metrics.pitchToPayDays} days` : "N/A",
-      description: "Discovery to Payment",
-      icon: <Clock className="h-6 w-6" />,
-      onClick: () => navigate(buildFilteredUrl('/analytics/pitch-to-pay', selectedCountries, dateRange.from, dateRange.to))
-    },
-    {
-      title: "Pay to Live",
-      value: metrics.payToLiveDays > 0 ? `${metrics.payToLiveDays} days` : "N/A",
-      description: "Payment to Go Live",
-      icon: <Activity className="h-6 w-6" />,
-      onClick: () => navigate('/analytics/pay-to-live')
-    },
-    {
-      title: "Deals Pipeline",
+      title: "Pipeline Value",
       value: formattedDealsPipeline,
       description: `${metrics.dealsPipeline.count} active deals`,
-      icon: <TrendingUp className="h-6 w-6" />,
+      icon: <Kanban className="h-6 w-6" />,
       onClick: () => navigate(buildFilteredUrl('/analytics/deals-pipeline', selectedCountries, dateRange.from, dateRange.to))
+    },
+    {
+      title: "Avg Deal Size",
+      value: formattedAverageDeal,
+      description: "Per customer",
+      icon: <Briefcase className="h-6 w-6" />,
+      onClick: () => navigate(buildFilteredUrl('/analytics/average-deal-size', selectedCountries, dateRange.from, dateRange.to))
     },
     {
       title: "Conversion Rate",
@@ -342,25 +321,25 @@ const Index = () => {
       onClick: () => navigate(buildFilteredUrl('/analytics/conversion-rate', selectedCountries, dateRange.from, dateRange.to))
     },
     {
-      title: "Average Deal Size",
-      value: formattedAverageDeal,
-      description: "Pipeline average",
-      icon: <BarChart3 className="h-6 w-6" />,
-      onClick: () => navigate(buildFilteredUrl('/analytics/average-deal-size', selectedCountries, dateRange.from, dateRange.to))
-    },
-    {
-      title: "Monthly Recurring Revenue",
-      value: formattedMRR,
-      change: { value: 8, type: "increase" as const },
-      icon: <TrendingUp className="h-6 w-6" />,
-      onClick: () => navigate(buildFilteredUrl('/analytics/mrr', selectedCountries, dateRange.from, dateRange.to))
-    },
-    {
       title: "Churn Rate",
       value: churnRate,
       description: "Last 6 months",
       icon: <Percent className="h-6 w-6" />,
       onClick: () => navigate(buildFilteredUrl('/analytics/churn-rate', selectedCountries, dateRange.from, dateRange.to))
+    },
+    {
+      title: "Pitch to Pay",
+      value: metrics.pitchToPayDays > 0 ? `${metrics.pitchToPayDays} days` : "N/A",
+      description: "Discovery to payment",
+      icon: <Clock className="h-6 w-6" />,
+      onClick: () => navigate(buildFilteredUrl('/analytics/pitch-to-pay', selectedCountries, dateRange.from, dateRange.to))
+    },
+    {
+      title: "Pay to Live",
+      value: metrics.payToLiveDays > 0 ? `${metrics.payToLiveDays} days` : "N/A",
+      description: "Payment to go-live",
+      icon: <Activity className="h-6 w-6" />,
+      onClick: () => navigate('/analytics/pay-to-live')
     }
   ];
   
@@ -369,18 +348,15 @@ const Index = () => {
     <DashboardLayout>
       <div className="space-y-12">
           {/* Dashboard Header */}
-          <div className="mb-12 pb-6 border-b border-border/50">
-            <div className="flex flex-col gap-6">
+          <div className="mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div>
-                <h1 className="text-5xl font-bold bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent mb-2">
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent">
                   Dashboard
                 </h1>
-                <p className="text-base text-muted-foreground font-light">
-                  Real-time business analytics and insights
-                </p>
+                <p className="text-muted-foreground mt-1">Real-time business analytics and insights</p>
               </div>
-              
-              <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
                 <DashboardFilters
                   selectedCountries={selectedCountries}
                   selectedSegments={selectedSegments}
@@ -394,70 +370,51 @@ const Index = () => {
                   onClick={refreshMetrics} 
                   disabled={isRefreshing}
                   variant="outline"
-                  size="lg"
-                  className="min-w-[180px] h-11 font-medium"
                 >
-                  <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  Refresh Analytics
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  Refresh
                 </Button>
                 <Button 
                   onClick={() => navigate("/customers/new")}
-                  size="lg"
-                  className="min-w-[180px] h-11 font-medium bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25"
+                  className="bg-gradient-to-r from-primary to-primary/80"
                 >
-                  <Plus className="mr-2 h-4 w-4" />
+                  <Plus className="h-4 w-4 mr-2" />
                   Add Customer
                 </Button>
-                {lastRefreshedAt && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-full ml-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                    Last refreshed at {lastRefreshedAt.toLocaleTimeString()}
-                  </div>
-                )}
               </div>
             </div>
+            {lastRefreshedAt && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-3">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                Last refreshed at {lastRefreshedAt.toLocaleTimeString()}
+              </div>
+            )}
           </div>
 
-          {/* Team Goals Section */}
-          <section className="space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="w-1 h-8 bg-gradient-to-b from-yellow-500 to-orange-500 rounded-full" />
-              <h2 className="text-2xl font-bold tracking-tight">
-                🎯 2026 Team Mission
-              </h2>
-            </div>
-            <GoalTracker revenueGoal={1000000} clientGoal={15} />
+          {/* Team Goals */}
+          <section className="mb-8">
+            <GoalTracker revenueGoal={1000000} clientGoal={50} />
           </section>
 
           {/* KPI Cards Section */}
-          <section className="space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="w-1 h-8 bg-gradient-to-b from-primary to-purple-500 rounded-full" />
-              <h2 className="text-2xl font-bold tracking-tight">
-                Key Performance Indicators
-              </h2>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
+          <section className="mb-8">
+            <h2 className="text-xl font-semibold mb-4">Key Performance Indicators</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {dashboardStats.map((stat, index) => (
                 <div 
                   key={index}
                   className="animate-fade-in"
-                  style={{ animationDelay: `${index * 50}ms` }}
+                  style={{ animationDelay: `${index * 30}ms` }}
                 >
-                  <StatCard {...stat} />
+                  <StatCard {...stat} isLoading={loading} />
                 </div>
               ))}
             </div>
           </section>
 
           {/* Analytics Overview Section */}
-          <section className="space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="w-1 h-8 bg-gradient-to-b from-primary to-purple-500 rounded-full" />
-              <h2 className="text-2xl font-bold tracking-tight">
-                Analytics Overview
-              </h2>
-            </div>
+          <section>
+            <h2 className="text-xl font-semibold mb-4">Analytics Overview</h2>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="h-[420px]">
                 <UpdatesPanel 

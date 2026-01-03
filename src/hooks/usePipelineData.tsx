@@ -32,10 +32,10 @@ export const usePipelineData = () => {
       // console.log('Running pipeline sync before fetching data...');
       await syncCustomerPipelineStages();
 
-      // Fetch all customers with estimated deal values, excluding churned customers (include NULL status)
+      // Fetch only needed columns for pipeline, excluding churned customers
       const { data: customers, error: fetchError } = await supabase
         .from('customers')
-        .select('*')
+        .select('id, name, segment, country, stage, status, contract_size, estimated_deal_value, owner_id, logo, updated_at')
         .or('status.neq.churned,status.is.null');
 
       if (fetchError) {
@@ -85,7 +85,7 @@ export const usePipelineData = () => {
           country: customer.country || "Unknown Country",
           stage: pipelineStage,
           status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
-          contractSize: customer.estimated_deal_value || 0,
+          contractSize: customer.estimated_deal_value || customer.contract_size || 0,
           updated_at: customer.updated_at,
           owner: {
             id: customer.owner_id || "unknown",

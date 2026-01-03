@@ -70,10 +70,12 @@ export const getLiveCustomers = async (filterParams?: FilterParams): Promise<Cus
 
 export const getCustomerARRData = async (customers: CustomerData[], filterParams?: FilterParams) => {
   try {
+    // Fetch all valid contracts for ARR calculation (active, pending, or null)
     let query = supabase
       .from('contracts')
       .select(`
         annual_rate,
+        status,
         customer_id,
         customers!inner(
           id,
@@ -108,14 +110,22 @@ export const getCustomerARRData = async (customers: CustomerData[], filterParams
       return { totalARR: 0, liveCustomers: [], growthRate: 0 };
     }
 
+    // Track ARR for all customers and which have active contracts
     const customerARRMap = new Map();
+    const customersWithActiveContracts = new Set();
+    
     (contractsData || []).forEach(contract => {
       const customer = contract.customers;
       const customerId = customer.id;
       
-      // Only include customers with active contracts (exclude churned)
+      // Skip churned customers
       if (customer.status === 'churned') {
         return;
+      }
+      
+      // Track if this customer has an active contract (for Live Customers count)
+      if (contract.status === 'active') {
+        customersWithActiveContracts.add(customerId);
       }
       
       if (!customerARRMap.has(customerId)) {
@@ -128,6 +138,7 @@ export const getCustomerARRData = async (customers: CustomerData[], filterParams
           stage: customer.stage || "Live",
           status: customer.status as "not-started" | "in-progress" | "done" | "blocked" | "churned" || "done",
           contractSize: 0,
+          hasActiveContract: false,
           owner: {
             id: customer.owner_id || "unknown",
             name: "Account Manager",
@@ -137,12 +148,16 @@ export const getCustomerARRData = async (customers: CustomerData[], filterParams
       }
       
       const existingCustomer = customerARRMap.get(customerId);
-      // ARR excludes setup fees and one-time payments
+      // ARR includes all valid contracts (active, pending, null)
       existingCustomer.contractSize += contract.annual_rate || 0;
     });
 
-    const liveCustomers = Array.from(customerARRMap.values());
-    const totalARR = liveCustomers.reduce((sum, customer) => sum + customer.contractSize, 0);
+    // All customers with contracts for ARR calculation
+    const allCustomersWithContracts = Array.from(customerARRMap.values());
+    const totalARR = allCustomersWithContracts.reduce((sum, customer) => sum + customer.contractSize, 0);
+    
+    // Only customers with ACTIVE contracts for Live Customers count
+    const liveCustomers = allCustomersWithContracts.filter(c => customersWithActiveContracts.has(c.id));
     
     return {
       totalARR,

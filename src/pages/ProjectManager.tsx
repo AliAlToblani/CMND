@@ -391,11 +391,43 @@ export default function ProjectManager() {
     updateProject(selectedProject.id, { checklist_items: updatedItems });
   };
 
-  const moveToCompleted = () => {
+  const moveToCompleted = async () => {
     if (!selectedProject) return;
+    
+    // Update project status
     updateProject(selectedProject.id, { status: 'completed' });
     setActiveTab('completed');
     toast.success(`${selectedProject.customer_name} moved to Completed`);
+    
+    // Log the completion to activity_logs
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single();
+        
+        const { data: logData, error: logError } = await supabase.from('activity_logs').insert({
+          user_id: user.id,
+          user_email: user.email,
+          user_name: profile?.full_name || user.email,
+          action: 'Completed Client',
+          entity_type: 'project',
+          entity_id: selectedProject.id,
+          entity_name: selectedProject.customer_name,
+        }).select().single();
+        
+        if (logError) {
+          console.error('Error inserting activity log:', logError);
+        } else {
+          console.log('Activity log created:', logData);
+        }
+      }
+    } catch (error) {
+      console.error('Error logging completion:', error);
+    }
   };
 
   const moveToOngoing = () => {

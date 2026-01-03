@@ -277,6 +277,35 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
             console.log('ContractsList: Added new contract to database. Total contracts:', newContracts.length);
             return newContracts;
           });
+
+          // Log to activity_logs for Goal Tracker
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('full_name')
+                .eq('id', user.id)
+                .single();
+              
+              const contractValue = (data.setup_fee > 0 || data.annual_rate > 0) 
+                ? (data.setup_fee || 0) + (data.annual_rate || 0)
+                : (data.value || 0);
+              
+              await supabase.from('activity_logs').insert({
+                user_id: user.id,
+                user_email: user.email,
+                user_name: profile?.full_name || user.email,
+                action: 'Added Contract',
+                entity_type: 'contract',
+                entity_id: data.id,
+                entity_name: customerName || data.name,
+                details: { value: contractValue }
+              });
+            }
+          } catch (logError) {
+            console.error('Error logging contract addition:', logError);
+          }
         }
       } else {
         // Update existing contract

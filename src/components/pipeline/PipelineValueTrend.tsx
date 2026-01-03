@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   LineChart,
   Line,
@@ -12,7 +13,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { TrendingUp, Users, DollarSign } from "lucide-react";
+import { TrendingUp, Users, DollarSign, Loader2 } from "lucide-react";
 
 interface TrendData {
   month: string;
@@ -23,10 +24,12 @@ interface TrendData {
 
 interface PipelineValueTrendProps {
   trendData: TrendData[];
+  isLoading?: boolean;
 }
 
 export const PipelineValueTrend: React.FC<PipelineValueTrendProps> = ({
   trendData,
+  isLoading = false,
 }) => {
   const [activeMetrics, setActiveMetrics] = useState({
     totalValue: true,
@@ -38,7 +41,7 @@ export const PipelineValueTrend: React.FC<PipelineValueTrendProps> = ({
   };
 
   const formatCurrency = (value: number) => {
-    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000000) return `$${(value / 1000000).toFixed(2)}M`;
     if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
     return `$${value}`;
   };
@@ -67,6 +70,37 @@ export const PipelineValueTrend: React.FC<PipelineValueTrendProps> = ({
     }
     return null;
   };
+
+  // Show loading when either isLoading is true OR trendData is empty
+  if (isLoading || trendData.length === 0) {
+    return (
+      <Card className="p-6 backdrop-blur-sm bg-card/50 border-border/50">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <Skeleton className="h-6 w-48 mb-2" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-8 w-24" />
+          </div>
+        </div>
+        <div className="h-80 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+        <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-border/50">
+          <div className="text-center">
+            <Skeleton className="h-4 w-20 mx-auto mb-2" />
+            <Skeleton className="h-6 w-24 mx-auto" />
+          </div>
+          <div className="text-center">
+            <Skeleton className="h-4 w-24 mx-auto mb-2" />
+            <Skeleton className="h-6 w-16 mx-auto" />
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="p-6 backdrop-blur-sm bg-card/50 border-border/50 animate-fade-in">

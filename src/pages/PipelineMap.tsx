@@ -88,7 +88,7 @@ const PipelineMap = () => {
         </div>
 
         {/* Pipeline Value Trend */}
-        <PipelineValueTrend trendData={trendData} />
+        <PipelineValueTrend trendData={trendData} isLoading={isLoading} />
 
         {/* Pipeline Filters */}
         <PipelineFilters

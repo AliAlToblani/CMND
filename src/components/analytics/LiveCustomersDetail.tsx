@@ -58,7 +58,7 @@ export const LiveCustomersDetail = ({ countries, dateFrom, dateTo }: LiveCustome
               stage
             )
           `)
-          .or('status.eq.active,status.eq.pending,status.is.null')
+          .eq('status', 'active') // Only active contracts
           .gt('end_date', new Date().toISOString());
         
         if (countries && countries.length > 0) {

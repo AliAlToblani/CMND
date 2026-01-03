@@ -51,18 +51,30 @@ export const PipelineVisualization: React.FC<PipelineVisualizationProps> = ({
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <ScrollArea className="w-full">
-          <div className="flex gap-4 pb-4">
-            {Array(6).fill(0).map((_, index) => (
-              <div key={index} className="flex-shrink-0">
-                <div className="h-32 w-48 bg-muted animate-pulse rounded-lg"></div>
-                {index < 5 && <div className="h-1 w-12 bg-muted animate-pulse mt-16 ml-48"></div>}
-              </div>
-            ))}
-          </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+      <div className="space-y-6">
+        {/* Loading skeleton for summary cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="p-6">
+              <div className="h-4 w-24 bg-muted animate-pulse rounded mb-3"></div>
+              <div className="h-8 w-32 bg-muted animate-pulse rounded mb-2"></div>
+              <div className="h-3 w-20 bg-muted animate-pulse rounded"></div>
+            </Card>
+          ))}
+        </div>
+        {/* Loading skeleton for pipeline stages */}
+        <Card className="p-4">
+          <ScrollArea className="w-full">
+            <div className="flex gap-4 pb-4">
+              {Array(6).fill(0).map((_, index) => (
+                <div key={index} className="flex-shrink-0">
+                  <div className="h-32 w-48 bg-muted animate-pulse rounded-lg"></div>
+                </div>
+              ))}
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </Card>
       </div>
     );
   }

@@ -115,8 +115,20 @@ export const usePipelineAnalytics = (customers: CustomerData[]) => {
 
   // Generate 12-month trend data
   const trendData = useMemo((): TrendData[] => {
+    // Don't generate data until customers are loaded
+    if (customers.length === 0) {
+      return [];
+    }
+
     const months: TrendData[] = [];
     const now = new Date();
+    
+    // Calculate current total from actual customer data
+    const currentTotal = customers.reduce(
+      (sum, c) => sum + (c.contractSize || 0),
+      0
+    );
+    const currentCustomerCount = customers.length;
 
     for (let i = 11; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -125,38 +137,27 @@ export const usePipelineAnalytics = (customers: CustomerData[]) => {
         year: "2-digit",
       });
 
-      // Simulate historical growth (in production, use actual historical data)
+      // Generate historical data based on actual current values (simulating growth)
       const monthIndex = 11 - i;
-      const baseValue = 2000000;
-      const growth = monthIndex * 150000;
-      const randomVariation = Math.random() * 200000 - 100000;
-      const totalValue = baseValue + growth + randomVariation;
-
-      const baseCustomers = 25;
-      const customerGrowth = monthIndex * 2;
-      const customerCount = baseCustomers + customerGrowth + Math.floor(Math.random() * 5 - 2);
+      const growthFactor = 0.7 + (monthIndex * 0.025); // 70% to 97.5% of current
+      const totalValue = Math.floor(currentTotal * growthFactor);
+      const customerCount = Math.floor(currentCustomerCount * growthFactor);
 
       months.push({
         month: monthName,
-        totalValue: Math.max(totalValue, 1000000),
-        customerCount: Math.max(customerCount, 20),
-        avgDealSize: Math.floor(totalValue / customerCount),
+        totalValue: Math.max(totalValue, 0),
+        customerCount: Math.max(customerCount, 1),
+        avgDealSize: customerCount > 0 ? Math.floor(totalValue / customerCount) : 0,
       });
     }
 
     // Use actual current data for the last month
-    if (customers.length > 0) {
-      const currentTotal = customers.reduce(
-        (sum, c) => sum + (c.contractSize || 0),
-        0
-      );
-      months[months.length - 1] = {
-        month: months[months.length - 1].month,
-        totalValue: currentTotal,
-        customerCount: customers.length,
-        avgDealSize: Math.floor(currentTotal / customers.length),
-      };
-    }
+    months[months.length - 1] = {
+      month: months[months.length - 1].month,
+      totalValue: currentTotal,
+      customerCount: currentCustomerCount,
+      avgDealSize: currentCustomerCount > 0 ? Math.floor(currentTotal / currentCustomerCount) : 0,
+    };
 
     return months;
   }, [customers]);
