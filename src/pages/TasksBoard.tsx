@@ -80,6 +80,7 @@ const TasksBoard = () => {
 
   // Fetch columns from database
   const fetchColumns = async () => {
+    console.log('Fetching columns from database...');
     const { data, error } = await supabase
       .from('board_columns')
       .select('*')
@@ -90,6 +91,8 @@ const TasksBoard = () => {
       return;
     }
     
+    console.log('Columns from database:', data);
+    
     if (data && data.length > 0) {
       const dbColumns: Column[] = data.map((col: any) => ({
         id: col.id,
@@ -97,7 +100,10 @@ const TasksBoard = () => {
         color: getColorForColumn(col.id, col.is_completed),
         isCompleted: col.is_completed
       }));
+      console.log('Setting columns:', dbColumns);
       setColumns(dbColumns);
+    } else {
+      console.log('No columns in database, using defaults');
     }
     setColumnsLoaded(true);
   };
