@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -64,6 +64,7 @@ interface ProjectCustomer {
   notes: string;
   status: 'ongoing' | 'completed' | 'demo';
   demo_date?: string;
+  demo_delivered?: boolean; // Track if demo was delivered
   created_at: string;
 }
 
@@ -104,6 +105,9 @@ export default function ProjectManager() {
   
   // Users list for assignee dropdown
   const [users, setUsers] = useState<{ id: string; full_name: string }[]>([]);
+  
+  // Debounce timer for text field updates
+  const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load projects from database (shared across all users)
   const loadProjects = useCallback(async () => {
@@ -137,6 +141,7 @@ export default function ProjectManager() {
         notes: p.notes || '',
         status: p.status as 'ongoing' | 'completed' | 'demo',
         demo_date: p.demo_date || undefined,
+        demo_delivered: p.demo_delivered || false,
         created_at: p.created_at,
       }));
 
@@ -221,7 +226,10 @@ export default function ProjectManager() {
   }, []);
 
   // Real-time subscription for live updates across users
+  // DEBOUNCED: Skip refresh while user is editing to prevent interference
   useEffect(() => {
+    let debounceTimer: NodeJS.Timeout | null = null;
+    
     const channel = supabase
       .channel('project-manager-realtime')
       .on(
@@ -232,8 +240,18 @@ export default function ProjectManager() {
           table: 'project_manager'
         },
         (payload) => {
-          console.log('🔄 Project Manager change detected:', payload.eventType);
-          loadProjects();
+          // Skip refresh if currently saving (user is editing)
+          if (saving) {
+            console.log('⏸️ Skipping refresh - user is editing');
+            return;
+          }
+          
+          // Debounce: wait 2 seconds before refreshing to batch rapid changes
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            console.log('🔄 Project Manager change detected:', payload.eventType);
+            loadProjects();
+          }, 2000);
         }
       )
       .subscribe((status) => {
@@ -241,9 +259,10 @@ export default function ProjectManager() {
       });
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
     };
-  }, [loadProjects]);
+  }, [loadProjects, saving]);
 
   const addCustomerToProject = async () => {
     if (!selectedCustomerId) {
@@ -307,6 +326,7 @@ export default function ProjectManager() {
         notes: responseData.notes || '',
         status: responseData.status as 'ongoing' | 'completed' | 'demo',
         demo_date: responseData.demo_date || undefined,
+        demo_delivered: responseData.demo_delivered || false,
         created_at: responseData.created_at,
       };
       
@@ -347,37 +367,52 @@ export default function ProjectManager() {
     }
   };
 
-  const updateProject = async (projectId: string, updates: Partial<ProjectCustomer>) => {
-    try {
-      // Optimistic update for UI responsiveness
+  const updateProject = async (projectId: string, updates: Partial<ProjectCustomer>, immediate = false) => {
+    // Optimistic update for UI responsiveness (always instant)
     setProjects(projects.map(p => 
       p.id === projectId ? { ...p, ...updates } : p
     ));
     if (selectedProject?.id === projectId) {
       setSelectedProject({ ...selectedProject, ...updates });
-      }
+    }
 
-      const dbUpdates: any = {};
-      if (updates.project_manager !== undefined) dbUpdates.project_manager = updates.project_manager;
-      if (updates.service_description !== undefined) dbUpdates.service_description = updates.service_description;
-      if (updates.checklist_items !== undefined) dbUpdates.checklist_items = updates.checklist_items;
-      if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
-      if (updates.status !== undefined) dbUpdates.status = updates.status;
-      if (updates.demo_date !== undefined) dbUpdates.demo_date = updates.demo_date || null;
+    // Debounce text field saves to avoid saving on every keystroke
+    const isTextUpdate = 'service_description' in updates || 'notes' in updates;
+    
+    const saveToDb = async () => {
+      try {
+        setSaving(true);
+        const dbUpdates: any = {};
+        if (updates.project_manager !== undefined) dbUpdates.project_manager = updates.project_manager;
+        if (updates.service_description !== undefined) dbUpdates.service_description = updates.service_description;
+        if (updates.checklist_items !== undefined) dbUpdates.checklist_items = updates.checklist_items;
+        if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+        if (updates.status !== undefined) dbUpdates.status = updates.status;
+        if (updates.demo_date !== undefined) dbUpdates.demo_date = updates.demo_date || null;
+        if (updates.demo_delivered !== undefined) dbUpdates.demo_delivered = updates.demo_delivered;
 
-      const { error } = await supabase
-        .from('project_manager' as any)
-        .update(dbUpdates)
-        .eq('id', projectId);
+        const { error } = await supabase
+          .from('project_manager' as any)
+          .update(dbUpdates)
+          .eq('id', projectId);
 
-      if (error) {
+        if (error) {
+          console.error('Error updating project:', error);
+        }
+      } catch (error) {
         console.error('Error updating project:', error);
-        // Revert on error
-        loadProjects();
+      } finally {
+        setSaving(false);
       }
-    } catch (error) {
-      console.error('Error updating project:', error);
-      loadProjects();
+    };
+
+    // For text fields, debounce the save (wait 1 second after typing stops)
+    if (isTextUpdate && !immediate) {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(saveToDb, 1000);
+    } else {
+      // For non-text updates (checkboxes, dropdowns), save immediately
+      await saveToDb();
     }
   };
 
@@ -454,9 +489,16 @@ export default function ProjectManager() {
 
   const moveToOngoing = () => {
     if (!selectedProject) return;
-    updateProject(selectedProject.id, { status: 'ongoing' });
+    // When moving to ongoing, reset demo_delivered flag
+    updateProject(selectedProject.id, { status: 'ongoing', demo_delivered: false });
     setActiveTab('ongoing');
     toast.success(`${selectedProject.customer_name} moved to Ongoing`);
+  };
+
+  const markDemoDelivered = () => {
+    if (!selectedProject) return;
+    updateProject(selectedProject.id, { demo_delivered: true });
+    toast.success(`Demo marked as delivered for ${selectedProject.customer_name}`);
   };
 
   const filteredProjects = projects.filter(p => {
@@ -626,6 +668,11 @@ export default function ProjectManager() {
                             ? project.service_type.charAt(0).toUpperCase() + project.service_type.slice(1)
                             : 'N/A'}
                         </Badge>
+                        {project.status === 'demo' && project.demo_delivered && (
+                          <Badge variant="default" className="text-xs h-5 bg-green-600">
+                            Delivered
+                          </Badge>
+                        )}
                         {project.project_manager && (
                           <span className="text-xs text-muted-foreground truncate">
                             {project.project_manager}
@@ -703,84 +750,94 @@ export default function ProjectManager() {
     return (
       <Card className="lg:col-span-2 border-2 border-border/50">
         <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Avatar className="h-12 w-12">
-                <AvatarImage src={selectedProject.customer_logo || undefined} alt={selectedProject.customer_name} />
-                <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary text-lg font-semibold">
-                  {selectedProject.customer_name.substring(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <CardTitle className="text-xl">{selectedProject.customer_name}</CardTitle>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant={
-                    selectedProject.status === 'completed' ? 'default' : 
-                    selectedProject.status === 'demo' ? 'secondary' : 'outline'
-                  }>
-                    {selectedProject.status === 'ongoing' && 'Ongoing'}
-                    {selectedProject.status === 'completed' && 'Completed'}
-                    {selectedProject.status === 'demo' && 'Demo Scheduled'}
+          {/* Header Row: Avatar, Name, Badges */}
+          <div className="flex items-start gap-3">
+            <Avatar className="h-12 w-12 shrink-0">
+              <AvatarImage src={selectedProject.customer_logo || undefined} alt={selectedProject.customer_name} />
+              <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary text-lg font-semibold">
+                {selectedProject.customer_name.substring(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-xl">{selectedProject.customer_name}</CardTitle>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <Badge variant={
+                  selectedProject.status === 'completed' ? 'default' : 
+                  selectedProject.status === 'demo' ? 'secondary' : 'outline'
+                }>
+                  {selectedProject.status === 'ongoing' && 'Ongoing'}
+                  {selectedProject.status === 'completed' && 'Completed'}
+                  {selectedProject.status === 'demo' && 'Demo Scheduled'}
+                </Badge>
+                {selectedProject.status === 'demo' && selectedProject.demo_delivered && (
+                  <Badge variant="default" className="bg-green-600">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Demo Delivered
                   </Badge>
-                  <Badge variant={selectedProject.service_type ? 'secondary' : 'destructive'}>
-                    {selectedProject.service_type 
-                      ? `Service: ${selectedProject.service_type.charAt(0).toUpperCase() + selectedProject.service_type.slice(1)}`
-                      : 'Service Type: Not Available'}
-                  </Badge>
-                </div>
+                )}
+                <Badge variant={selectedProject.service_type ? 'secondary' : 'destructive'}>
+                  {selectedProject.service_type 
+                    ? `Service: ${selectedProject.service_type.charAt(0).toUpperCase() + selectedProject.service_type.slice(1)}`
+                    : 'Service Type: Not Available'}
+                </Badge>
               </div>
             </div>
-            <div className="flex gap-2">
-              {selectedProject.status === 'demo' && (
-                <>
-                  <Button size="sm" variant="outline" onClick={moveToOngoing}>
-                    <ArrowRight className="h-4 w-4 mr-1" />
-                    Move to Ongoing
-                  </Button>
-                  <Button size="sm" onClick={moveToCompleted} className="bg-green-600 hover:bg-green-700">
+          </div>
+          
+          {/* Action Buttons Row - Separate from header */}
+          <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border/30 flex-wrap">
+            {selectedProject.status === 'demo' && (
+              <>
+                {!selectedProject.demo_delivered && (
+                  <Button size="sm" variant="secondary" onClick={markDemoDelivered}>
                     <CheckCircle2 className="h-4 w-4 mr-1" />
-                    Complete
+                    Mark Demo Delivered
                   </Button>
-                </>
-              )}
-              {selectedProject.status === 'ongoing' && (
-                <Button size="sm" onClick={moveToCompleted} className="bg-green-600 hover:bg-green-700">
-                  <CheckCircle2 className="h-4 w-4 mr-1" />
-                  Complete
-                </Button>
-              )}
-              {selectedProject.status === 'completed' && (
+                )}
                 <Button size="sm" variant="outline" onClick={moveToOngoing}>
                   <ArrowRight className="h-4 w-4 mr-1" />
-                  Reopen
+                  Move to Ongoing
                 </Button>
-              )}
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button size="sm" variant="destructive">
-                    <Trash2 className="h-4 w-4 mr-1" />
+              </>
+            )}
+            {selectedProject.status === 'ongoing' && (
+              <Button size="sm" onClick={moveToCompleted} className="bg-green-600 hover:bg-green-700">
+                <CheckCircle2 className="h-4 w-4 mr-1" />
+                Complete
+              </Button>
+            )}
+            {selectedProject.status === 'completed' && (
+              <Button size="sm" variant="outline" onClick={moveToOngoing}>
+                <ArrowRight className="h-4 w-4 mr-1" />
+                Reopen
+              </Button>
+            )}
+            <div className="flex-1" /> {/* Spacer to push delete to the right */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="destructive">
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Project?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will remove {selectedProject.customer_name} from the project manager. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={() => removeProject(selectedProject.id)}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
                     Delete
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Project?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will remove {selectedProject.customer_name} from the project manager. This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction 
-                      onClick={() => removeProject(selectedProject.id)}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
