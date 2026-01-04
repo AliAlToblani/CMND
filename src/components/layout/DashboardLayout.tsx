@@ -63,6 +63,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [activityLogs, setActivityLogs] = useState<ActivityLogEntry[]>([]);
   const [bellTab, setBellTab] = useState<'notifications' | 'activity'>('notifications');
+  const [bellOpen, setBellOpen] = useState(false); // Track if bell dropdown is open
+  const [dataLoaded, setDataLoaded] = useState(false); // Lazy load flag
   const { profile } = useProfile();
   const { signOut } = useAuth();
   const navigate = useNavigate();
@@ -103,47 +105,61 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
   }, []);
 
-  // Fetch notifications for current user
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+  // LAZY LOAD: Only fetch notifications/activity when bell dropdown opens
+  const loadBellData = async () => {
+    if (dataLoaded) return; // Already loaded
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-        // Fetch notifications for this user (user_id matches OR user_id is null for global notifications)
-        const { data, error } = await supabase
+      // Fetch notifications and activity logs in parallel
+      const [notifResult, activityResult] = await Promise.all([
+        supabase
           .from('notifications')
           .select('*')
           .or(`user_id.eq.${user.id},user_id.is.null`)
           .order('created_at', { ascending: false })
-          .limit(10);
+          .limit(10),
+        (supabase as any)
+          .from('activity_logs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10)
+      ]);
 
-        if (error) throw error;
-
-        if (data) {
-          setNotifications(data as Notification[]);
-          const unread = data.filter(n => !n.is_read).length;
-          setUnreadCount(unread);
-        }
-      } catch (error) {
-        console.error("Error fetching notifications:", error);
+      if (notifResult.data) {
+        setNotifications(notifResult.data as Notification[]);
+        setUnreadCount(notifResult.data.filter((n: any) => !n.is_read).length);
       }
-    };
+      
+      if (activityResult.data) {
+        setActivityLogs(activityResult.data as ActivityLogEntry[]);
+      }
+      
+      setDataLoaded(true);
+    } catch (error) {
+      console.error("Error fetching bell data:", error);
+    }
+  };
 
-    fetchNotifications();
+  // Only set up real-time subscriptions after first load
+  useEffect(() => {
+    if (!dataLoaded) return;
+    
+    let notifChannel: any;
+    let activityChannel: any;
 
-    // Subscribe to notifications for current user
-    const setupSubscription = async () => {
+    const setupSubscriptions = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
+      if (!user) return;
 
-      const channel = supabase
+      notifChannel = supabase
         .channel('user_notifications')
         .on('postgres_changes', 
           { event: 'INSERT', schema: 'public', table: 'notifications' },
           (payload) => {
             const newNotification = payload.new as Notification & { user_id?: string };
-            // Only add if it's for this user or global
             if (!newNotification.user_id || newNotification.user_id === user.id) {
               setNotifications(prev => [newNotification as Notification, ...prev.slice(0, 9)]);
               if (!newNotification.is_read) {
@@ -154,57 +170,24 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         )
         .subscribe();
 
-      return channel;
+      activityChannel = supabase
+        .channel('activity_logs_header')
+        .on('postgres_changes', 
+          { event: 'INSERT', schema: 'public', table: 'activity_logs' },
+          (payload) => {
+            setActivityLogs(prev => [payload.new as ActivityLogEntry, ...prev.slice(0, 9)]);
+          }
+        )
+        .subscribe();
     };
 
-    let channel: any;
-    setupSubscription().then(c => channel = c);
+    setupSubscriptions();
 
     return () => {
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
+      if (notifChannel) supabase.removeChannel(notifChannel);
+      if (activityChannel) supabase.removeChannel(activityChannel);
     };
-  }, []);
-
-  // Fetch activity logs
-  useEffect(() => {
-    const fetchActivityLogs = async () => {
-      try {
-        const { data, error } = await (supabase as any)
-          .from('activity_logs')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(10);
-
-        if (error) {
-          console.error("Error fetching activity logs:", error);
-          return;
-        }
-
-        setActivityLogs((data || []) as ActivityLogEntry[]);
-      } catch (error) {
-        console.error("Error fetching activity logs:", error);
-      }
-    };
-
-    fetchActivityLogs();
-
-    // Subscribe to activity logs
-    const channel = supabase
-      .channel('activity_logs_header')
-      .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'activity_logs' },
-        (payload) => {
-          setActivityLogs(prev => [payload.new as ActivityLogEntry, ...prev.slice(0, 9)]);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+  }, [dataLoaded]);
 
   // Mark notification as read
   const markAsRead = async (id: string) => {
@@ -303,7 +286,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 )}
               </Button>
               
-              <DropdownMenu>
+              <DropdownMenu onOpenChange={(open) => { if (open) loadBellData(); }}>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted dark:hover:bg-gray-800 relative">
                     <Bell className="h-5 w-5 text-muted-foreground dark:text-gray-300" />
