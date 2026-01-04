@@ -226,32 +226,102 @@ export default function ProjectManager() {
   }, []);
 
   // Real-time subscription for live updates across users
-  // DEBOUNCED: Skip refresh while user is editing to prevent interference
+  // Handles changes surgically without full page refresh
   useEffect(() => {
-    let debounceTimer: NodeJS.Timeout | null = null;
-    
     const channel = supabase
       .channel('project-manager-realtime')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'project_manager'
         },
         (payload) => {
-          // Skip refresh if currently saving (user is editing)
-          if (saving) {
-            console.log('⏸️ Skipping refresh - user is editing');
-            return;
-          }
+          // Skip if we're the one saving (we already have optimistic update)
+          if (saving) return;
           
-          // Debounce: wait 2 seconds before refreshing to batch rapid changes
-          if (debounceTimer) clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(() => {
-            console.log('🔄 Project Manager change detected:', payload.eventType);
-            loadProjects();
-          }, 2000);
+          const newRecord = payload.new as any;
+          const newProject: ProjectCustomer = {
+            id: newRecord.id,
+            customer_id: newRecord.customer_id,
+            customer_name: newRecord.customer_name,
+            customer_logo: newRecord.customer_logo || undefined,
+            service_type: newRecord.service_type,
+            project_manager: newRecord.project_manager || '',
+            service_description: newRecord.service_description || '',
+            checklist_items: (newRecord.checklist_items as ChecklistItem[]) || [],
+            notes: newRecord.notes || '',
+            status: newRecord.status as 'ongoing' | 'completed' | 'demo',
+            demo_date: newRecord.demo_date || undefined,
+            demo_delivered: newRecord.demo_delivered || false,
+            created_at: newRecord.created_at,
+          };
+          
+          // Add new project to state (avoid duplicates)
+          setProjects(prev => {
+            if (prev.some(p => p.id === newProject.id)) return prev;
+            return [newProject, ...prev];
+          });
+          console.log('➕ New project added:', newProject.customer_name);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'project_manager'
+        },
+        (payload) => {
+          // Skip if we're the one saving (we already have optimistic update)
+          if (saving) return;
+          
+          const updatedRecord = payload.new as any;
+          const updatedProject: ProjectCustomer = {
+            id: updatedRecord.id,
+            customer_id: updatedRecord.customer_id,
+            customer_name: updatedRecord.customer_name,
+            customer_logo: updatedRecord.customer_logo || undefined,
+            service_type: updatedRecord.service_type,
+            project_manager: updatedRecord.project_manager || '',
+            service_description: updatedRecord.service_description || '',
+            checklist_items: (updatedRecord.checklist_items as ChecklistItem[]) || [],
+            notes: updatedRecord.notes || '',
+            status: updatedRecord.status as 'ongoing' | 'completed' | 'demo',
+            demo_date: updatedRecord.demo_date || undefined,
+            demo_delivered: updatedRecord.demo_delivered || false,
+            created_at: updatedRecord.created_at,
+          };
+          
+          // Update only the changed project in state
+          setProjects(prev => prev.map(p => 
+            p.id === updatedProject.id ? updatedProject : p
+          ));
+          
+          // Update selected project if it's the one that changed
+          setSelectedProject(prev => 
+            prev?.id === updatedProject.id ? updatedProject : prev
+          );
+          console.log('✏️ Project updated:', updatedProject.customer_name);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'project_manager'
+        },
+        (payload) => {
+          const deletedId = (payload.old as any).id;
+          
+          // Remove deleted project from state
+          setProjects(prev => prev.filter(p => p.id !== deletedId));
+          
+          // Clear selection if deleted project was selected
+          setSelectedProject(prev => prev?.id === deletedId ? null : prev);
+          console.log('🗑️ Project deleted:', deletedId);
         }
       )
       .subscribe((status) => {
@@ -259,10 +329,9 @@ export default function ProjectManager() {
       });
 
     return () => {
-      if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
     };
-  }, [loadProjects, saving]);
+  }, [saving]);
 
   const addCustomerToProject = async () => {
     if (!selectedCustomerId) {
