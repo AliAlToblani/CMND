@@ -2,31 +2,14 @@ import React, { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, HandHeart, Kanban, BarChart3, TrendingUp, Activity, Clock, Briefcase, LifeBuoy, Calendar, DollarSign, Target, AlertTriangle, Percent, FileText, RefreshCw } from "lucide-react";
+import { Plus, Users, Kanban, BarChart3, TrendingUp, Activity, Clock, Briefcase, LifeBuoy, DollarSign, Target, Percent, FileText, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomerData } from "@/types/customers";
 import { syncCustomersToDatabase } from "@/utils/customerDataSync";
 import { useRealtimeAnalytics } from "@/hooks/useRealtimeAnalytics";
-import { toast } from "sonner";
-import { usePerformanceMonitoring } from "@/hooks/usePerformanceMonitoring";
-import { 
-  getLiveCustomers, 
-  getCustomerARRData, 
-  getDealsPipeline, 
-  getTotalPipelineValue,
-  getActiveContractsValue,
-  getConversionRate,
-  getAverageDealSize,
-  getMRR,
-  calculatePitchToPayTime,
-  calculatePayToLiveTime,
-  calculateAverageGoLiveTime,
-  calculateChurnRate,
-  calculateSalesLifecycle,
-  formatCurrency,
-  getCustomersAtRisk
-} from "@/utils/customerUtils";
+import { formatCurrency } from "@/utils/customerUtils";
+import { fetchDashboardMetrics, DashboardMetrics } from "@/utils/dashboardDataFetcher";
 import { RevenueTrendChart } from "@/components/analytics/RevenueTrendChart";
 import { UpdatesPanel } from "@/components/analytics/UpdatesPanel";
 import { PendingContracts } from "@/components/analytics/PendingContracts";
@@ -35,27 +18,10 @@ import { GoalTracker } from "@/components/dashboard/GoalTracker";
 import { buildFilteredUrl } from "@/utils/filterUtils";
 
 const Index = () => {
-  // Enable performance monitoring
-  usePerformanceMonitoring();
-  
   const navigate = useNavigate();
   const [customers, setCustomers] = useState<CustomerData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [metrics, setMetrics] = useState({
-    dealsPipeline: { value: 0, count: 0 },
-    totalPipelineValue: 0,
-    activeContractsValue: 0,
-    conversionRate: 0,
-    averageDealSize: 0,
-    mrr: 0,
-    pitchToPayDays: 0,
-    payToLiveDays: 0
-  });
-  const [arrData, setArrData] = useState({ totalARR: 0, liveCustomers: [], growthRate: 0 });
-  const [churnRate, setChurnRate] = useState("0.0%");
-  const [totalCustomers, setTotalCustomers] = useState(0);
-  const [totalContracts, setTotalContracts] = useState(0);
-  const [customersAtRisk, setCustomersAtRisk] = useState(0);
+  const [dashboardData, setDashboardData] = useState<DashboardMetrics | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
   
@@ -67,10 +33,10 @@ const Index = () => {
     to: undefined,
   });
 
+  // OPTIMIZED: Single batch query instead of 13+ separate calls
   const refreshMetrics = async () => {
     setIsRefreshing(true);
     try {
-      // Build filter params
       const filterParams = {
         countries: selectedCountries.length > 0 ? selectedCountries : undefined,
         segments: selectedSegments.length > 0 ? selectedSegments : undefined,
@@ -78,52 +44,9 @@ const Index = () => {
         dateTo: dateRange.to,
       };
 
-      const [
-        dealsPipeline,
-        totalPipelineValue,
-        activeContractsValue,
-        conversionRate,
-        averageDealSize,
-        mrr,
-        pitchToPayDays,
-        payToLiveDays,
-        arrDataResult,
-        churnRateResult,
-        customersCountResult,
-        contractsCountResult,
-        customersAtRiskResult
-      ] = await Promise.all([
-        getDealsPipeline(filterParams),
-        getTotalPipelineValue(filterParams),
-        getActiveContractsValue(filterParams),
-        getConversionRate(filterParams),
-        getAverageDealSize(filterParams),
-        getMRR(filterParams),
-        calculatePitchToPayTime(filterParams),
-        calculatePayToLiveTime(filterParams),
-        getCustomerARRData(customers, filterParams),
-        calculateChurnRate(180, filterParams),
-        getFilteredCustomersCount(filterParams),
-        getFilteredContractsCount(filterParams),
-        getCustomersAtRisk(filterParams)
-      ]);
-
-      setMetrics({
-        dealsPipeline,
-        totalPipelineValue,
-        activeContractsValue,
-        conversionRate,
-        averageDealSize,
-        mrr,
-        pitchToPayDays,
-        payToLiveDays
-      });
-      
-      setArrData(arrDataResult);
-      setChurnRate(churnRateResult);
-      setTotalCustomers(customersCountResult.count || 0);
-      setTotalContracts(contractsCountResult.count || 0);
-      setCustomersAtRisk(customersAtRiskResult);
+      // Single optimized fetch replaces 13+ API calls
+      const metrics = await fetchDashboardMetrics(filterParams);
+      setDashboardData(metrics);
       setLastRefreshedAt(new Date());
     } catch (error) {
       console.error("Error refreshing metrics:", error);
@@ -134,8 +57,6 @@ const Index = () => {
 
   // Enable real-time analytics updates
   useRealtimeAnalytics(refreshMetrics);
-  
-  // Removed duplicate sync - now only syncs once in fetchCustomers
   
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -194,50 +115,7 @@ const Index = () => {
 
   useEffect(() => {
     refreshMetrics();
-  }, [customers, selectedCountries, selectedSegments, dateRange]);
-
-  const getFilteredCustomersCount = async (filterParams: any) => {
-    let query = supabase.from('customers').select('*', { count: 'exact', head: true });
-    
-    if (filterParams.countries) {
-      query = query.in('country', filterParams.countries);
-    }
-    if (filterParams.segments) {
-      query = query.in('segment', filterParams.segments);
-    }
-    if (filterParams.dateFrom) {
-      query = query.gte('created_at', filterParams.dateFrom.toISOString());
-    }
-    if (filterParams.dateTo) {
-      query = query.lte('created_at', filterParams.dateTo.toISOString());
-    }
-    
-    const { count } = await query;
-    return { count };
-  };
-
-  const getFilteredContractsCount = async (filterParams: any) => {
-    let query = supabase
-      .from('contracts')
-      .select('*, customers!inner(*)', { count: 'exact', head: true })
-      .or('status.eq.active,status.eq.pending');
-    
-    if (filterParams.countries) {
-      query = query.in('customers.country', filterParams.countries);
-    }
-    if (filterParams.segments) {
-      query = query.in('customers.segment', filterParams.segments);
-    }
-    if (filterParams.dateFrom) {
-      query = query.gte('created_at', filterParams.dateFrom.toISOString());
-    }
-    if (filterParams.dateTo) {
-      query = query.lte('created_at', filterParams.dateTo.toISOString());
-    }
-    
-    const { count } = await query;
-    return { count };
-  };
+  }, [selectedCountries, selectedSegments, dateRange]);
 
   const handleClearFilters = () => {
     setSelectedCountries([]);
@@ -245,35 +123,32 @@ const Index = () => {
     setDateRange({ from: undefined, to: undefined });
   };
 
-  // Calculate dashboard metrics  
-  const formattedARR = formatCurrency(arrData.totalARR, false);
-  const formattedDealsPipeline = formatCurrency(metrics.dealsPipeline.value, false);
-  const formattedActiveContracts = formatCurrency(metrics.activeContractsValue, false);
-  const formattedAverageDeal = formatCurrency(metrics.averageDealSize, false);
-  const formattedMRR = formatCurrency(metrics.mrr, false);
-  
-  const getTotalCustomersCount = () => {
-    return customers.length;
-  };
+  // Calculate dashboard metrics from optimized data
+  const d = dashboardData;
+  const formattedARR = formatCurrency(d?.totalARR || 0, false);
+  const formattedDealsPipeline = formatCurrency(d?.pipelineValue || 0, false);
+  const formattedActiveContracts = formatCurrency(d?.totalRevenue || 0, false);
+  const formattedAverageDeal = formatCurrency(d?.averageDealSize || 0, false);
+  const formattedMRR = formatCurrency(d?.mrr || 0, false);
   
   const dashboardStats = [
     {
       title: "Total Customers",
-      value: `${totalCustomers}`,
+      value: `${d?.totalCustomers || 0}`,
       description: "All customers",
       icon: <Users className="h-6 w-6" />,
       onClick: () => navigate(buildFilteredUrl('/analytics/total-customers', selectedCountries, dateRange.from, dateRange.to))
     },
     {
       title: "Live Customers",
-      value: `${arrData.liveCustomers.length}`,
+      value: `${d?.liveCustomers || 0}`,
       description: "Active contracts",
       icon: <LifeBuoy className="h-6 w-6" />,
       onClick: () => navigate(buildFilteredUrl('/analytics/live-customers', selectedCountries, dateRange.from, dateRange.to))
     },
     {
       title: "Total Contracts",
-      value: `${totalContracts}`,
+      value: `${d?.totalContracts || 0}`,
       description: "Active & pending",
       icon: <FileText className="h-6 w-6" />,
       onClick: () => navigate(buildFilteredUrl('/analytics/total-contracts', selectedCountries, dateRange.from, dateRange.to))
@@ -302,7 +177,7 @@ const Index = () => {
     {
       title: "Pipeline Value",
       value: formattedDealsPipeline,
-      description: `${metrics.dealsPipeline.count} active deals`,
+      description: `${d?.pipelineCount || 0} active deals`,
       icon: <Kanban className="h-6 w-6" />,
       onClick: () => navigate(buildFilteredUrl('/analytics/deals-pipeline', selectedCountries, dateRange.from, dateRange.to))
     },
@@ -315,28 +190,28 @@ const Index = () => {
     },
     {
       title: "Conversion Rate",
-      value: `${metrics.conversionRate.toFixed(1)}%`,
+      value: `${(d?.conversionRate || 0).toFixed(1)}%`,
       description: "Lead to customer",
       icon: <Target className="h-6 w-6" />,
       onClick: () => navigate(buildFilteredUrl('/analytics/conversion-rate', selectedCountries, dateRange.from, dateRange.to))
     },
     {
       title: "Churn Rate",
-      value: churnRate,
+      value: d?.churnRate || "0.0%",
       description: "Last 6 months",
       icon: <Percent className="h-6 w-6" />,
       onClick: () => navigate(buildFilteredUrl('/analytics/churn-rate', selectedCountries, dateRange.from, dateRange.to))
     },
     {
       title: "Pitch to Pay",
-      value: metrics.pitchToPayDays > 0 ? `${metrics.pitchToPayDays} days` : "N/A",
+      value: (d?.pitchToPayDays || 0) > 0 ? `${d?.pitchToPayDays} days` : "N/A",
       description: "Discovery to payment",
       icon: <Clock className="h-6 w-6" />,
       onClick: () => navigate(buildFilteredUrl('/analytics/pitch-to-pay', selectedCountries, dateRange.from, dateRange.to))
     },
     {
       title: "Pay to Live",
-      value: metrics.payToLiveDays > 0 ? `${metrics.payToLiveDays} days` : "N/A",
+      value: (d?.payToLiveDays || 0) > 0 ? `${d?.payToLiveDays} days` : "N/A",
       description: "Payment to go-live",
       icon: <Activity className="h-6 w-6" />,
       onClick: () => navigate('/analytics/pay-to-live')
