@@ -72,52 +72,40 @@ export const DocumentGenerationDialog = ({
         throw new Error('Not authenticated');
       }
 
-      // Direct fetch to edge function with proper error handling
-      const functionUrl = `https://vnhwhyufevcixgelsujb.supabase.co/functions/v1/generate-customer-documents`;
+      // Use centralized supabase client for edge function calls
+      console.log('[DOC-GEN-DIALOG] Calling generate-customer-documents function');
       
-      console.log('[DOC-GEN-DIALOG] Calling function at:', functionUrl);
-      
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZuaHdoeXVmZXZjaXhnZWxzdWpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM1NDY5ODMsImV4cCI6MjA1OTEyMjk4M30.HR91tc5clF0FBUbmRkr2aPdZydMerpSH3A-IQUYK8ds'
-        },
-        body: JSON.stringify({
+      const { data: responseData, error: functionError } = await supabase.functions.invoke('generate-customer-documents', {
+        body: {
           customer_id: customerId,
           document_types: selectedDocuments,
           format: 'pdf',
           options: {
             include_logo: includeLogo
           }
-        })
+        }
       });
 
-      console.log('[DOC-GEN-DIALOG] Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[DOC-GEN-DIALOG] Error response:', errorText);
-        throw new Error(`Function returned ${response.status}: ${errorText}`);
+      if (functionError) {
+        console.error('[DOC-GEN-DIALOG] Error response:', functionError);
+        throw new Error(functionError.message || 'Function call failed');
       }
 
-      const data = await response.json();
-      console.log('[DOC-GEN-DIALOG] Function response data:', data);
+      console.log('[DOC-GEN-DIALOG] Function response data:', responseData);
 
-      if (data.success && data.documents && data.documents.length > 0) {
-        setGeneratedDocuments(data.documents);
+      if (responseData?.success && responseData?.documents && responseData.documents.length > 0) {
+        setGeneratedDocuments(responseData.documents);
         toast({
           title: "Documents generated successfully!",
-          description: `${data.documents.length} document(s) created for ${customerName}`,
+          description: `${responseData.documents.length} document(s) created for ${customerName}`,
         });
         onSuccess?.();
-      } else if (!data.success) {
-        throw new Error(data.error || 'Generation failed');
+      } else if (!responseData?.success) {
+        throw new Error(responseData?.error || 'Generation failed');
       }
 
-      if (data.errors && data.errors.length > 0) {
-        setErrors(data.errors);
+      if (responseData?.errors && responseData.errors.length > 0) {
+        setErrors(responseData.errors);
       }
 
     } catch (error: any) {
