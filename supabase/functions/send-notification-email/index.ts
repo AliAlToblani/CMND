@@ -127,10 +127,11 @@ serve(async (req) => {
   }
 });
 
-async function getEmailRecipients(notificationType: string, supabase: ReturnType<typeof createClient>): Promise<string[]> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function getEmailRecipients(notificationType: string, supabaseClient: any): Promise<string[]> {
   try {
     // Get users who have email notifications enabled for this type
-    const { data: settings, error } = await supabase
+    const { data: settings, error } = await supabaseClient
       .from('user_notification_settings')
       .select(`
         email_enabled,
@@ -142,7 +143,7 @@ async function getEmailRecipients(notificationType: string, supabase: ReturnType
     if (error) {
       console.error("Error fetching notification settings:", error);
       // Fallback: get all admin emails
-      const { data: profiles } = await supabase
+      const { data: profiles } = await supabaseClient
         .from('profiles')
         .select('email')
         .eq('role', 'admin');
@@ -153,7 +154,7 @@ async function getEmailRecipients(notificationType: string, supabase: ReturnType
     
     // If no users have settings, fallback to admins
     if (emails.length === 0) {
-      const { data: profiles } = await supabase
+      const { data: profiles } = await supabaseClient
         .from('profiles')
         .select('email')
         .eq('role', 'admin');
