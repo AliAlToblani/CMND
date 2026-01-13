@@ -150,7 +150,7 @@ export default function ProjectManager() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectCustomer[]>([]);
   const [selectedProject, setSelectedProject] = useState<ProjectCustomer | null>(null);
-  const [activeTab, setActiveTab] = useState<'ongoing' | 'completed' | 'demo'>('ongoing');
+  const [activeTab, setActiveTab] = useState<'ongoing' | 'completed' | 'demo'>('demo');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -158,7 +158,6 @@ export default function ProjectManager() {
   const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
-  const [addToTab, setAddToTab] = useState<'ongoing' | 'demo'>('ongoing');
   const [customerSearch, setCustomerSearch] = useState('');
   
   // For adding new checklist items (phases)
@@ -166,6 +165,11 @@ export default function ProjectManager() {
   
   // For adding subtasks to phases
   const [newSubtask, setNewSubtask] = useState<{ [phaseId: string]: string }>({});
+  
+  // For editing phase/subtask labels
+  const [editingPhase, setEditingPhase] = useState<string | null>(null);
+  const [editingSubtask, setEditingSubtask] = useState<{ phaseId: string; subtaskId: string } | null>(null);
+  const [editValue, setEditValue] = useState('');
   
   // For filtering by assignee
   const [selectedAssignee, setSelectedAssignee] = useState<string>('all');
@@ -607,9 +611,9 @@ export default function ProjectManager() {
         { id: crypto.randomUUID(), label: 'Phase 3', checked: false, subtasks: [], expanded: true },
       ],
       notes: '',
-      status: addToTab,
+      status: activeTab === 'completed' ? 'demo' : activeTab,
         priority: 'moderate' as Priority,
-        demo_date: addToTab === 'demo' ? new Date().toISOString().split('T')[0] : null,
+        demo_date: activeTab === 'demo' ? new Date().toISOString().split('T')[0] : null,
       };
 
       console.log('Inserting project:', newProject);
@@ -629,7 +633,7 @@ export default function ProjectManager() {
     setSelectedCustomerId('');
     setCustomerSearch('');
     setIsAddDialogOpen(false);
-    setActiveTab(addToTab);
+    // Stay on current tab (already on the right tab)
       
       // Set the new project as selected
       const responseData = data as any;
@@ -653,7 +657,7 @@ export default function ProjectManager() {
       };
       
       setSelectedProject(formattedProject);
-    toast.success(`${customer.name} added to ${addToTab === 'demo' ? 'Demos' : 'Ongoing'}`);
+    toast.success(`${customer.name} added to ${activeTab === 'demo' ? 'Demos' : 'Ongoing'}`);
       
       // Refresh the list
       loadProjects();
@@ -861,6 +865,64 @@ export default function ProjectManager() {
     return info;
   };
 
+  // Start editing a phase
+  const startEditingPhase = (phaseId: string, currentLabel: string) => {
+    setEditingPhase(phaseId);
+    setEditingSubtask(null);
+    setEditValue(currentLabel);
+  };
+
+  // Start editing a subtask
+  const startEditingSubtask = (phaseId: string, subtaskId: string, currentLabel: string) => {
+    setEditingSubtask({ phaseId, subtaskId });
+    setEditingPhase(null);
+    setEditValue(currentLabel);
+  };
+
+  // Save phase edit
+  const savePhaseEdit = (phaseId: string) => {
+    if (!selectedProject || !editValue.trim()) {
+      setEditingPhase(null);
+      return;
+    }
+
+    const updatedItems = selectedProject.checklist_items.map(item =>
+      item.id === phaseId ? { ...item, label: editValue.trim() } : item
+    );
+    updateProject(selectedProject.id, { checklist_items: updatedItems });
+    setEditingPhase(null);
+    setEditValue('');
+  };
+
+  // Save subtask edit
+  const saveSubtaskEdit = (phaseId: string, subtaskId: string) => {
+    if (!selectedProject || !editValue.trim()) {
+      setEditingSubtask(null);
+      return;
+    }
+
+    const updatedItems = selectedProject.checklist_items.map(item =>
+      item.id === phaseId 
+        ? { 
+            ...item, 
+            subtasks: (item.subtasks || []).map(st =>
+              st.id === subtaskId ? { ...st, label: editValue.trim() } : st
+            )
+          }
+        : item
+    );
+    updateProject(selectedProject.id, { checklist_items: updatedItems });
+    setEditingSubtask(null);
+    setEditValue('');
+  };
+
+  // Cancel editing
+  const cancelEditing = () => {
+    setEditingPhase(null);
+    setEditingSubtask(null);
+    setEditValue('');
+  };
+
   // Calculate completion for a phase (including subtasks)
   const getPhaseCompletion = (phase: ChecklistItem) => {
     const subtasks = phase.subtasks || [];
@@ -1062,17 +1124,9 @@ export default function ProjectManager() {
                     )}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Add to</Label>
-                  <Select value={addToTab} onValueChange={(v) => setAddToTab(v as 'ongoing' | 'demo')}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ongoing">Ongoing Projects</SelectItem>
-                      <SelectItem value="demo">Demos</SelectItem>
-                    </SelectContent>
-                  </Select>
+                {/* Adding to current tab: {activeTab} */}
+                <div className="text-sm text-muted-foreground">
+                  Adding to: <span className="font-medium text-foreground">{activeTab === 'demo' ? 'Demos' : 'Ongoing Projects'}</span>
                 </div>
                   <Button onClick={addCustomerToProject} className="w-full" disabled={!selectedCustomerId || saving}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -1581,14 +1635,32 @@ export default function ProjectManager() {
                         onCheckedChange={() => toggleChecklistItem(phase.id)}
                         className="shrink-0"
                       />
-                      <Label
-                        htmlFor={phase.id}
-                        className={`flex-1 font-medium cursor-pointer ${
-                          isAllComplete ? 'line-through text-muted-foreground' : ''
-                        }`}
-                      >
-                        {phase.label}
-                      </Label>
+                      {editingPhase === phase.id ? (
+                        <Input
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onBlur={() => savePhaseEdit(phase.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') savePhaseEdit(phase.id);
+                            if (e.key === 'Escape') cancelEditing();
+                          }}
+                          className="h-6 text-sm font-medium flex-1"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <span
+                          className={`flex-1 font-medium cursor-text hover:bg-muted/50 px-1 py-0.5 rounded ${
+                            isAllComplete ? 'line-through text-muted-foreground' : ''
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEditingPhase(phase.id, phase.label);
+                          }}
+                        >
+                          {phase.label}
+                        </span>
+                      )}
                       {/* Phase Deadline */}
                       {phase.deadline ? (
                         <Badge className={`text-[10px] h-5 shrink-0 ${getTaskDeadlineInfo(phase.deadline)?.color}`}>
@@ -1638,14 +1710,32 @@ export default function ProjectManager() {
                               onCheckedChange={() => toggleSubtask(phase.id, subtask.id)}
                               className="shrink-0"
                             />
-                            <Label
-                              htmlFor={subtask.id}
-                              className={`flex-1 text-sm font-normal cursor-pointer ${
-                                subtask.checked ? 'line-through text-muted-foreground' : ''
-                              }`}
-                            >
-                              {subtask.label}
-                            </Label>
+                            {editingSubtask?.phaseId === phase.id && editingSubtask?.subtaskId === subtask.id ? (
+                              <Input
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onBlur={() => saveSubtaskEdit(phase.id, subtask.id)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') saveSubtaskEdit(phase.id, subtask.id);
+                                  if (e.key === 'Escape') cancelEditing();
+                                }}
+                                className="h-5 text-sm flex-1"
+                                autoFocus
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            ) : (
+                              <span
+                                className={`flex-1 text-sm cursor-text hover:bg-muted/50 px-1 py-0.5 rounded ${
+                                  subtask.checked ? 'line-through text-muted-foreground' : ''
+                                }`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startEditingSubtask(phase.id, subtask.id, subtask.label);
+                                }}
+                              >
+                                {subtask.label}
+                              </span>
+                            )}
                             {/* Subtask Deadline */}
                             {subtask.deadline ? (
                               <Badge className={`text-[10px] h-4 shrink-0 ${getTaskDeadlineInfo(subtask.deadline)?.color}`}>
@@ -1851,15 +1941,15 @@ export default function ProjectManager() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
             <div className="flex items-center gap-4 flex-wrap w-full sm:w-auto">
               <TabsList>
-                <TabsTrigger value="ongoing" className="gap-2">
-                  <ClipboardCheck className="h-4 w-4" />
-                  Ongoing
-                  <Badge variant="secondary" className="ml-1">{ongoingCount}</Badge>
-                </TabsTrigger>
                 <TabsTrigger value="demo" className="gap-2">
                   <Play className="h-4 w-4" />
                   Demos
                   <Badge variant="secondary" className="ml-1">{demoCount}</Badge>
+                </TabsTrigger>
+                <TabsTrigger value="ongoing" className="gap-2">
+                  <ClipboardCheck className="h-4 w-4" />
+                  Ongoing
+                  <Badge variant="secondary" className="ml-1">{ongoingCount}</Badge>
                 </TabsTrigger>
                 <TabsTrigger value="completed" className="gap-2">
                   <CheckCircle2 className="h-4 w-4" />
@@ -1909,14 +1999,14 @@ export default function ProjectManager() {
             </div>
           </div>
 
-          <TabsContent value="ongoing" className="mt-0">
+          <TabsContent value="demo" className="mt-0">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {renderProjectList()}
               {renderProjectDetails()}
             </div>
           </TabsContent>
 
-          <TabsContent value="demo" className="mt-0">
+          <TabsContent value="ongoing" className="mt-0">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {renderProjectList()}
               {renderProjectDetails()}
