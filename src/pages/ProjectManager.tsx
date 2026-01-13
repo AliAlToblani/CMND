@@ -31,7 +31,8 @@ import {
   ChevronRight,
   Send,
   MessageCircle,
-  Search
+  Search,
+  CalendarDays
 } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -114,6 +115,7 @@ interface SubTask {
   id: string;
   label: string;
   checked: boolean;
+  deadline?: string;
 }
 
 interface ChecklistItem {
@@ -122,6 +124,7 @@ interface ChecklistItem {
   checked: boolean;
   subtasks?: SubTask[];
   expanded?: boolean;
+  deadline?: string;
 }
 
 interface Customer {
@@ -824,6 +827,38 @@ export default function ProjectManager() {
         : item
     );
     updateProject(selectedProject.id, { checklist_items: updatedItems });
+  };
+
+  const updatePhaseDeadline = (phaseId: string, deadline: string) => {
+    if (!selectedProject) return;
+
+    const updatedItems = selectedProject.checklist_items.map(item =>
+      item.id === phaseId ? { ...item, deadline: deadline || undefined } : item
+    );
+    updateProject(selectedProject.id, { checklist_items: updatedItems });
+  };
+
+  const updateSubtaskDeadline = (phaseId: string, subtaskId: string, deadline: string) => {
+    if (!selectedProject) return;
+
+    const updatedItems = selectedProject.checklist_items.map(item =>
+      item.id === phaseId 
+        ? { 
+            ...item, 
+            subtasks: (item.subtasks || []).map(st =>
+              st.id === subtaskId ? { ...st, deadline: deadline || undefined } : st
+            )
+          }
+        : item
+    );
+    updateProject(selectedProject.id, { checklist_items: updatedItems });
+  };
+
+  // Get deadline status for phase/subtask
+  const getTaskDeadlineInfo = (deadline?: string) => {
+    if (!deadline) return null;
+    const info = getDeadlineInfo(deadline);
+    return info;
   };
 
   // Calculate completion for a phase (including subtasks)
@@ -1555,6 +1590,30 @@ export default function ProjectManager() {
                       >
                         {phase.label}
                       </Label>
+                      {/* Phase Deadline */}
+                      {phase.deadline ? (
+                        <Badge className={`text-[10px] h-5 shrink-0 ${getTaskDeadlineInfo(phase.deadline)?.color}`}>
+                          {getTaskDeadlineInfo(phase.deadline)?.label}
+                          <button
+                            className="ml-1 hover:text-white"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updatePhaseDeadline(phase.id, '');
+                            }}
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      ) : (
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                          <input
+                            type="date"
+                            className="h-5 w-5 opacity-0 absolute cursor-pointer"
+                            onChange={(e) => updatePhaseDeadline(phase.id, e.target.value)}
+                          />
+                          <CalendarDays className="h-4 w-4 text-muted-foreground hover:text-primary cursor-pointer" />
+                        </div>
+                      )}
                       <Badge variant="outline" className="text-xs shrink-0">
                         {completion.completed}/{completion.total}
                       </Badge>
@@ -1588,6 +1647,30 @@ export default function ProjectManager() {
                             >
                               {subtask.label}
                             </Label>
+                            {/* Subtask Deadline */}
+                            {subtask.deadline ? (
+                              <Badge className={`text-[10px] h-4 shrink-0 ${getTaskDeadlineInfo(subtask.deadline)?.color}`}>
+                                {getTaskDeadlineInfo(subtask.deadline)?.label}
+                                <button
+                                  className="ml-1 hover:text-white"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    updateSubtaskDeadline(phase.id, subtask.id, '');
+                                  }}
+                                >
+                                  ×
+                                </button>
+                              </Badge>
+                            ) : (
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 relative">
+                                <input
+                                  type="date"
+                                  className="h-4 w-4 opacity-0 absolute cursor-pointer"
+                                  onChange={(e) => updateSubtaskDeadline(phase.id, subtask.id, e.target.value)}
+                                />
+                                <CalendarDays className="h-3 w-3 text-muted-foreground hover:text-primary cursor-pointer" />
+                              </div>
+                            )}
                             <Button
                               size="icon"
                               variant="ghost"
