@@ -71,7 +71,7 @@ const Customers = () => {
 
 // getOperationalStatus removed; using getOperationalStatusFromArray from utils/stageStatus
 
-  const formatDatabaseCustomer = (dbCustomer: any, lifecycleStages: any[] = []): CustomerData => {
+  const formatDatabaseCustomer = (dbCustomer: any, lifecycleStages: any[] = [], contractValue?: number): CustomerData => {
     // Strictly completed stages (for filters and "furthestCompletedStage")
     const completedStages = lifecycleStages
       .filter(stage => isCompletedLike(stage.status))
@@ -89,9 +89,9 @@ const Customers = () => {
         includeInProgress: true,
       });
     }
-    
+
     // Debug logging for specific customers
-    if (dbCustomer.name?.toLowerCase().includes('macqueen') || 
+    if (dbCustomer.name?.toLowerCase().includes('macqueen') ||
         dbCustomer.name?.toLowerCase().includes('bait al asaad') ||
         dbCustomer.name?.toLowerCase().includes('grip')) {
       // console.log(`🔵 ${dbCustomer.name} formatDatabaseCustomer:`);
@@ -117,7 +117,10 @@ const Customers = () => {
             return bTime - aTime;
           })[0]?.name
       : undefined;
-    
+
+    // Use contract value if available, otherwise use estimated_deal_value or contract_size from profile
+    const displayValue = contractValue || dbCustomer.estimated_deal_value || dbCustomer.contract_size || 0;
+
     return {
       id: dbCustomer.id,
       name: dbCustomer.name,
@@ -126,7 +129,7 @@ const Customers = () => {
       country: dbCustomer.country || "Unknown Country",
       stage: pipelineStage,
       status: operationalStatus,
-      contractSize: dbCustomer.contract_size || 0,
+      contractSize: displayValue,
       completedStages,
       furthestCompletedStage,
       lastUpdatedStage,
@@ -384,8 +387,40 @@ const Customers = () => {
         }
       }
 
+      // Fetch active contracts for all customers
+      let allContracts: any[] = [];
+      if (customers && customers.length > 0) {
+        const customerIds = customers.map(c => c.id);
+        const batchSize = 100;
+
+        for (let i = 0; i < customerIds.length; i += batchSize) {
+          const batch = customerIds.slice(i, i + batchSize);
+
+          const { data: batchContracts, error: contractsError } = await supabase
+            .from('contracts')
+            .select('customer_id, value, status')
+            .in('customer_id', batch)
+            .in('status', ['active', 'pending']); // Only active/pending contracts (exclude draft/expired)
+
+          if (contractsError) {
+            console.error('Error fetching contracts:', contractsError);
+          } else if (batchContracts) {
+            allContracts = allContracts.concat(batchContracts);
+          }
+        }
+      }
+
+      // Create a map of customer_id to total contract value
+      const contractValuesByCustomer: Record<string, number> = {};
+      allContracts.forEach(contract => {
+        if (!contractValuesByCustomer[contract.customer_id]) {
+          contractValuesByCustomer[contract.customer_id] = 0;
+        }
+        contractValuesByCustomer[contract.customer_id] += contract.value || 0;
+      });
+
       // console.log("Customers data fetched:", customers);
-      // console.log(`Lifecycle stages fetched (paginated): ${allLifecycleStages.length}`);
+      // console.log(`Lifecycle stages fetched: ${allLifecycleStages.length}, Contracts fetched: ${allContracts.length}`);
 
       if (customers && customers.length > 0) {
         // Group all stages by customer (not just completed ones)
@@ -409,8 +444,12 @@ const Customers = () => {
           // console.log('   Stage names:', macqueenStages.map((s: any) => `${s.name} (${s.status})`));
         }
 
-        const formattedCustomers = customers.map(customer => 
-          formatDatabaseCustomer(customer, stagesByCustomer[customer.id] || [])
+        const formattedCustomers = customers.map(customer =>
+          formatDatabaseCustomer(
+            customer,
+            stagesByCustomer[customer.id] || [],
+            contractValuesByCustomer[customer.id]
+          )
         );
         
         // Debug: Check Macqueen after formatting

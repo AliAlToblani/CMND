@@ -70,9 +70,41 @@ export const usePipelineData = () => {
         }
       }
 
-      // console.log(`Lifecycle stages fetched (paginated): ${lifecycleStages.length}`);
+      // Fetch active contracts for all customers to use contract values in pipeline
+      let contracts: any[] = [];
+      if (customerIds.length > 0) {
+        const batchSize = 100;
+        for (let i = 0; i < customerIds.length; i += batchSize) {
+          const batch = customerIds.slice(i, i + batchSize);
+
+          const { data: batchContracts, error: contractsError } = await supabase
+            .from('contracts')
+            .select('customer_id, value, status')
+            .in('customer_id', batch)
+            .in('status', ['active', 'pending']); // Only active/pending contracts (exclude draft/expired)
+
+          if (contractsError) {
+            console.error('Error fetching contracts:', contractsError);
+          } else if (batchContracts) {
+            contracts = contracts.concat(batchContracts);
+          }
+        }
+      }
+
+      // Create a map of customer_id to total contract value
+      const contractValuesByCustomer: Record<string, number> = {};
+      contracts.forEach(contract => {
+        if (!contractValuesByCustomer[contract.customer_id]) {
+          contractValuesByCustomer[contract.customer_id] = 0;
+        }
+        contractValuesByCustomer[contract.customer_id] += contract.value || 0;
+      });
+
+      console.log(`📊 Pipeline Data: Lifecycle stages fetched: ${lifecycleStages.length}, Contracts fetched: ${contracts.length}`);
+      console.log('📋 Contract values by customer:', contractValuesByCustomer);
 
       // Transform customers to CustomerData format with pipeline stage determination
+      let debugCount = 0;
       const transformedCustomers: CustomerData[] = (customers || []).map(customer => {
         const customerStages = (lifecycleStages || []).filter(
           (stage) => stage.customer_id === customer.id
@@ -81,7 +113,17 @@ export const usePipelineData = () => {
         const pipelineStage = resolvePipelineStageFromLifecycleStages(customerStages as any[], {
           includeInProgress: true,
         });
-        
+
+        // Use contract value if available, otherwise use estimated_deal_value or contract_size
+        const contractValue = contractValuesByCustomer[customer.id];
+        const displayValue = contractValue || customer.estimated_deal_value || customer.contract_size || 0;
+
+        // Log value selection for debugging (first 3 customers only)
+        if (debugCount < 3) {
+          console.log(`💰 ${customer.name}: contractValue=${contractValue}, estimated=${customer.estimated_deal_value}, contract_size=${customer.contract_size}, final=${displayValue}`);
+          debugCount++;
+        }
+
         return {
           id: customer.id,
           name: customer.name,
@@ -90,7 +132,7 @@ export const usePipelineData = () => {
           country: customer.country || "Unknown Country",
           stage: pipelineStage,
           status: (customer.status as "not-started" | "in-progress" | "done" | "blocked") || "not-started",
-          contractSize: customer.estimated_deal_value || customer.contract_size || 0,
+          contractSize: displayValue,
           updated_at: customer.updated_at,
           owner: {
             id: customer.owner_id || "unknown",

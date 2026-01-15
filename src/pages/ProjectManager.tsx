@@ -111,6 +111,19 @@ const getDeadlineInfo = (deadline?: string) => {
   }
 };
 
+// Helper function to get contract value indicator
+const getContractIndicator = (contractValue: number | undefined) => {
+  if (!contractValue || contractValue === 0) {
+    return { icon: '✗', color: 'bg-red-600', text: 'No Contract' };
+  } else if (contractValue >= 50000) {
+    return { icon: '$$$', color: 'bg-emerald-600', text: `$${(contractValue / 1000).toFixed(0)}K` };
+  } else if (contractValue >= 10000) {
+    return { icon: '$$', color: 'bg-green-600', text: `$${(contractValue / 1000).toFixed(0)}K` };
+  } else {
+    return { icon: '$', color: 'bg-lime-600', text: `$${(contractValue / 1000).toFixed(0)}K` };
+  }
+};
+
 interface SubTask {
   id: string;
   label: string;
@@ -258,8 +271,8 @@ export default function ProjectManager() {
     }
   }, [selectedProject?.id]);
 
-  // Track which customers have contracts
-  const [customersWithContracts, setCustomersWithContracts] = useState<Set<string>>(new Set());
+  // Track contract values by customer
+  const [contractValuesByCustomer, setContractValuesByCustomer] = useState<Record<string, number>>({});
 
   const fetchAllCustomers = async () => {
     try {
@@ -268,29 +281,35 @@ export default function ProjectManager() {
         .from('customers')
         .select('*')
         .order('name');
-      
+
       if (error) {
         console.error('Error fetching customers:', error);
         return;
       }
       setAllCustomers(data || []);
 
-      // Fetch contracts to see which customers have them
+      // Fetch contracts with their values
       const { data: contracts, error: contractsError } = await supabase
         .from('contracts')
-        .select('customer_id, customers(name)');
-      
+        .select('customer_id, value, status')
+        .in('status', ['active', 'pending']);
+
       if (contractsError) {
         console.error('Error fetching contracts:', contractsError);
       } else if (contracts) {
         console.log('Contracts found:', contracts.length, contracts);
-        const customerIdsWithContracts = new Set(
-          contracts
-            .map(c => c.customer_id)
-            .filter((id): id is string => Boolean(id))
-        );
-        console.log('Customer IDs with contracts:', Array.from(customerIdsWithContracts));
-        setCustomersWithContracts(customerIdsWithContracts);
+        // Sum up contract values per customer
+        const valuesByCustomer: Record<string, number> = {};
+        contracts.forEach(contract => {
+          if (contract.customer_id) {
+            if (!valuesByCustomer[contract.customer_id]) {
+              valuesByCustomer[contract.customer_id] = 0;
+            }
+            valuesByCustomer[contract.customer_id] += contract.value || 0;
+          }
+        });
+        console.log('Contract values by customer:', valuesByCustomer);
+        setContractValuesByCustomer(valuesByCustomer);
       }
     } catch (error) {
       console.error('Error fetching customers:', error);
@@ -1093,7 +1112,8 @@ export default function ProjectManager() {
                       availableCustomers
                         .filter(c => c.name.toLowerCase().includes(customerSearch.toLowerCase()))
                         .map(customer => {
-                          const hasContract = customersWithContracts.has(customer.id);
+                          const contractValue = contractValuesByCustomer[customer.id];
+                          const contractIndicator = getContractIndicator(contractValue);
                           return (
                           <div
                             key={customer.id}
@@ -1105,11 +1125,12 @@ export default function ProjectManager() {
                             <div className="flex items-center justify-between">
                               <span className="font-medium">{customer.name}</span>
                               <div className="flex items-center gap-2">
-                                <Badge 
-                                  variant={hasContract ? "default" : "destructive"} 
-                                  className={`text-xs ${hasContract ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                                <Badge
+                                  variant="default"
+                                  className={`text-xs ${contractIndicator.color} hover:opacity-90`}
+                                  title={contractIndicator.text}
                                 >
-                                  {hasContract ? '✓ Contract' : 'No Contract'}
+                                  {contractIndicator.icon}
                                 </Badge>
                                 {customer.service_type && (
                                   <Badge variant="secondary" className="text-xs">
@@ -1281,12 +1302,19 @@ export default function ProjectManager() {
             
             {/* Row 2: Key badges */}
             <div className="flex items-center gap-1.5 mt-1">
-              <Badge 
-                variant={customersWithContracts.has(project.customer_id) ? "default" : "destructive"} 
-                className={`text-[10px] h-4 px-1.5 ${customersWithContracts.has(project.customer_id) ? 'bg-green-600' : ''}`}
-              >
-                {customersWithContracts.has(project.customer_id) ? '✓' : '✗'}
-              </Badge>
+              {(() => {
+                const contractValue = contractValuesByCustomer[project.customer_id];
+                const contractIndicator = getContractIndicator(contractValue);
+                return (
+                  <Badge
+                    variant="default"
+                    className={`text-[10px] h-4 px-1.5 ${contractIndicator.color}`}
+                    title={contractIndicator.text}
+                  >
+                    {contractIndicator.icon}
+                  </Badge>
+                );
+              })()}
               <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
                 {project.service_type || 'N/A'}
               </Badge>
