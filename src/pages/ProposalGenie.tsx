@@ -11,6 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { ProposalNotesForm } from "@/components/proposals/ProposalNotesForm";
+import { PendingProposals } from "@/components/proposals/PendingProposals";
 import {
   Sparkles,
   Calculator,
@@ -29,7 +31,9 @@ import {
   Percent,
   Globe,
   Lock,
-  Unlock
+  Unlock,
+  StickyNote,
+  Clock
 } from "lucide-react";
 
 // ==================== RATE CARD DATA ====================
@@ -737,17 +741,44 @@ const ProposalGenie = () => {
                 Proposal Genie
               </h1>
               <p className="text-muted-foreground">
-                Calculate pricing, generate scope & use cases
+                Proposal notes, pricing calculator & pending proposals
               </p>
             </div>
           </div>
-          <Button variant="outline" onClick={resetForm}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Reset
-          </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Tabs */}
+        <Tabs defaultValue="notes" className="space-y-6">
+          <TabsList className="grid w-full max-w-2xl grid-cols-3 bg-muted/50 p-1 h-auto">
+            <TabsTrigger value="notes" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2 py-3">
+              <StickyNote className="h-4 w-4" />
+              <span className="font-medium">Notes</span>
+            </TabsTrigger>
+            <TabsTrigger value="calculator" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2 py-3">
+              <Calculator className="h-4 w-4" />
+              <span className="font-medium">Calculator</span>
+            </TabsTrigger>
+            <TabsTrigger value="pending" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2 py-3">
+              <Clock className="h-4 w-4" />
+              <span className="font-medium">Pending Proposals</span>
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Notes Tab */}
+          <TabsContent value="notes" className="mt-0">
+            <ProposalNotesForm />
+          </TabsContent>
+
+          {/* Calculator Tab */}
+          <TabsContent value="calculator" className="mt-0 space-y-6">
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={resetForm}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Reset
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* LEFT PANEL - INPUTS */}
           <div className="space-y-4">
             {/* Currency & Setup in one row */}
@@ -1224,101 +1255,108 @@ const ProposalGenie = () => {
           </div>
         </div>
 
-        {/* BOTTOM - GENERATORS */}
-        <Card className="border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle>Generators</CardTitle>
-            <CardDescription>Create integration scope tables or use cases for proposals</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="scope">
-              <TabsList className="mb-4">
-                <TabsTrigger value="scope">Integration Scope</TabsTrigger>
-                <TabsTrigger value="usecases">Use Cases</TabsTrigger>
-              </TabsList>
+            {/* BOTTOM - GENERATORS */}
+            <Card className="border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle>Generators</CardTitle>
+                <CardDescription>Create integration scope tables or use cases for proposals</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="scope">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="scope">Integration Scope</TabsTrigger>
+                    <TabsTrigger value="usecases">Use Cases</TabsTrigger>
+                  </TabsList>
 
-              <TabsContent value="scope" className="space-y-4">
-                <div>
-                  <Label>Describe the Integration Requirements</Label>
-                  <Textarea 
-                    value={scopeInput}
-                    onChange={(e) => setScopeInput(e.target.value)}
-                    placeholder="Describe the solution briefly, e.g.:
+                  <TabsContent value="scope" className="space-y-4">
+                    <div>
+                      <Label>Describe the Integration Requirements</Label>
+                      <Textarea 
+                        value={scopeInput}
+                        onChange={(e) => setScopeInput(e.target.value)}
+                        placeholder="Describe the solution briefly, e.g.:
 • QR ordering for restaurants with menu database and payment integration
 • CRM integration with Salesforce for customer lookup
 • Voice AI with SIP trunk for call center automation
 • WhatsApp channel with order tracking and delivery updates
 • Support ticketing with Zendesk integration..."
-                    rows={4}
-                    className="mt-2"
-                  />
-                </div>
-
-                <Button onClick={generateIntegrationScope} disabled={!scopeInput.trim()}>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Generate Scope
-                </Button>
-
-                {generatedScope && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label>Generated Integration Scope</Label>
-                      <Button variant="outline" size="sm" onClick={copyScopeToClipboard}>
-                        <Copy className="h-4 w-4 mr-1" />
-                        Copy
-                      </Button>
+                        rows={4}
+                        className="mt-2"
+                      />
                     </div>
-                    <div className="p-4 bg-muted/30 rounded-lg border">
-                      <pre className="whitespace-pre-wrap text-sm font-sans leading-relaxed">
-                        {generatedScope}
-                      </pre>
-                    </div>
-                  </div>
-                )}
-              </TabsContent>
 
-              <TabsContent value="usecases" className="space-y-4">
-                <div>
-                  <Label>Describe the Context</Label>
-                  <Textarea 
-                    value={useCaseInput}
-                    onChange={(e) => setUseCaseInput(e.target.value)}
-                    placeholder="Describe the industry, business type, or context, e.g.:
+                    <Button onClick={generateIntegrationScope} disabled={!scopeInput.trim()}>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Generate Scope
+                    </Button>
+
+                    {generatedScope && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label>Generated Integration Scope</Label>
+                          <Button variant="outline" size="sm" onClick={copyScopeToClipboard}>
+                            <Copy className="h-4 w-4 mr-1" />
+                            Copy
+                          </Button>
+                        </div>
+                        <div className="p-4 bg-muted/30 rounded-lg border">
+                          <pre className="whitespace-pre-wrap text-sm font-sans leading-relaxed">
+                            {generatedScope}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="usecases" className="space-y-4">
+                    <div>
+                      <Label>Describe the Context</Label>
+                      <Textarea 
+                        value={useCaseInput}
+                        onChange={(e) => setUseCaseInput(e.target.value)}
+                        placeholder="Describe the industry, business type, or context, e.g.:
 • Restaurant chain with delivery and dine-in
 • Bank customer support for retail banking
 • Telecom provider with mobile and broadband
 • Government citizen services portal
 • Healthcare clinic appointment management..."
-                    rows={4}
-                    className="mt-2"
-                  />
-                </div>
-
-                <Button onClick={generateUseCases} disabled={!useCaseInput.trim()}>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Generate Use Cases
-                </Button>
-
-                {generatedUseCases && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label>Generated Use Cases</Label>
-                      <Button variant="outline" size="sm" onClick={copyUseCasesToClipboard}>
-                        <Copy className="h-4 w-4 mr-1" />
-                        Copy
-                      </Button>
+                        rows={4}
+                        className="mt-2"
+                      />
                     </div>
-                    <div className="p-4 bg-muted/30 rounded-lg border">
-                      <pre className="whitespace-pre-wrap text-sm font-sans leading-relaxed">
-                        {generatedUseCases}
-                      </pre>
-                    </div>
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+
+                    <Button onClick={generateUseCases} disabled={!useCaseInput.trim()}>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Generate Use Cases
+                    </Button>
+
+                    {generatedUseCases && (
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label>Generated Use Cases</Label>
+                          <Button variant="outline" size="sm" onClick={copyUseCasesToClipboard}>
+                            <Copy className="h-4 w-4 mr-1" />
+                            Copy
+                          </Button>
+                        </div>
+                        <div className="p-4 bg-muted/30 rounded-lg border">
+                          <pre className="whitespace-pre-wrap text-sm font-sans leading-relaxed">
+                            {generatedUseCases}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Pending Proposals Tab */}
+          <TabsContent value="pending" className="mt-0">
+            <PendingProposals />
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );

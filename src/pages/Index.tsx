@@ -10,9 +10,6 @@ import { syncCustomersToDatabase } from "@/utils/customerDataSync";
 import { useRealtimeAnalytics } from "@/hooks/useRealtimeAnalytics";
 import { formatCurrency } from "@/utils/customerUtils";
 import { fetchDashboardMetrics, DashboardMetrics } from "@/utils/dashboardDataFetcher";
-import { RevenueTrendChart } from "@/components/analytics/RevenueTrendChart";
-import { UpdatesPanel } from "@/components/analytics/UpdatesPanel";
-import { PendingContracts } from "@/components/analytics/PendingContracts";
 import { DashboardFilters } from "@/components/analytics/DashboardFilters";
 import { GoalTracker } from "@/components/dashboard/GoalTracker";
 import { buildFilteredUrl } from "@/utils/filterUtils";
@@ -325,36 +322,6 @@ const Index = () => {
                   <StatCard {...stat} isLoading={loading} />
                 </div>
               ))}
-            </div>
-          </section>
-
-          {/* Analytics Overview Section */}
-          <section>
-            <h2 className="text-xl font-semibold mb-4">Analytics Overview</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="h-[420px]">
-                <UpdatesPanel 
-                  countries={selectedCountries.length > 0 ? selectedCountries : undefined}
-                  dateFrom={dateRange.from}
-                  dateTo={dateRange.to}
-                />
-              </div>
-              <div className="h-[420px]">
-                <RevenueTrendChart 
-                  isRefreshing={isRefreshing}
-                  countries={selectedCountries.length > 0 ? selectedCountries : undefined}
-                  dateFrom={dateRange.from}
-                  dateTo={dateRange.to}
-                />
-              </div>
-              <div className="h-[420px]">
-                <PendingContracts 
-                  isRefreshing={isRefreshing}
-                  countries={selectedCountries.length > 0 ? selectedCountries : undefined}
-                  dateFrom={dateRange.from}
-                  dateTo={dateRange.to}
-                />
-              </div>
             </div>
           </section>
         </div>
