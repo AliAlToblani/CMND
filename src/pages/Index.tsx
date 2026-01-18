@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Kanban, BarChart3, TrendingUp, Activity, Clock, Briefcase, LifeBuoy, DollarSign, Target, Percent, FileText, RefreshCw } from "lucide-react";
+import { Plus, Users, Kanban, BarChart3, TrendingUp, Activity, Clock, Briefcase, LifeBuoy, DollarSign, Target, Percent, FileText, RefreshCw, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomerData } from "@/types/customers";
@@ -16,14 +16,26 @@ import { PendingContracts } from "@/components/analytics/PendingContracts";
 import { DashboardFilters } from "@/components/analytics/DashboardFilters";
 import { GoalTracker } from "@/components/dashboard/GoalTracker";
 import { buildFilteredUrl } from "@/utils/filterUtils";
+import { useProfile } from "@/hooks/useProfile";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { profile } = useProfile();
   const [customers, setCustomers] = useState<CustomerData[]>([]);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<DashboardMetrics | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  // Get first name for greeting
+  const firstName = profile?.full_name?.split(' ')[0] || profile?.email?.split('@')[0] || 'there';
+  
+  // Get time-based greeting
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
   
   // Filter state
   const [selectedCountries, setSelectedCountries] = useState<string[]>([]);
@@ -222,6 +234,35 @@ const Index = () => {
   return (
     <DashboardLayout>
       <div className="space-y-12">
+          {/* Welcome Banner */}
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary/10 via-purple-500/10 to-pink-500/10 border border-primary/20 p-6 mb-2 animate-welcome-slide">
+              {/* Animated background elements */}
+              <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute -top-4 -right-4 w-32 h-32 bg-primary/20 rounded-full blur-3xl animate-float" />
+                <div className="absolute -bottom-4 -left-4 w-24 h-24 bg-purple-500/20 rounded-full blur-2xl animate-float" style={{ animationDelay: '0.5s' }} />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-pink-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+                {/* Shimmer effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-shimmer" style={{ backgroundSize: '200% 100%' }} />
+              </div>
+              
+              {/* Content */}
+              <div className="relative flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center shadow-lg shadow-primary/25 animate-float">
+                  <Sparkles className="h-7 w-7 text-white" />
+                </div>
+                <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                  <h2 className="text-2xl sm:text-3xl font-bold">
+                    <span className="bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                      {getGreeting()}, {firstName}!
+                    </span>
+                  </h2>
+                  <p className="text-muted-foreground mt-1 opacity-0 animate-fade-in" style={{ animationDelay: '0.4s' }}>
+                    Welcome back to your command center. Let's make today count! 🚀
+                  </p>
+                </div>
+              </div>
+            </div>
+
           {/* Dashboard Header */}
           <div className="mb-8">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">

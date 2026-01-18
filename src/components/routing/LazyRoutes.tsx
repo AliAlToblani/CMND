@@ -1,4 +1,3 @@
-
 import { lazy } from 'react';
 
 // Lazy load all pages for better performance

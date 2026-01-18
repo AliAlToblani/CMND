@@ -1,4 +1,3 @@
-
 import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -88,7 +87,7 @@ const App = () => {
   <Route path="/contracts" element={<ProtectedRoute><LazyContracts /></ProtectedRoute>} />
                   <Route path="/documents" element={<ProtectedRoute><LazyLegalDocuments /></ProtectedRoute>} />
                   <Route path="/proposal-genie" element={<ProtectedRoute><LazyProposalGenie /></ProtectedRoute>} />
-  <Route path="/settings" element={<ProtectedRoute><LazySettings /></ProtectedRoute>} />
+                  <Route path="/settings" element={<ProtectedRoute><LazySettings /></ProtectedRoute>} />
                   <Route path="/analytics/:metric" element={<ProtectedRoute><LazyAnalyticsDetail /></ProtectedRoute>} />
                   
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
