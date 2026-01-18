@@ -29,6 +29,7 @@ import {
   LazyProjectManager,
   LazyLegalDocuments,
   LazyProposalGenie,
+  LazyReports,
 } from "@/components/routing/LazyRoutes";
 
 // Create a client with optimized settings
@@ -87,6 +88,7 @@ const App = () => {
   <Route path="/contracts" element={<ProtectedRoute><LazyContracts /></ProtectedRoute>} />
                   <Route path="/documents" element={<ProtectedRoute><LazyLegalDocuments /></ProtectedRoute>} />
                   <Route path="/proposal-genie" element={<ProtectedRoute><LazyProposalGenie /></ProtectedRoute>} />
+                  <Route path="/reports" element={<ProtectedRoute><LazyReports /></ProtectedRoute>} />
                   <Route path="/settings" element={<ProtectedRoute><LazySettings /></ProtectedRoute>} />
                   <Route path="/analytics/:metric" element={<ProtectedRoute><LazyAnalyticsDetail /></ProtectedRoute>} />
                   

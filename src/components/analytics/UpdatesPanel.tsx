@@ -46,6 +46,7 @@ interface ActivityItem {
   details: string;
   date: string;
   fullDate: Date;
+  userName?: string;
 }
 
 interface DetailedData {
@@ -72,27 +73,43 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
   const [showFullView, setShowFullView] = useState(false);
 
   const fetchDetailedData = async (days: number): Promise<DetailedData> => {
-    const daysAgo = new Date();
-    daysAgo.setDate(daysAgo.getDate() - days);
+    // Use custom date range if provided, otherwise calculate from days parameter
+    const endDate = dateTo ? new Date(dateTo) : new Date();
+    endDate.setHours(23, 59, 59, 999); // End of day
+    
+    const startDate = dateFrom ? new Date(dateFrom) : (() => {
+      const calculated = new Date(endDate);
+      calculated.setDate(calculated.getDate() - days);
+      calculated.setHours(0, 0, 0, 0); // Start of day
+      return calculated;
+    })();
 
-    const startDate = dateFrom || daysAgo;
-    const endDate = dateTo || new Date();
-
-    console.log(`[UpdatesPanel] Fetching data for last ${days} days:`, {
-      startDate: startDate.toISOString(),
-      endDate: endDate.toISOString()
-    });
-
-    // Fetch lifecycle changes with customer names - use left join to not fail if no match
+    // Calculate date boundaries - normalize to just date (no time) for comparison
+    // start_date is a DATE field, so we compare just YYYY-MM-DD
+    const normalizeDate = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    
+    const startDateStr = normalizeDate(startDate);
+    const endDateStr = normalizeDate(endDate);
+    
+    // Fetch lifecycle changes with customer names and deal_owner
     const { data: lifecycleData, error: lifecycleError } = await supabase
       .from('lifecycle_stages')
-      .select('customer_id, name, status_changed_at, customers(name, country)')
+      .select(`
+        customer_id, 
+        name, 
+        status_changed_at,
+        customers(name, country, deal_owner)
+      `)
       .gte('status_changed_at', startDate.toISOString())
       .lte('status_changed_at', endDate.toISOString())
       .order('status_changed_at', { ascending: false });
 
     if (lifecycleError) console.error('[UpdatesPanel] Lifecycle query error:', lifecycleError);
-    console.log(`[UpdatesPanel] Lifecycle changes found: ${lifecycleData?.length || 0}`);
 
     const customerStagesMap = new Map();
     lifecycleData?.forEach((stage: any) => {
@@ -112,41 +129,27 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
       customerName: stage.customers?.name || 'Unknown',
       details: stage.name,
       date: format(new Date(stage.status_changed_at), 'MMM dd'),
-      fullDate: new Date(stage.status_changed_at)
+      fullDate: new Date(stage.status_changed_at),
+      userName: stage.customers?.deal_owner || null
     }));
 
-    // Fetch ALL customers and filter by created_at in JS (to handle null/missing dates)
+    // Fetch customers created in date range using database query for accuracy
     const { data: allCustomersData, error: customersError } = await supabase
       .from('customers')
-      .select('*');
+      .select('*')
+      .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString())
+      .order('created_at', { ascending: false });
 
     if (customersError) {
       console.error('[UpdatesPanel] Customers query error:', customersError);
     }
-    
-    console.log(`[UpdatesPanel] Raw customers data:`, allCustomersData?.slice(0, 3));
-    console.log(`[UpdatesPanel] Date range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
-    
-    // Filter customers by date range - use start of day for comparison
-    const startOfPeriod = new Date(startDate);
-    startOfPeriod.setHours(0, 0, 0, 0);
-    
-    const endOfPeriod = new Date(endDate);
-    endOfPeriod.setHours(23, 59, 59, 999);
-    
-    const customersData = allCustomersData?.filter((customer: any) => {
-      if (!customer.created_at) return false;
-      const createdAt = new Date(customer.created_at);
-      const isInRange = createdAt >= startOfPeriod && createdAt <= endOfPeriod;
-      return isInRange;
-    }) || [];
 
     // Apply country filter
-    const filteredCustomers = countries && countries.length > 0 
-      ? customersData.filter((c: any) => countries.includes(c.country))
-      : customersData;
+    const filteredCustomers = (countries && countries.length > 0 && allCustomersData)
+      ? allCustomersData.filter((c: any) => countries.includes(c.country))
+      : (allCustomersData || []);
 
-    console.log(`[UpdatesPanel] New customers found: ${filteredCustomers.length} (total: ${allCustomersData?.length || 0})`);
 
     const newCustomers: ActivityItem[] = filteredCustomers.map((customer: any) => ({
       id: customer.id,
@@ -154,39 +157,78 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
       customerName: customer.name,
       details: customer.stage || 'New',
       date: format(new Date(customer.created_at), 'MMM dd'),
-      fullDate: new Date(customer.created_at)
+      fullDate: new Date(customer.created_at),
+      userName: customer.deal_owner || null
     }));
 
-    // Fetch ALL contracts and filter by date
-    const { data: allContractsData, error: contractsError } = await supabase
+    // Fetch ALL contracts first (no date filter) to see what we're working with
+    const { data: allContractsRaw, error: contractsError } = await supabase
       .from('contracts')
-      .select('id, name, created_at, value, customer_id, customers(name, country)')
+      .select('id, name, start_date, created_at, value, customer_id, owner_id')
       .order('created_at', { ascending: false });
 
-    if (contractsError) console.error('[UpdatesPanel] Contracts query error:', contractsError);
+    if (contractsError) {
+      console.error('[UpdatesPanel] Contracts query error:', contractsError);
+    }
 
-    // Filter contracts by date range
-    const contractsData = allContractsData?.filter((contract: any) => {
-      if (!contract.created_at) return false;
-      const createdAt = new Date(contract.created_at);
-      return createdAt >= startDate && createdAt <= endDate;
-    }) || [];
+    // Filter contracts by date range in memory - use start_date or created_at
+    const contractsInRange = (allContractsRaw || []).filter(contract => {
+      const dateToUse = contract.start_date || contract.created_at;
+      if (!dateToUse) return false;
+      
+      const contractDate = new Date(dateToUse);
+      if (isNaN(contractDate.getTime())) return false;
+      
+      const contractDateStr = normalizeDate(contractDate);
+      return contractDateStr >= startDateStr && contractDateStr <= endDateStr;
+    });
+
+    // Fetch customer data separately
+    const contractsData: any[] = [];
+    if (contractsInRange.length > 0) {
+      const customerIds = [...new Set(contractsInRange.map(c => c.customer_id).filter(Boolean))];
+      let customerMap: Record<string, any> = {};
+      
+      if (customerIds.length > 0) {
+        const { data: customersData } = await supabase
+          .from('customers')
+          .select('id, name, country, deal_owner')
+          .in('id', customerIds);
+        
+        if (customersData) {
+          customersData.forEach(c => {
+            customerMap[c.id] = c;
+          });
+        }
+      }
+      
+      // Combine contracts with customer data
+      contractsData.push(...contractsInRange.map(contract => ({
+        ...contract,
+        customers: customerMap[contract.customer_id] || null
+      })));
+    }
 
     // Apply country filter
-    const filteredContracts = countries && countries.length > 0 
+    const filteredContracts = (countries && countries.length > 0 && contractsData)
       ? contractsData.filter((c: any) => c.customers && countries.includes(c.customers.country))
       : contractsData;
 
-    console.log(`[UpdatesPanel] New contracts found: ${filteredContracts.length} (total: ${allContractsData?.length || 0})`);
-
-    const newContracts: ActivityItem[] = filteredContracts.map((contract: any) => ({
-      id: contract.id,
-      type: 'contract' as const,
-      customerName: contract.customers?.name || 'Unknown',
-      details: contract.name || `Contract #${contract.id.slice(0, 8)}`,
-      date: format(new Date(contract.created_at), 'MMM dd'),
-      fullDate: new Date(contract.created_at)
-    }));
+    const newContracts: ActivityItem[] = filteredContracts.map((contract: any) => {
+      // Use start_date first, then fall back to created_at
+      const dateToUse = contract.start_date || contract.created_at;
+      const contractDate = dateToUse ? new Date(dateToUse) : new Date();
+      
+      return {
+        id: contract.id,
+        type: 'contract' as const,
+        customerName: contract.customers?.name || 'Unknown',
+        details: contract.name || `Contract #${contract.id.slice(0, 8)}`,
+        date: format(contractDate, 'MMM dd'),
+        fullDate: contractDate,
+        userName: contract.customers?.deal_owner || null
+      };
+    });
 
     // Fetch churns - customers with churn_date in range
     const { data: churnsData, error: churnsError } = await supabase
@@ -203,7 +245,6 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
       ? churnsData?.filter((c: any) => countries.includes(c.country)) || []
       : churnsData || [];
 
-    console.log(`[UpdatesPanel] Churns found: ${filteredChurns.length}`);
 
     const churns: ActivityItem[] = filteredChurns.map((customer: any) => ({
       id: customer.id,
@@ -214,43 +255,47 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
       fullDate: new Date(customer.churn_date)
     }));
 
-    // Fetch ALL partnerships and filter by date
-    const { data: allPartnershipsData, error: partnershipsError } = await supabase
+    // Fetch ALL partnerships first (no date filter) to see what we're working with
+    const { data: allPartnershipsRaw, error: partnershipsError } = await supabase
       .from('partnerships')
-      .select('id, name, created_at, status, partnership_type, country')
+      .select('id, name, start_date, created_at, status, partnership_type, country, owner_id')
       .order('created_at', { ascending: false });
 
-    if (partnershipsError) console.error('[UpdatesPanel] Partnerships query error:', partnershipsError);
+    if (partnershipsError) {
+      console.error('[UpdatesPanel] Partnerships query error:', partnershipsError);
+    }
 
-    // Filter partnerships by date range
-    const partnershipsData = allPartnershipsData?.filter((partnership: any) => {
-      if (!partnership.created_at) return false;
-      const createdAt = new Date(partnership.created_at);
-      return createdAt >= startDate && createdAt <= endDate;
-    }) || [];
+    // Filter partnerships by date range in memory - use start_date or created_at
+    const partnershipsData = (allPartnershipsRaw || []).filter(partnership => {
+      const dateToUse = partnership.start_date || partnership.created_at;
+      if (!dateToUse) return false;
+      
+      const partnershipDate = new Date(dateToUse);
+      if (isNaN(partnershipDate.getTime())) return false;
+      
+      const partnershipDateStr = normalizeDate(partnershipDate);
+      return partnershipDateStr >= startDateStr && partnershipDateStr <= endDateStr;
+    });
 
     // Apply country filter
-    const filteredPartnerships = countries && countries.length > 0 
+    const filteredPartnerships = (countries && countries.length > 0 && partnershipsData)
       ? partnershipsData.filter((p: any) => countries.includes(p.country))
       : partnershipsData;
 
-    console.log(`[UpdatesPanel] New partnerships found: ${filteredPartnerships.length} (total: ${allPartnershipsData?.length || 0})`);
-
-    const newPartnerships: ActivityItem[] = filteredPartnerships.map((partnership: any) => ({
-      id: partnership.id,
-      type: 'partnership' as const,
-      customerName: partnership.name,
-      details: partnership.partnership_type?.replace('_', ' ') || 'Partner',
-      date: format(new Date(partnership.created_at), 'MMM dd'),
-      fullDate: new Date(partnership.created_at)
-    }));
-
-    console.log('[UpdatesPanel] Summary:', {
-      lifecycleChanges: lifecycleChanges.length,
-      newCustomers: newCustomers.length,
-      newContracts: newContracts.length,
-      churns: churns.length,
-      newPartnerships: newPartnerships.length
+    const newPartnerships: ActivityItem[] = filteredPartnerships.map((partnership: any) => {
+      // Use start_date first, then fall back to created_at
+      const dateToUse = partnership.start_date || partnership.created_at;
+      const partnershipDate = dateToUse ? new Date(dateToUse) : new Date();
+      
+      return {
+        id: partnership.id,
+        type: 'partnership' as const,
+        customerName: partnership.name,
+        details: partnership.partnership_type?.replace('_', ' ') || 'Partner',
+        date: format(partnershipDate, 'MMM dd'),
+        fullDate: partnershipDate,
+        userName: null // owner_id is a UUID, not a name
+      };
     });
 
     return { lifecycleChanges, newCustomers, newContracts, churns, newPartnerships };
@@ -260,13 +305,10 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
     const loadData = async () => {
       setLoading(true);
       try {
-        console.log('[UpdatesPanel] Starting data fetch...');
         const weekly = await fetchDetailedData(7);
-        console.log('[UpdatesPanel] Weekly data:', weekly);
         setWeeklyData(weekly);
         
         const monthly = await fetchDetailedData(30);
-        console.log('[UpdatesPanel] Monthly data:', monthly);
         setMonthlyData(monthly);
       } catch (error) {
         console.error("[UpdatesPanel] Error fetching activity data:", error);
@@ -439,7 +481,12 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
                       <CheckCircle2 className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate">{item.customerName}</p>
-                        <p className="text-xs text-muted-foreground truncate">{item.details}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {item.details}
+                          {item.userName && (
+                            <span className="ml-2 text-primary">• {item.userName}</span>
+                          )}
+                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0 ml-2">
@@ -528,7 +575,7 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
           />
           <ActivitySection 
             id="contracts"
-            title="New Contracts Signed" 
+            title="New Contracts Signed"
             items={currentData?.newContracts || []} 
             icon={FileText}
             color="bg-blue-500"
@@ -538,7 +585,7 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
           />
           <ActivitySection 
             id="partnerships"
-            title="New Partnerships" 
+            title="New Partnerships"
             items={currentData?.newPartnerships || []} 
             icon={HandHeart}
             color="bg-amber-500"

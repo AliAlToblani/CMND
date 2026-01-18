@@ -107,6 +107,8 @@ const TeamManagementPage = () => {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [memberToEdit, setMemberToEdit] = useState<TeamMember | null>(null);
+  const [memberToDelete, setMemberToDelete] = useState<TeamMember | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const form = useForm<InviteFormValues>({
     resolver: zodResolver(inviteFormSchema),
@@ -463,15 +465,17 @@ const TeamManagementPage = () => {
 
   const handleDeleteMember = async (memberId: string) => {
     try {
-      // Call the secured edge function to delete user from auth.users
-      const { data, error } = await supabase.functions.invoke('delete-user-account', {
-        body: { userId: memberId }
+      // Call the database function to delete user completely (from auth.users and profiles)
+      const { data, error } = await supabase.rpc('delete_user_completely', {
+        target_user_id: memberId
       });
 
       if (error) throw error;
       
-      // Check for error in response body
-      if (data?.error) throw new Error(data.error);
+      // Check for error in response
+      if (data && !data.success) {
+        throw new Error(data.error || 'Failed to delete user');
+      }
 
       toast.success("Team member removed successfully");
       
@@ -486,6 +490,9 @@ const TeamManagementPage = () => {
     } catch (error) {
       console.error("Error deleting team member:", error);
       toast.error(`Failed to remove team member: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setDeleteDialogOpen(false);
+      setMemberToDelete(null);
     }
   };
 
@@ -915,31 +922,16 @@ const TeamManagementPage = () => {
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive">
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Remove
-                            </DropdownMenuItem>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent className="glass-card">
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will remove {member.full_name || member.email} from your team. They will no longer have access to your organization's data.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteMember(member.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Remove
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onClick={() => {
+                            setMemberToDelete(member);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Remove
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -1052,6 +1044,27 @@ const TeamManagementPage = () => {
           </Form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog - Moved outside dropdown to prevent closing issues */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="glass-card">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove {memberToDelete?.full_name || memberToDelete?.email} from your team. They will no longer have access to your organization's data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setMemberToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => memberToDelete && handleDeleteMember(memberToDelete.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </DashboardLayout>
   );
 };

@@ -1,6 +1,6 @@
 import React, { useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Home, Users, Bell, Rocket, GitBranch, HandHeart, Clock, FileText, ClipboardCheck, FolderOpen, Sparkles } from "lucide-react";
+import { Home, Users, Bell, Rocket, GitBranch, HandHeart, Clock, FileText, ClipboardCheck, FolderOpen, Sparkles, BarChart3 } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 
 // Prefetch pages on hover for faster navigation
@@ -16,6 +16,7 @@ const prefetchMap: Record<string, () => Promise<any>> = {
   '/notifications': () => import('@/pages/Notifications'),
   '/documents': () => import('@/pages/LegalDocuments'),
   '/proposal-genie': () => import('@/pages/ProposalGenie'),
+  '/reports': () => import('@/pages/Reports'),
 };
 
 const mainNavItems = [
@@ -23,6 +24,11 @@ const mainNavItems = [
     title: "Dashboard",
     icon: Home,
     path: "/"
+  },
+  {
+    title: "Reports",
+    icon: BarChart3,
+    path: "/reports"
   },
   {
     title: "Customers",
