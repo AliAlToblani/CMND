@@ -126,7 +126,8 @@ const getDeadlineInfo = (deadline?: string) => {
 // Helper function to get contract value indicator
 const getContractIndicator = (contractValue: number | undefined) => {
   if (!contractValue || contractValue === 0) {
-    return { icon: '✗', color: 'bg-red-600', text: 'No Contract' };
+    // Use red dollar sign to clearly show no contract and avoid confusion with completed
+    return { icon: '$', color: 'bg-red-600', text: 'No Contract' };
   } else if (contractValue >= 50000) {
     return { icon: '$$$', color: 'bg-emerald-600', text: `$${(contractValue / 1000).toFixed(0)}K` };
   } else if (contractValue >= 10000) {
