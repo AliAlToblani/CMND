@@ -44,6 +44,8 @@ export const getLinkedContracts = async (partnershipId: string): Promise<Contrac
 };
 
 export const getAvailableContracts = async (partnershipId: string): Promise<ContractWithCustomer[]> => {
+  // Fetch contracts that are not linked to any partnership (available to link)
+  // Also include contracts already linked to this partnership (so they can be seen and potentially unlinked)
   const { data, error } = await supabase
     .from('contracts')
     .select(`
@@ -54,11 +56,35 @@ export const getAvailableContracts = async (partnershipId: string): Promise<Cont
         logo
       )
     `)
-    .or(`partnership_id.is.null,partnership_id.neq.${partnershipId}`)
+    .or(`partnership_id.is.null,partnership_id.eq.${partnershipId}`)
     .order('created_at', { ascending: false });
 
   if (error) {
     console.error('Error fetching available contracts:', error);
+    // If the error is about the OR syntax, try an alternative approach
+    if (error.message?.includes('or') || error.code === 'PGRST116') {
+      // Fallback: fetch all contracts and filter in JavaScript
+      const { data: allContracts, error: allError } = await supabase
+        .from('contracts')
+        .select(`
+          *,
+          customer:customers!inner(
+            id,
+            name,
+            logo
+          )
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (allError) {
+        throw allError;
+      }
+      
+      // Filter to show only contracts that are null or linked to this partnership
+      return (allContracts || []).filter(
+        (contract: any) => !contract.partnership_id || contract.partnership_id === partnershipId
+      );
+    }
     throw error;
   }
 
