@@ -249,13 +249,19 @@ const PartnershipDetails = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="revenue">Revenue</TabsTrigger>
-            <TabsTrigger value="contacts">Contacts ({contacts.length})</TabsTrigger>
-            <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
-            <TabsTrigger value="timeline">Timeline ({timeline.length})</TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between">
+            <TabsList>
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="revenue">Revenue</TabsTrigger>
+              <TabsTrigger value="contacts">Contacts ({contacts.length})</TabsTrigger>
+              <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
+              <TabsTrigger value="timeline">Timeline ({timeline.length})</TabsTrigger>
+            </TabsList>
+            <Button onClick={() => setIsLinkDialogOpen(true)} size="sm" variant="default">
+              <Link2 className="h-4 w-4 mr-2" />
+              Link Contract
+            </Button>
+          </div>
 
           <TabsContent value="overview" className="space-y-6">
             {partnership.description && (
