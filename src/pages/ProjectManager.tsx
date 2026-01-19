@@ -192,6 +192,7 @@ export default function ProjectManager() {
   
   // Requests state
   const [requests, setRequests] = useState<ProjectRequest[]>([]);
+  const [selectedRequest, setSelectedRequest] = useState<ProjectRequest | null>(null);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
   const [requestType, setRequestType] = useState<'demo' | 'kickoff'>('demo');
@@ -2327,7 +2328,7 @@ export default function ProjectManager() {
               <Card className="lg:col-span-1 border-2 border-border/50">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">Pending Requests</CardTitle>
+                    <CardTitle className="text-lg">All Requests</CardTitle>
                     <div className="flex gap-2">
                       <Button size="sm" variant="ghost" onClick={() => loadRequests()} title="Refresh">
                         <RefreshCw className="h-4 w-4" />
@@ -2487,186 +2488,331 @@ export default function ProjectManager() {
                           <Skeleton className="h-20 w-full" />
                           <Skeleton className="h-20 w-full" />
                         </div>
-                      ) : requests.filter(r => r.status === 'pending').length === 0 ? (
+                      ) : requests.length === 0 ? (
                         <div className="text-center py-12 text-muted-foreground">
                           <Inbox className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                          <p className="text-sm">No pending requests</p>
+                          <p className="text-sm">No requests yet</p>
                           <p className="text-xs mt-1">Click "New Request" to submit one</p>
                         </div>
                       ) : (
-                        requests
-                          .filter(r => r.status === 'pending')
-                          .map((request) => (
-                            <Card
-                              key={request.id}
-                              className="border-border hover:shadow-md transition-all"
-                            >
-                              <CardContent className="p-3">
-                                <div className="flex items-start gap-3">
-                                  <Avatar className="h-10 w-10 shrink-0">
-                                    <AvatarImage src={request.customer_logo} />
-                                    <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary text-xs font-semibold">
-                                      {request.customer_name.substring(0, 2).toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <h4 className="font-semibold text-sm truncate">
-                                        {request.customer_name}
-                                      </h4>
+                        requests.map((request) => (
+                          <Card
+                            key={request.id}
+                            className={`cursor-pointer transition-all hover:shadow-md ${
+                              selectedRequest?.id === request.id
+                                ? "border-primary bg-primary/5 shadow-md"
+                                : request.status === 'pending'
+                                  ? "border-orange-500/30 bg-orange-500/5"
+                                  : request.status === 'approved'
+                                    ? "border-green-500/30 bg-green-500/5"
+                                    : "border-red-500/30 bg-red-500/5"
+                            }`}
+                            onClick={() => setSelectedRequest(request)}
+                          >
+                            <CardContent className="p-3">
+                              <div className="flex items-start gap-3">
+                                <Avatar className="h-9 w-9 shrink-0">
+                                  <AvatarImage src={request.customer_logo} />
+                                  <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary text-xs font-semibold">
+                                    {request.customer_name.substring(0, 2).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <h4 className="font-semibold text-sm truncate">
+                                      {request.customer_name}
+                                    </h4>
+                                    <div className="flex items-center gap-1 shrink-0">
                                       <Badge 
-                                        variant={request.request_type === 'demo' ? 'secondary' : 'default'}
-                                        className="shrink-0"
+                                        variant={request.request_type === 'demo' ? 'secondary' : 'outline'}
+                                        className="text-[10px] h-5"
                                       >
                                         {request.request_type === 'demo' ? 'Demo' : 'Kickoff'}
                                       </Badge>
                                     </div>
-                                    {request.description && (
-                                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                        {request.description}
-                                      </p>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Badge 
+                                      variant={
+                                        request.status === 'pending' ? 'default' : 
+                                        request.status === 'approved' ? 'default' : 'destructive'
+                                      }
+                                      className={`text-[10px] h-5 ${
+                                        request.status === 'pending' ? 'bg-orange-500' :
+                                        request.status === 'approved' ? 'bg-green-600' : ''
+                                      }`}
+                                    >
+                                      {request.status === 'pending' && '⏳ Pending'}
+                                      {request.status === 'approved' && '✓ Approved'}
+                                      {request.status === 'rejected' && '✗ Rejected'}
+                                    </Badge>
+                                    {request.file_url && (
+                                      <Badge variant="outline" className="text-[10px] h-5">
+                                        <FileText className="h-3 w-3 mr-1" />
+                                        File
+                                      </Badge>
                                     )}
-                                    <div className="flex items-center gap-2 mt-2">
-                                      <span className="text-[10px] text-muted-foreground">
-                                        by {request.submitted_by_name}
-                                      </span>
-                                      {request.file_url && (
-                                        <a
-                                          href={request.file_url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="flex items-center gap-1 text-[10px] text-primary hover:underline"
-                                        >
-                                          <FileText className="h-3 w-3" />
-                                          {request.file_name || 'View file'}
-                                        </a>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-2">
-                                      <Button
-                                        size="sm"
-                                        variant="default"
-                                        className="h-7 text-xs bg-green-600 hover:bg-green-700"
-                                        onClick={() => approveRequest(request)}
-                                        disabled={saving}
-                                      >
-                                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                                        Approve
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-7 text-xs text-destructive hover:text-destructive"
-                                        onClick={() => rejectRequest(request)}
-                                        disabled={saving}
-                                      >
-                                        <XCircle className="h-3 w-3 mr-1" />
-                                        Reject
-                                      </Button>
-                                    </div>
+                                  </div>
+                                  <div className="text-[10px] text-muted-foreground mt-1">
+                                    {new Date(request.created_at).toLocaleDateString()} • {request.submitted_by_name}
                                   </div>
                                 </div>
-                              </CardContent>
-                            </Card>
-                          ))
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))
                       )}
                     </div>
                   </ScrollArea>
                 </CardContent>
               </Card>
 
-              {/* Request History */}
+              {/* Request Details Panel */}
               <Card className="lg:col-span-2 border-2 border-border/50">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">Request History</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-[520px]">
-                    <div className="space-y-3">
-                      {requests.filter(r => r.status !== 'pending').length === 0 ? (
-                        <div className="text-center py-12 text-muted-foreground">
-                          <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                          <p className="text-sm">No processed requests yet</p>
-                        </div>
-                      ) : (
-                        requests
-                          .filter(r => r.status !== 'pending')
-                          .map((request) => (
-                            <Card
-                              key={request.id}
-                              className={`border ${
-                                request.status === 'approved' 
-                                  ? 'border-green-500/30 bg-green-500/5' 
-                                  : 'border-red-500/30 bg-red-500/5'
-                              }`}
+                {!selectedRequest ? (
+                  <CardContent className="flex flex-col items-center justify-center h-[600px] text-muted-foreground">
+                    <Inbox className="h-16 w-16 mb-4 opacity-30" />
+                    <h3 className="text-lg font-medium mb-2">Select a Request</h3>
+                    <p className="text-sm text-center max-w-sm">
+                      Choose a request from the list to view details, files, and take action
+                    </p>
+                  </CardContent>
+                ) : (
+                  <>
+                    <CardHeader className="pb-4">
+                      <div className="flex items-start gap-4">
+                        <Avatar 
+                          className="h-14 w-14 shrink-0 cursor-pointer hover:ring-2 hover:ring-primary transition-all"
+                          onClick={() => navigate(`/customers/${selectedRequest.customer_id}`)}
+                        >
+                          <AvatarImage src={selectedRequest.customer_logo} />
+                          <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary text-lg font-semibold">
+                            {selectedRequest.customer_name.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <CardTitle 
+                            className="text-xl cursor-pointer hover:text-primary transition-colors inline-block"
+                            onClick={() => navigate(`/customers/${selectedRequest.customer_id}`)}
+                          >
+                            {selectedRequest.customer_name}
+                          </CardTitle>
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            <Badge variant={selectedRequest.request_type === 'demo' ? 'secondary' : 'default'}>
+                              {selectedRequest.request_type === 'demo' ? (
+                                <><Play className="h-3 w-3 mr-1" /> Demo Request</>
+                              ) : (
+                                <><ArrowRight className="h-3 w-3 mr-1" /> Project Kickoff</>
+                              )}
+                            </Badge>
+                            <Badge 
+                              variant={
+                                selectedRequest.status === 'pending' ? 'default' : 
+                                selectedRequest.status === 'approved' ? 'default' : 'destructive'
+                              }
+                              className={
+                                selectedRequest.status === 'pending' ? 'bg-orange-500' :
+                                selectedRequest.status === 'approved' ? 'bg-green-600' : ''
+                              }
                             >
-                              <CardContent className="p-3">
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="flex items-start gap-3">
-                                    <Avatar className="h-8 w-8 shrink-0">
-                                      <AvatarImage src={request.customer_logo} />
-                                      <AvatarFallback className="text-xs">
-                                        {request.customer_name.substring(0, 2).toUpperCase()}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <div>
-                                      <div className="flex items-center gap-2">
-                                        <span className="font-medium text-sm">{request.customer_name}</span>
-                                        <Badge 
-                                          variant={request.request_type === 'demo' ? 'secondary' : 'outline'}
-                                          className="text-[10px]"
-                                        >
-                                          {request.request_type === 'demo' ? 'Demo' : 'Kickoff'}
-                                        </Badge>
-                                        <Badge 
-                                          variant={request.status === 'approved' ? 'default' : 'destructive'}
-                                          className="text-[10px]"
-                                        >
-                                          {request.status === 'approved' ? '✓ Approved' : '✗ Rejected'}
-                                        </Badge>
-                                      </div>
-                                      {request.description && (
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                          {request.description}
-                                        </p>
-                                      )}
-                                      <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
-                                        <span>Submitted by {request.submitted_by_name}</span>
-                                        {request.reviewed_by_name && (
-                                          <span>
-                                            • {request.status === 'approved' ? 'Approved' : 'Rejected'} by {request.reviewed_by_name}
-                                          </span>
-                                        )}
-                                        {request.file_url && (
-                                          <a
-                                            href={request.file_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center gap-1 text-primary hover:underline"
-                                          >
-                                            <FileText className="h-3 w-3" />
-                                            {request.file_name || 'View file'}
-                                          </a>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0"
-                                    onClick={() => deleteRequest(request.id)}
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))
+                              {selectedRequest.status === 'pending' && '⏳ Pending Review'}
+                              {selectedRequest.status === 'approved' && '✓ Approved'}
+                              {selectedRequest.status === 'rejected' && '✗ Rejected'}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Action Buttons */}
+                      {selectedRequest.status === 'pending' && (
+                        <div className="flex items-center gap-3 mt-4 pt-4 border-t border-border/30">
+                          <Button
+                            onClick={() => approveRequest(selectedRequest)}
+                            disabled={saving}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Approve & Add to {selectedRequest.request_type === 'demo' ? 'Demos' : 'Ongoing'}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => rejectRequest(selectedRequest)}
+                            disabled={saving}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <XCircle className="h-4 w-4 mr-2" />
+                            Reject
+                          </Button>
+                          <div className="flex-1" />
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="sm" variant="ghost" className="text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Request?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will permanently delete this request. This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => {
+                                    deleteRequest(selectedRequest.id);
+                                    setSelectedRequest(null);
+                                  }}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       )}
-                    </div>
-                  </ScrollArea>
-                </CardContent>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Request Info */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Submitted By</Label>
+                          <p className="text-sm font-medium">{selectedRequest.submitted_by_name}</p>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Submitted On</Label>
+                          <p className="text-sm font-medium">
+                            {new Date(selectedRequest.created_at).toLocaleDateString('en-US', {
+                              weekday: 'short',
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                        {selectedRequest.reviewed_by_name && (
+                          <>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Reviewed By</Label>
+                              <p className="text-sm font-medium">{selectedRequest.reviewed_by_name}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Reviewed On</Label>
+                              <p className="text-sm font-medium">
+                                {selectedRequest.reviewed_at && new Date(selectedRequest.reviewed_at).toLocaleDateString('en-US', {
+                                  weekday: 'short',
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Description */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold">Description</Label>
+                        <div className="rounded-lg border border-border/50 bg-muted/30 p-4">
+                          {selectedRequest.description ? (
+                            <p className="text-sm whitespace-pre-wrap">{selectedRequest.description}</p>
+                          ) : (
+                            <p className="text-sm text-muted-foreground italic">No description provided</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Attached File */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold">Attached File</Label>
+                        {selectedRequest.file_url ? (
+                          <div className="rounded-lg border border-border/50 bg-muted/30 p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                                  <FileText className="h-6 w-6 text-primary" />
+                                </div>
+                                <div>
+                                  <p className="font-medium text-sm">{selectedRequest.file_name || 'Attached Document'}</p>
+                                  <p className="text-xs text-muted-foreground">Click to view or download</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.open(selectedRequest.file_url, '_blank')}
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View
+                                </Button>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => {
+                                    const link = document.createElement('a');
+                                    link.href = selectedRequest.file_url!;
+                                    link.download = selectedRequest.file_name || 'document';
+                                    link.click();
+                                  }}
+                                >
+                                  <Upload className="h-4 w-4 mr-2 rotate-180" />
+                                  Download
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-lg border border-dashed border-border/50 bg-muted/10 p-8 text-center">
+                            <FileText className="h-10 w-10 mx-auto mb-2 text-muted-foreground/50" />
+                            <p className="text-sm text-muted-foreground">No file attached to this request</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Delete for processed requests */}
+                      {selectedRequest.status !== 'pending' && (
+                        <div className="pt-4 border-t border-border/30">
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="outline" className="text-destructive hover:text-destructive">
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete Request
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Request?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will permanently delete this request from history. This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => {
+                                    deleteRequest(selectedRequest.id);
+                                    setSelectedRequest(null);
+                                  }}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      )}
+                    </CardContent>
+                  </>
+                )}
               </Card>
             </div>
           </TabsContent>
