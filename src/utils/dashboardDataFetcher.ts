@@ -72,21 +72,6 @@ export async function fetchDashboardMetrics(filterParams?: FilterParams): Promis
   const contracts = contractsResult.data || [];
   const stages = stagesResult.data || [];
 
-  // DEBUG: Log raw data counts
-  const contractStatuses = contracts.reduce((acc, c) => {
-    const status = c.status || 'null';
-    acc[status] = (acc[status] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  
-  console.log('[Dashboard Debug] Raw data:', {
-    totalCustomersFromDB: customers.length,
-    totalContractsFromDB: contracts.length,
-    contractStatusBreakdown: contractStatuses,
-    activeContracts: contracts.filter(c => c.status?.toLowerCase() === 'active').length,
-    churnedCustomers: customers.filter(c => c.status === 'churned').length,
-    lostCustomers: customers.filter(c => c.stage?.toLowerCase() === 'lost').length
-  });
 
   // Helper: case-insensitive stage check
   const isLiveStage = (stage?: string | null) => 
@@ -212,15 +197,6 @@ export async function fetchDashboardMetrics(filterParams?: FilterParams): Promis
   const payToLiveDays = payToLiveTimes.length > 0
     ? Math.round(payToLiveTimes.reduce((a, b) => a + b, 0) / payToLiveTimes.length)
     : 0;
-
-  // DEBUG: Log calculated metrics
-  console.log('[Dashboard Debug] Calculated metrics:', {
-    totalCustomers,
-    liveCustomers: liveCustomerCount,
-    pipelineCount,
-    totalContracts,
-    activeContractsCount: activeContracts.length
-  });
 
   return {
     totalCustomers,

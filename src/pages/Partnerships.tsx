@@ -1,28 +1,39 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Filter, Users, HandHeart } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Search, Filter, Users, HandHeart, Building2, Store } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Partnership, PartnershipType, PartnershipStatus, PARTNERSHIP_TYPE_LABELS, PARTNERSHIP_STATUS_LABELS } from "@/types/partnerships";
 import { Link } from "react-router-dom";
 import { TopPerformersChart } from "@/components/partnerships/TopPerformersChart";
 
+// Define which types are resellers vs partners
+const RESELLER_TYPES: PartnershipType[] = ['reseller'];
+const PARTNER_TYPES: PartnershipType[] = ['consultant', 'platform_partner', 'education_partner', 'mou_partner'];
+
 const Partnerships = () => {
+  const queryClient = useQueryClient();
+  const [activeView, setActiveView] = useState<'partners' | 'resellers'>('partners');
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("name");
+  
+  // Invalidate top performers cache when view changes to ensure fresh data
+  useEffect(() => {
+    queryClient.invalidateQueries({ queryKey: ['top-partnerships-by-revenue'] });
+  }, [activeView, queryClient]);
 
   const { data: partnerships = [], isLoading, refetch } = useQuery({
     queryKey: ['partnerships'],
     queryFn: async () => {
-      console.log('Fetching partnerships from database...');
       const { data, error } = await supabase
         .from('partnerships')
         .select('*')
@@ -33,15 +44,12 @@ const Partnerships = () => {
         throw error;
       }
       
-      console.log('Partnerships fetched:', data);
       return data as Partnership[];
     }
   });
 
   // Set up real-time subscription for partnerships
   useEffect(() => {
-    console.log('Setting up real-time subscription for partnerships...');
-    
     const channel = supabase
       .channel('partnerships_changes')
       .on(
@@ -51,8 +59,7 @@ const Partnerships = () => {
           schema: 'public',
           table: 'partnerships'
         },
-        (payload) => {
-          console.log('Real-time partnership change:', payload);
+        () => {
           // Refetch partnerships when any change occurs
           refetch();
         }
@@ -60,22 +67,28 @@ const Partnerships = () => {
       .subscribe();
 
     return () => {
-      console.log('Cleaning up real-time subscription...');
       supabase.removeChannel(channel);
     };
   }, [refetch]);
 
-  // Reset filters when component mounts (e.g., when navigating back from form)
-  useEffect(() => {
-    console.log('Partnerships component mounted, current filters:', {
-      searchTerm,
-      typeFilter,
-      statusFilter,
-      sortBy
-    });
-  }, []);
+  // Separate partnerships into partners and resellers
+  const partnersList = useMemo(() => 
+    partnerships.filter(p => PARTNER_TYPES.includes(p.partnership_type)),
+    [partnerships]
+  );
+  
+  const resellersList = useMemo(() => 
+    partnerships.filter(p => RESELLER_TYPES.includes(p.partnership_type)),
+    [partnerships]
+  );
 
-  const filteredPartnerships = partnerships
+  // Get the current list based on active view
+  const currentList = activeView === 'partners' ? partnersList : resellersList;
+  
+  // Get available types for current view
+  const availableTypes = activeView === 'partners' ? PARTNER_TYPES : RESELLER_TYPES;
+
+  const filteredPartnerships = currentList
     .filter(partnership => {
       const matchesSearch = partnership.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            partnership.country?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -121,6 +134,109 @@ const Partnerships = () => {
     setSortBy("name");
   };
 
+  const handleViewChange = (view: string) => {
+    setActiveView(view as 'partners' | 'resellers');
+    setTypeFilter("all"); // Reset type filter when switching views
+    setSearchTerm("");
+  };
+
+  const renderPartnershipGrid = () => {
+    if (isLoading) {
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-6">
+                <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-muted rounded w-1/2 mb-4"></div>
+                <div className="space-y-2">
+                  <div className="h-3 bg-muted rounded"></div>
+                  <div className="h-3 bg-muted rounded w-5/6"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      );
+    }
+
+    if (filteredPartnerships.length === 0) {
+      return (
+        <Card>
+          <CardContent className="p-12 text-center">
+            {activeView === 'partners' ? (
+              <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            ) : (
+              <Store className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            )}
+            <h3 className="text-lg font-medium text-foreground dark:text-gray-100 mb-2">
+              No {activeView === 'partners' ? 'partners' : 'resellers'} found
+            </h3>
+            <p className="text-muted-foreground dark:text-muted-foreground mb-4">
+              {searchTerm || typeFilter !== "all" || statusFilter !== "all"
+                ? "Try adjusting your filters to see more results."
+                : `Get started by adding your first ${activeView === 'partners' ? 'partner' : 'reseller'}.`}
+            </p>
+            {!searchTerm && typeFilter === "all" && statusFilter === "all" && (
+              <Link to="/partnerships/new">
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add {activeView === 'partners' ? 'Partner' : 'Reseller'}
+                </Button>
+              </Link>
+            )}
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
+        {filteredPartnerships.map((partnership) => (
+          <Link key={partnership.id} to={`/partnerships/${partnership.id}`}>
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <CardTitle className="text-lg font-semibold text-foreground dark:text-gray-100 mb-1">
+                      {partnership.name}
+                    </CardTitle>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground dark:text-muted-foreground">
+                      <span>{partnership.country || 'Global'}</span>
+                    </div>
+                  </div>
+                  <Badge className={getStatusBadgeColor(partnership.status)}>
+                    {PARTNERSHIP_STATUS_LABELS[partnership.status] || 'Unknown'}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0 flex-1">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground dark:text-muted-foreground">Type:</span>
+                    <Badge variant="outline">
+                      {PARTNERSHIP_TYPE_LABELS[partnership.partnership_type] || 'Unknown Type'}
+                    </Badge>
+                  </div>
+                  
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground dark:text-muted-foreground">Start Date:</span>
+                    <span className="font-medium">
+                      {partnership.start_date 
+                        ? new Date(partnership.start_date).toLocaleDateString()
+                        : 'Not set'
+                      }
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -132,7 +248,7 @@ const Partnerships = () => {
               Partnerships
             </h1>
             <p className="text-muted-foreground dark:text-muted-foreground">
-              Manage your resellers, consultants, and strategic alliances
+              Manage your partners and resellers
             </p>
           </div>
           <Link to="/partnerships/new">
@@ -143,156 +259,171 @@ const Partnerships = () => {
           </Link>
         </div>
 
-        {/* Filters */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search partnerships..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="All Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="reseller">Reseller</SelectItem>
-                  <SelectItem value="consultant">Consultant</SelectItem>
-                  <SelectItem value="platform_partner">Technology Partner</SelectItem>
-                  <SelectItem value="education_partner">Education Partner</SelectItem>
-                  <SelectItem value="mou_partner">MOU Partner</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="signed">Signed</SelectItem>
-                  <SelectItem value="in_discussion">In Discussion</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="expired">Expired</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-full sm:w-[180px]">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="name">Partner Name</SelectItem>
-                  <SelectItem value="start_date">Start Date</SelectItem>
-                  <SelectItem value="expected_value">Expected Value</SelectItem>
-                </SelectContent>
-              </Select>
-              {(searchTerm || typeFilter !== "all" || statusFilter !== "all" || sortBy !== "name") && (
-                <Button
-                  variant="outline"
-                  onClick={handleClearFilters}
-                  className="w-full sm:w-auto"
-                >
-                  Clear Filters
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Tabs for Partners vs Resellers */}
+        <Tabs value={activeView} onValueChange={handleViewChange} className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2 bg-muted/50 p-1 h-auto">
+            <TabsTrigger 
+              value="partners" 
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2 py-3"
+            >
+              <Building2 className="h-4 w-4" />
+              <span className="font-medium">Partners</span>
+              <Badge variant="secondary" className="ml-1">
+                {partnersList.length}
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="resellers" 
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2 py-3"
+            >
+              <Store className="h-4 w-4" />
+              <span className="font-medium">Resellers</span>
+              <Badge variant="secondary" className="ml-1">
+                {resellersList.length}
+              </Badge>
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Top Performers Section */}
-        <TopPerformersChart />
-
-        {/* Partnerships Grid */}
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <CardContent className="p-6">
-                  <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-                  <div className="h-3 bg-muted rounded w-1/2 mb-4"></div>
-                  <div className="space-y-2">
-                    <div className="h-3 bg-muted rounded"></div>
-                    <div className="h-3 bg-muted rounded w-5/6"></div>
+          {/* Partners Tab */}
+          <TabsContent value="partners" className="space-y-6 mt-0">
+            {/* Filters */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search partners..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : filteredPartnerships.length === 0 ? (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <HandHeart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-foreground dark:text-gray-100 mb-2">
-                No partnerships found
-              </h3>
-              <p className="text-muted-foreground dark:text-muted-foreground mb-4">
-                {searchTerm || typeFilter !== "all" || statusFilter !== "all"
-                  ? "Try adjusting your filters to see more results."
-                  : "Get started by adding your first partnership."}
-              </p>
-              {!searchTerm && typeFilter === "all" && statusFilter === "all" && (
-                <Link to="/partnerships/new">
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Partnership
-                  </Button>
-                </Link>
-              )}
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
-            {filteredPartnerships.map((partnership) => (
-              <Link key={partnership.id} to={`/partnerships/${partnership.id}`}>
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg font-semibold text-foreground dark:text-gray-100 mb-1">
-                          {partnership.name}
-                        </CardTitle>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground dark:text-muted-foreground">
-                          <span>{partnership.country || 'Global'}</span>
-                        </div>
-                      </div>
-                      <Badge className={getStatusBadgeColor(partnership.status)}>
-                        {PARTNERSHIP_STATUS_LABELS[partnership.status] || 'Unknown'}
-                      </Badge>
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="All Types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="consultant">Consultant</SelectItem>
+                      <SelectItem value="platform_partner">Technology Partner</SelectItem>
+                      <SelectItem value="education_partner">Education Partner</SelectItem>
+                      <SelectItem value="mou_partner">MOU Partner</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="All Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="signed">Signed</SelectItem>
+                      <SelectItem value="in_discussion">In Discussion</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="expired">Expired</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name">Partner Name</SelectItem>
+                      <SelectItem value="start_date">Start Date</SelectItem>
+                      <SelectItem value="expected_value">Expected Value</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {(searchTerm || typeFilter !== "all" || statusFilter !== "all" || sortBy !== "name") && (
+                    <Button
+                      variant="outline"
+                      onClick={handleClearFilters}
+                      className="w-full sm:w-auto"
+                    >
+                      Clear Filters
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Top Partners Performance */}
+            <TopPerformersChart 
+              title="Top Performing Partners"
+              description="Partners generating the most revenue from linked contracts"
+              filterTypes={PARTNER_TYPES}
+            />
+
+            {/* Partners Grid */}
+            {renderPartnershipGrid()}
+          </TabsContent>
+
+          {/* Resellers Tab */}
+          <TabsContent value="resellers" className="space-y-6 mt-0">
+            {/* Filters */}
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search resellers..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10"
+                      />
                     </div>
-                  </CardHeader>
-                  <CardContent className="pt-0 flex-1">
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground dark:text-muted-foreground">Type:</span>
-                        <Badge variant="outline">
-                          {PARTNERSHIP_TYPE_LABELS[partnership.partnership_type] || 'Unknown Type'}
-                        </Badge>
-                      </div>
-                      
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground dark:text-muted-foreground">Start Date:</span>
-                        <span className="font-medium">
-                          {partnership.start_date 
-                            ? new Date(partnership.start_date).toLocaleDateString()
-                            : 'Not set'
-                          }
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        )}
+                  </div>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="All Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="signed">Signed</SelectItem>
+                      <SelectItem value="in_discussion">In Discussion</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="expired">Expired</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name">Reseller Name</SelectItem>
+                      <SelectItem value="start_date">Start Date</SelectItem>
+                      <SelectItem value="expected_value">Expected Value</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {(searchTerm || statusFilter !== "all" || sortBy !== "name") && (
+                    <Button
+                      variant="outline"
+                      onClick={handleClearFilters}
+                      className="w-full sm:w-auto"
+                    >
+                      Clear Filters
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Top Resellers Performance */}
+            <TopPerformersChart 
+              title="Top Performing Resellers"
+              description="Resellers generating the most revenue from linked contracts"
+              filterTypes={RESELLER_TYPES}
+            />
+
+            {/* Resellers Grid */}
+            {renderPartnershipGrid()}
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );

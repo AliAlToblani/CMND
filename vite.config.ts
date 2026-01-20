@@ -24,6 +24,8 @@ export default defineConfig(({ mode }) => ({
     target: 'esnext',
     minify: 'esbuild',
     sourcemap: false,
+    cssCodeSplit: true,
+    cssMinify: true,
     rollupOptions: {
       output: {
         manualChunks: (id) => {
@@ -72,7 +74,13 @@ export default defineConfig(({ mode }) => ({
       'react-dom',
       '@supabase/supabase-js',
       'react-router-dom',
-      '@tanstack/react-query'
+      '@tanstack/react-query',
+      'date-fns',
+      'recharts'
     ],
+  },
+  // Faster dev server
+  esbuild: {
+    drop: mode === 'production' ? ['console', 'debugger'] : [],
   },
 }));

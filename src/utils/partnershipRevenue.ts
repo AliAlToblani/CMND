@@ -142,10 +142,18 @@ export const calculatePartnershipRevenue = (contracts: any[]): PartnershipRevenu
   };
 };
 
-export const getTopPartnershipsByRevenue = async (limit: number = 5): Promise<TopPartnership[]> => {
-  const { data: partnerships, error: partnershipsError } = await supabase
+export const getTopPartnershipsByRevenue = async (limit: number = 5, filterTypes?: string[]): Promise<TopPartnership[]> => {
+  // Build the partnerships query
+  let partnershipsQuery = supabase
     .from('partnerships')
-    .select('id, name');
+    .select('id, name, partnership_type');
+
+  // Apply filter if types are specified
+  if (filterTypes && filterTypes.length > 0) {
+    partnershipsQuery = partnershipsQuery.in('partnership_type', filterTypes);
+  }
+
+  const { data: partnerships, error: partnershipsError } = await partnershipsQuery;
 
   if (partnershipsError) {
     console.error('Error fetching partnerships:', partnershipsError);
@@ -162,11 +170,14 @@ export const getTopPartnershipsByRevenue = async (limit: number = 5): Promise<To
     return [];
   }
 
+  // Create a set of filtered partnership IDs for quick lookup
+  const filteredPartnershipIds = new Set(partnerships?.map(p => p.id) || []);
+
   // Group contracts by partnership and calculate revenue
   const revenueByPartnership = new Map<string, number>();
   
   contracts?.forEach(contract => {
-    if (contract.partnership_id) {
+    if (contract.partnership_id && filteredPartnershipIds.has(contract.partnership_id)) {
       const currentRevenue = revenueByPartnership.get(contract.partnership_id) || 0;
       revenueByPartnership.set(contract.partnership_id, currentRevenue + calculateContractValue(contract));
     }

@@ -4,11 +4,23 @@ import { useQuery } from "@tanstack/react-query";
 import { getTopPartnershipsByRevenue } from "@/utils/partnershipRevenue";
 import { Link } from "react-router-dom";
 import { TrendingUp } from "lucide-react";
+import { PartnershipType } from "@/types/partnerships";
 
-export const TopPerformersChart = () => {
+interface TopPerformersChartProps {
+  title?: string;
+  description?: string;
+  filterTypes?: PartnershipType[];
+}
+
+export const TopPerformersChart = ({ 
+  title = "Top Performing Partnerships",
+  description = "Partnerships generating the most revenue",
+  filterTypes
+}: TopPerformersChartProps) => {
   const { data: topPartnerships = [], isLoading } = useQuery({
-    queryKey: ['top-partnerships-by-revenue'],
-    queryFn: async () => await getTopPartnershipsByRevenue(5)
+    queryKey: ['top-partnerships-by-revenue', filterTypes ? filterTypes.sort().join(',') : 'all'],
+    queryFn: async () => await getTopPartnershipsByRevenue(5, filterTypes),
+    staleTime: 30 * 1000, // 30 seconds
   });
 
   if (isLoading) {
@@ -17,9 +29,9 @@ export const TopPerformersChart = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
-            Top Performing Partnerships
+            {title}
           </CardTitle>
-          <CardDescription>Partnerships generating the most revenue</CardDescription>
+          <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-[300px] flex items-center justify-center">
@@ -36,13 +48,13 @@ export const TopPerformersChart = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
-            Top Performing Partnerships
+            {title}
           </CardTitle>
-          <CardDescription>Partnerships generating the most revenue</CardDescription>
+          <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-            No partnership revenue data yet. Link contracts to partnerships to see top performers.
+            No revenue data yet. Link contracts to partnerships to see top performers.
           </div>
         </CardContent>
       </Card>
@@ -62,9 +74,9 @@ export const TopPerformersChart = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <TrendingUp className="h-5 w-5" />
-          Top Performing Partnerships
+          {title}
         </CardTitle>
-        <CardDescription>Partnerships generating the most revenue from linked contracts</CardDescription>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>

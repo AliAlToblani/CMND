@@ -84,8 +84,6 @@ export const RevenueTrendChart = ({ isRefreshing, countries, dateFrom, dateTo }:
         };
       });
 
-      console.log('[RevenueTrendChart] Last 3 months cumulative:', chartData);
-
       setData(chartData);
       setTotalRevenue(cumulativeRevenue);
     } catch (error) {
