@@ -1,11 +1,19 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
-import { FileText, CheckCircle2, Clock, Loader2, AlertCircle } from "lucide-react";
+import { format, differenceInDays } from "date-fns";
+import { FileText, CheckCircle2, Clock, Loader2, AlertCircle, ArrowUpDown, CalendarDays, SortAsc, SortDesc } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -16,16 +24,50 @@ interface PendingProposalCustomer {
   proposal_sent_date?: string;
   proposal_approved_status?: 'not-started' | 'in-progress' | 'done' | null;
   stage?: string | null;
+  days_pending?: number;
 }
+
+type SortOption = 'days-desc' | 'days-asc' | 'name-asc' | 'name-desc' | 'date-desc' | 'date-asc';
 
 export function PendingProposals() {
   const navigate = useNavigate();
   const [customers, setCustomers] = useState<PendingProposalCustomer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<SortOption>('days-desc');
 
   useEffect(() => {
     fetchPendingProposals();
   }, []);
+
+  // Sort customers based on selected option
+  const sortedCustomers = useMemo(() => {
+    const sorted = [...customers];
+    
+    switch (sortBy) {
+      case 'days-desc':
+        return sorted.sort((a, b) => (b.days_pending || 0) - (a.days_pending || 0));
+      case 'days-asc':
+        return sorted.sort((a, b) => (a.days_pending || 0) - (b.days_pending || 0));
+      case 'name-asc':
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+      case 'name-desc':
+        return sorted.sort((a, b) => b.name.localeCompare(a.name));
+      case 'date-desc':
+        return sorted.sort((a, b) => {
+          if (!a.proposal_sent_date) return 1;
+          if (!b.proposal_sent_date) return -1;
+          return new Date(b.proposal_sent_date).getTime() - new Date(a.proposal_sent_date).getTime();
+        });
+      case 'date-asc':
+        return sorted.sort((a, b) => {
+          if (!a.proposal_sent_date) return 1;
+          if (!b.proposal_sent_date) return -1;
+          return new Date(a.proposal_sent_date).getTime() - new Date(b.proposal_sent_date).getTime();
+        });
+      default:
+        return sorted;
+    }
+  }, [customers, sortBy]);
 
   const fetchPendingProposals = async () => {
     try {
@@ -80,13 +122,20 @@ export function PendingProposals() {
         const proposalSent = stages.get('Proposal Sent');
         const proposalApproved = stages.get('Proposal Approved');
 
+        // Calculate days since proposal was sent
+        let daysPending = 0;
+        if (proposalSent?.status_changed_at) {
+          daysPending = differenceInDays(new Date(), new Date(proposalSent.status_changed_at));
+        }
+
         return {
           id: customer.id,
           name: customer.name,
           logo: customer.logo,
           proposal_sent_date: proposalSent?.status_changed_at,
           proposal_approved_status: proposalApproved?.status || 'not-started',
-          stage: customer.stage
+          stage: customer.stage,
+          days_pending: daysPending
         };
       });
 
@@ -117,6 +166,19 @@ export function PendingProposals() {
       .slice(0, 2);
   };
 
+  const getDaysUrgencyClass = (days: number) => {
+    if (days >= 30) return 'bg-red-100 text-red-700 border-red-200';
+    if (days >= 14) return 'bg-orange-100 text-orange-700 border-orange-200';
+    if (days >= 7) return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+    return 'bg-green-100 text-green-700 border-green-200';
+  };
+
+  const getDaysLabel = (days: number) => {
+    if (days === 0) return 'Today';
+    if (days === 1) return '1 day';
+    return `${days} days`;
+  };
+
   if (loading) {
     return (
       <Card className="border-0 shadow-lg">
@@ -139,11 +201,60 @@ export function PendingProposals() {
 
   return (
     <Card className="border-0 shadow-lg">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileText className="h-5 w-5" />
-          Pending Proposals ({customers.length})
-        </CardTitle>
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Pending Proposals ({customers.length})
+          </CardTitle>
+          
+          {customers.length > 0 && (
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+              <SelectTrigger className="w-[180px] h-9">
+                <ArrowUpDown className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="days-desc">
+                  <span className="flex items-center gap-2">
+                    <SortDesc className="h-3 w-3" />
+                    Days Pending (High)
+                  </span>
+                </SelectItem>
+                <SelectItem value="days-asc">
+                  <span className="flex items-center gap-2">
+                    <SortAsc className="h-3 w-3" />
+                    Days Pending (Low)
+                  </span>
+                </SelectItem>
+                <SelectItem value="date-desc">
+                  <span className="flex items-center gap-2">
+                    <CalendarDays className="h-3 w-3" />
+                    Date Sent (Newest)
+                  </span>
+                </SelectItem>
+                <SelectItem value="date-asc">
+                  <span className="flex items-center gap-2">
+                    <CalendarDays className="h-3 w-3" />
+                    Date Sent (Oldest)
+                  </span>
+                </SelectItem>
+                <SelectItem value="name-asc">
+                  <span className="flex items-center gap-2">
+                    <SortAsc className="h-3 w-3" />
+                    Name (A-Z)
+                  </span>
+                </SelectItem>
+                <SelectItem value="name-desc">
+                  <span className="flex items-center gap-2">
+                    <SortDesc className="h-3 w-3" />
+                    Name (Z-A)
+                  </span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {customers.length === 0 ? (
@@ -155,7 +266,7 @@ export function PendingProposals() {
         ) : (
           <ScrollArea className="h-[600px]">
             <div className="space-y-3 pr-4">
-              {customers.map(customer => (
+              {sortedCustomers.map(customer => (
                 <div
                   key={customer.id}
                   onClick={() => navigate(`/customers/${customer.id}`)}
@@ -172,21 +283,34 @@ export function PendingProposals() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="font-semibold text-base truncate">{customer.name}</h3>
-                        {getStatusBadge(customer.proposal_approved_status)}
+                        <div className="flex items-center gap-2">
+                          {/* Days Pending Badge */}
+                          {customer.days_pending !== undefined && (
+                            <Badge 
+                              variant="outline" 
+                              className={`font-semibold ${getDaysUrgencyClass(customer.days_pending)}`}
+                            >
+                              <CalendarDays className="h-3 w-3 mr-1" />
+                              {getDaysLabel(customer.days_pending)}
+                            </Badge>
+                          )}
+                          {getStatusBadge(customer.proposal_approved_status)}
+                        </div>
                       </div>
                       
-                      {customer.proposal_sent_date && (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          <span>Sent: {format(new Date(customer.proposal_sent_date), 'MMM d, yyyy')}</span>
-                        </div>
-                      )}
-                      
-                      {customer.stage && (
-                        <Badge variant="outline" className="mt-2 text-xs">
-                          {customer.stage}
-                        </Badge>
-                      )}
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        {customer.proposal_sent_date && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            Sent: {format(new Date(customer.proposal_sent_date), 'MMM d, yyyy')}
+                          </span>
+                        )}
+                        {customer.stage && (
+                          <Badge variant="outline" className="text-xs">
+                            {customer.stage}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

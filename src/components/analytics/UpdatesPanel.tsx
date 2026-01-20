@@ -37,7 +37,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Globe, User } from "lucide-react";
 
 interface ActivityItem {
   id: string;
@@ -58,12 +66,11 @@ interface DetailedData {
 }
 
 interface UpdatesPanelProps {
-  countries?: string[];
   dateFrom?: Date;
   dateTo?: Date;
 }
 
-export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps) => {
+export const UpdatesPanel = ({ dateFrom, dateTo }: UpdatesPanelProps) => {
   const [period, setPeriod] = useState<'weekly' | 'monthly'>('weekly');
   const [weeklyData, setWeeklyData] = useState<DetailedData | null>(null);
   const [monthlyData, setMonthlyData] = useState<DetailedData | null>(null);
@@ -71,6 +78,37 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
   const [loading, setLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [showFullView, setShowFullView] = useState(false);
+  
+  // Filter state
+  const [selectedCountry, setSelectedCountry] = useState<string>('all');
+  const [selectedDealOwner, setSelectedDealOwner] = useState<string>('all');
+  const [availableCountries, setAvailableCountries] = useState<string[]>([]);
+  const [availableDealOwners, setAvailableDealOwners] = useState<string[]>([]);
+
+  // Fetch available filter options
+  useEffect(() => {
+    const fetchFilterOptions = async () => {
+      const { data: customers } = await supabase
+        .from('customers')
+        .select('country, deal_owner');
+
+      const countriesSet = new Set<string>();
+      const dealOwnersSet = new Set<string>();
+      
+      (customers || []).forEach((c: any) => {
+        if (c.country) countriesSet.add(c.country);
+        if (c.deal_owner) dealOwnersSet.add(c.deal_owner);
+      });
+
+      setAvailableCountries(Array.from(countriesSet).sort());
+      setAvailableDealOwners(Array.from(dealOwnersSet).sort());
+    };
+
+    fetchFilterOptions();
+  }, []);
+
+  // Build countries array from selected country
+  const countries = selectedCountry !== 'all' ? [selectedCountry] : undefined;
 
   const fetchDetailedData = async (days: number): Promise<DetailedData> => {
     // Use custom date range if provided, otherwise calculate from days parameter
@@ -117,6 +155,9 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
       if (countries && countries.length > 0 && stage.customers?.country) {
         if (!countries.includes(stage.customers.country)) return;
       }
+      // Apply deal owner filter
+      if (selectedDealOwner !== 'all' && stage.customers?.deal_owner !== selectedDealOwner) return;
+      
       const existing = customerStagesMap.get(stage.customer_id);
       if (!existing || new Date(stage.status_changed_at) > new Date(existing.status_changed_at)) {
         customerStagesMap.set(stage.customer_id, stage);
@@ -145,10 +186,14 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
       console.error('[UpdatesPanel] Customers query error:', customersError);
     }
 
-    // Apply country filter
-    const filteredCustomers = (countries && countries.length > 0 && allCustomersData)
-      ? allCustomersData.filter((c: any) => countries.includes(c.country))
-      : (allCustomersData || []);
+    // Apply country and deal owner filters
+    let filteredCustomers = allCustomersData || [];
+    if (countries && countries.length > 0) {
+      filteredCustomers = filteredCustomers.filter((c: any) => countries.includes(c.country));
+    }
+    if (selectedDealOwner !== 'all') {
+      filteredCustomers = filteredCustomers.filter((c: any) => c.deal_owner === selectedDealOwner);
+    }
 
 
     const newCustomers: ActivityItem[] = filteredCustomers.map((customer: any) => ({
@@ -209,10 +254,14 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
       })));
     }
 
-    // Apply country filter
-    const filteredContracts = (countries && countries.length > 0 && contractsData)
-      ? contractsData.filter((c: any) => c.customers && countries.includes(c.customers.country))
-      : contractsData;
+    // Apply country and deal owner filters
+    let filteredContracts = contractsData || [];
+    if (countries && countries.length > 0) {
+      filteredContracts = filteredContracts.filter((c: any) => c.customers && countries.includes(c.customers.country));
+    }
+    if (selectedDealOwner !== 'all') {
+      filteredContracts = filteredContracts.filter((c: any) => c.customers && c.customers.deal_owner === selectedDealOwner);
+    }
 
     const newContracts: ActivityItem[] = filteredContracts.map((contract: any) => {
       // Use start_date first, then fall back to created_at
@@ -233,7 +282,7 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
     // Fetch churns - customers with churn_date in range
     const { data: churnsData, error: churnsError } = await supabase
       .from('customers')
-      .select('id, name, churn_date, country, status')
+      .select('id, name, churn_date, country, status, deal_owner')
       .not('churn_date', 'is', null)
       .gte('churn_date', startDate.toISOString())
       .lte('churn_date', endDate.toISOString())
@@ -241,9 +290,14 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
 
     if (churnsError) console.error('[UpdatesPanel] Churns query error:', churnsError);
 
-    const filteredChurns = countries && countries.length > 0 
-      ? churnsData?.filter((c: any) => countries.includes(c.country)) || []
-      : churnsData || [];
+    // Apply country and deal owner filters
+    let filteredChurns = churnsData || [];
+    if (countries && countries.length > 0) {
+      filteredChurns = filteredChurns.filter((c: any) => countries.includes(c.country));
+    }
+    if (selectedDealOwner !== 'all') {
+      filteredChurns = filteredChurns.filter((c: any) => c.deal_owner === selectedDealOwner);
+    }
 
 
     const churns: ActivityItem[] = filteredChurns.map((customer: any) => ({
@@ -328,7 +382,7 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
     };
 
     loadData();
-  }, [countries, dateFrom, dateTo]);
+  }, [selectedCountry, selectedDealOwner, dateFrom, dateTo]);
 
   const handleGenerateReport = async () => {
     setGenerating(true);
@@ -612,13 +666,14 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
     <>
       <Card className="border-0 shadow-xl bg-gradient-to-br from-card via-card to-card/90 h-full flex flex-col">
         <CardHeader className="border-b border-border/50 pb-4 flex-shrink-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg">
                 <Calendar className="h-5 w-5 text-primary-foreground" />
               </div>
               <div>
-                <CardTitle className="text-xl font-bold">Activity Updates</CardTitle>
+                <CardTitle className="text-xl font-bold">BD Team Updates</CardTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {period === 'weekly' ? 'Last 7 days' : 'Last 30 days'} • {stats.total} total activities
                 </p>
@@ -632,6 +687,36 @@ export const UpdatesPanel = ({ countries, dateFrom, dateTo }: UpdatesPanelProps)
             >
               <Maximize2 className="h-4 w-4" />
             </Button>
+          </div>
+          
+          {/* Filters Row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+              <SelectTrigger className="w-[160px] h-8 text-xs bg-background">
+                <Globe className="h-3.5 w-3.5 mr-1.5" />
+                <SelectValue placeholder="All Countries" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Countries</SelectItem>
+                {availableCountries.map(country => (
+                  <SelectItem key={country} value={country}>{country}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <Select value={selectedDealOwner} onValueChange={setSelectedDealOwner}>
+              <SelectTrigger className="w-[180px] h-8 text-xs bg-background">
+                <User className="h-3.5 w-3.5 mr-1.5" />
+                <SelectValue placeholder="All Deal Owners" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Deal Owners</SelectItem>
+                {availableDealOwners.map(owner => (
+                  <SelectItem key={owner} value={owner}>{owner}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </CardHeader>
 

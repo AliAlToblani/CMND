@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { ProposalNotesForm } from "@/components/proposals/ProposalNotesForm";
 import { PendingProposals } from "@/components/proposals/PendingProposals";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 import {
   Sparkles,
   Calculator,
@@ -33,7 +36,11 @@ import {
   Lock,
   Unlock,
   StickyNote,
-  Clock
+  Clock,
+  Save,
+  FolderOpen,
+  User,
+  Building2
 } from "lucide-react";
 
 // ==================== RATE CARD DATA ====================
@@ -157,9 +164,44 @@ const generateId = () => Math.random().toString(36).substring(2, 9);
 
 // ==================== MAIN COMPONENT ====================
 
+interface CalculatorDraft {
+  id: string;
+  customer_name: string;
+  draft_name: string | null;
+  currency: string;
+  fx_rate: number;
+  setup_base: number;
+  setup_lines: SetupLine[];
+  text_config: TextConfig;
+  voice_config: VoiceConfig;
+  avatar_config: AvatarConfig;
+  discount_permission: "allowed" | "restricted";
+  discount_percent: number;
+  discount_reason: string;
+  discount_applies_to: "all" | "recurring";
+  vat_enabled: boolean;
+  vat_rate: number;
+  vat_applies_to: "all" | "recurring";
+  force_minimums: boolean;
+  grand_total_usd: number;
+  grand_total_converted: number;
+  monthly_equivalent: number;
+  created_at: string;
+  updated_at: string;
+}
+
 const ProposalGenie = () => {
   const { toast } = useToast();
 
+  // Customer name for draft
+  const [customerName, setCustomerName] = useState("");
+  const [draftName, setDraftName] = useState("");
+  
+  // Saved drafts
+  const [savedDrafts, setSavedDrafts] = useState<CalculatorDraft[]>([]);
+  const [loadingDrafts, setLoadingDrafts] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [showSavedDrafts, setShowSavedDrafts] = useState(false);
 
   // Currency
   const [currency, setCurrency] = useState("USD");
@@ -212,6 +254,146 @@ const ProposalGenie = () => {
 
   // Get currency symbol
   const currencySymbol = CURRENCIES.find(c => c.code === currency)?.symbol || "$";
+
+  // ==================== DRAFT FUNCTIONS ====================
+
+  const fetchSavedDrafts = async () => {
+    setLoadingDrafts(true);
+    try {
+      const { data, error } = await supabase
+        .from('calculator_drafts')
+        .select('*')
+        .order('updated_at', { ascending: false });
+
+      if (error) throw error;
+      
+      // Transform the data to match our interface
+      const drafts: CalculatorDraft[] = (data || []).map((d: any) => ({
+        id: d.id,
+        customer_name: d.customer_name,
+        draft_name: d.draft_name,
+        currency: d.currency || 'USD',
+        fx_rate: d.fx_rate || 1,
+        setup_base: d.setup_base || 0,
+        setup_lines: d.setup_lines || [],
+        text_config: d.text_config || { enabled: false, monthlyResponses: 0, customPricing: false, customAnnual: 0 },
+        voice_config: d.voice_config || { enabled: false, monthlyHours: 0, peakMonthHours: 0 },
+        avatar_config: d.avatar_config || { enabled: false, monthlyHours: 0 },
+        discount_permission: d.discount_permission || 'allowed',
+        discount_percent: d.discount_percent || 0,
+        discount_reason: d.discount_reason || '',
+        discount_applies_to: d.discount_applies_to || 'all',
+        vat_enabled: d.vat_enabled || false,
+        vat_rate: d.vat_rate || 0,
+        vat_applies_to: d.vat_applies_to || 'all',
+        force_minimums: d.force_minimums !== false,
+        grand_total_usd: d.grand_total_usd || 0,
+        grand_total_converted: d.grand_total_converted || 0,
+        monthly_equivalent: d.monthly_equivalent || 0,
+        created_at: d.created_at,
+        updated_at: d.updated_at
+      }));
+      
+      setSavedDrafts(drafts);
+    } catch (error) {
+      console.error('Error fetching drafts:', error);
+      toast({ title: "Failed to load drafts", variant: "destructive" });
+    } finally {
+      setLoadingDrafts(false);
+    }
+  };
+
+  const saveDraft = async () => {
+    if (!customerName.trim()) {
+      toast({ title: "Please enter a customer name", variant: "destructive" });
+      return;
+    }
+
+    setSavingDraft(true);
+    try {
+      const draftData = {
+        customer_name: customerName.trim(),
+        draft_name: draftName.trim() || null,
+        currency,
+        fx_rate: fxRate,
+        setup_base: setupBase,
+        setup_lines: setupLines,
+        text_config: textConfig,
+        voice_config: voiceConfig,
+        avatar_config: avatarConfig,
+        discount_permission: discountPermission,
+        discount_percent: discountPercent,
+        discount_reason: discountReason,
+        discount_applies_to: discountAppliesTo,
+        vat_enabled: vatEnabled,
+        vat_rate: vatRate,
+        vat_applies_to: vatAppliesTo,
+        force_minimums: forceMinimums,
+        grand_total_usd: calculations.grandTotalUSD,
+        grand_total_converted: calculations.grandTotalConverted,
+        monthly_equivalent: calculations.monthlyEquivalent
+      };
+
+      const { error } = await supabase
+        .from('calculator_drafts')
+        .insert(draftData);
+
+      if (error) throw error;
+
+      toast({ title: "Draft saved!", description: `Calculator draft for ${customerName} saved successfully` });
+      fetchSavedDrafts();
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      toast({ title: "Failed to save draft", variant: "destructive" });
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  const loadDraft = (draft: CalculatorDraft) => {
+    setCustomerName(draft.customer_name);
+    setDraftName(draft.draft_name || '');
+    setCurrency(draft.currency);
+    setFxRate(draft.fx_rate);
+    setSetupBase(draft.setup_base);
+    setSetupLines(draft.setup_lines);
+    setTextConfig(draft.text_config);
+    setVoiceConfig(draft.voice_config);
+    setAvatarConfig(draft.avatar_config);
+    setDiscountPermission(draft.discount_permission);
+    setDiscountPercent(draft.discount_percent);
+    setDiscountReason(draft.discount_reason);
+    setDiscountAppliesTo(draft.discount_applies_to);
+    setVatEnabled(draft.vat_enabled);
+    setVatRate(draft.vat_rate);
+    setVatAppliesTo(draft.vat_applies_to);
+    setForceMinimums(draft.force_minimums);
+    setShowSavedDrafts(false);
+    
+    toast({ title: "Draft loaded", description: `Loaded calculator for ${draft.customer_name}` });
+  };
+
+  const deleteDraft = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('calculator_drafts')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({ title: "Draft deleted" });
+      fetchSavedDrafts();
+    } catch (error) {
+      console.error('Error deleting draft:', error);
+      toast({ title: "Failed to delete draft", variant: "destructive" });
+    }
+  };
+
+  // Fetch drafts on mount
+  useEffect(() => {
+    fetchSavedDrafts();
+  }, []);
 
   // ==================== CALCULATIONS ====================
 
@@ -707,14 +889,20 @@ const ProposalGenie = () => {
   };
 
   const resetForm = () => {
+    setCustomerName("");
+    setDraftName("");
     setCurrency("USD");
     setFxRate(1);
     setSetupBase(0);
     setSetupLines([]);
     setDiscountPercent(0);
     setDiscountReason("");
+    setDiscountPermission("allowed");
+    setDiscountAppliesTo("all");
     setVatEnabled(false);
     setVatRate(0);
+    setVatAppliesTo("all");
+    setForceMinimums(true);
     setTextConfig({ enabled: false, monthlyResponses: 0, customPricing: false, customAnnual: 0 });
     setVoiceConfig({ enabled: false, monthlyHours: 0, peakMonthHours: 0 });
     setAvatarConfig({ enabled: false, monthlyHours: 0 });
@@ -771,12 +959,150 @@ const ProposalGenie = () => {
 
           {/* Calculator Tab */}
           <TabsContent value="calculator" className="mt-0 space-y-6">
-            <div className="flex justify-end">
-              <Button variant="outline" onClick={resetForm}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Reset
-              </Button>
-            </div>
+            {/* Customer Name & Actions Bar */}
+            <Card className="border-0 shadow-lg bg-gradient-to-r from-purple-500/5 to-pink-500/5">
+              <CardContent className="pt-4 pb-4">
+                <div className="flex flex-col md:flex-row md:items-end gap-4">
+                  <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4" />
+                        Customer Name *
+                      </Label>
+                      <Input 
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder="Enter customer name"
+                        className="bg-background"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Draft Name (Optional)
+                      </Label>
+                      <Input 
+                        value={draftName}
+                        onChange={(e) => setDraftName(e.target.value)}
+                        placeholder="e.g., Initial Quote, Revised v2"
+                        className="bg-background"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={saveDraft}
+                      disabled={savingDraft || !customerName.trim()}
+                      className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                    >
+                      {savingDraft ? (
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      Save Draft
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowSavedDrafts(!showSavedDrafts)}
+                    >
+                      <FolderOpen className="h-4 w-4 mr-2" />
+                      {showSavedDrafts ? 'Hide' : 'Load'} Drafts
+                      {savedDrafts.length > 0 && (
+                        <Badge variant="secondary" className="ml-2">
+                          {savedDrafts.length}
+                        </Badge>
+                      )}
+                    </Button>
+                    <Button variant="outline" onClick={resetForm}>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Reset
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Saved Drafts Panel */}
+            {showSavedDrafts && (
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FolderOpen className="h-4 w-4" />
+                    Saved Calculator Drafts
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadingDrafts ? (
+                    <div className="flex items-center justify-center py-8">
+                      <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : savedDrafts.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No saved drafts yet</p>
+                      <p className="text-sm">Save your first calculator draft above</p>
+                    </div>
+                  ) : (
+                    <ScrollArea className="h-[300px]">
+                      <div className="space-y-2 pr-4">
+                        {savedDrafts.map((draft) => (
+                          <div 
+                            key={draft.id}
+                            className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium truncate">{draft.customer_name}</span>
+                                {draft.draft_name && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {draft.draft_name}
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <DollarSign className="h-3 w-3" />
+                                  {formatCurrency(draft.grand_total_converted, 
+                                    CURRENCIES.find(c => c.code === draft.currency)?.symbol || '$'
+                                  )}/yr
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {format(new Date(draft.updated_at), 'MMM dd, yyyy')}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  {draft.text_config?.enabled && <MessageSquare className="h-3 w-3 text-blue-500" />}
+                                  {draft.voice_config?.enabled && <Phone className="h-3 w-3 text-green-500" />}
+                                  {draft.avatar_config?.enabled && <Video className="h-3 w-3 text-purple-500" />}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 ml-4">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => loadDraft(draft)}
+                              >
+                                Load
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteDraft(draft.id)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  )}
+                </CardContent>
+              </Card>
+            )}
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* LEFT PANEL - INPUTS */}

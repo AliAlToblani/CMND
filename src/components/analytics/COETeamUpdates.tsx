@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Globe } from "lucide-react";
 
 interface ActivityItem {
   id: string;
@@ -54,12 +54,11 @@ interface DetailedData {
 
 interface COETeamUpdatesProps {
   isRefreshing?: boolean;
-  countries?: string[];
   dateFrom?: Date;
   dateTo?: Date;
 }
 
-export function COETeamUpdates({ isRefreshing, countries, dateFrom, dateTo }: COETeamUpdatesProps) {
+export function COETeamUpdates({ isRefreshing, dateFrom, dateTo }: COETeamUpdatesProps) {
   const [period, setPeriod] = useState<'weekly' | 'monthly'>('weekly');
   const [weeklyData, setWeeklyData] = useState<DetailedData | null>(null);
   const [monthlyData, setMonthlyData] = useState<DetailedData | null>(null);
@@ -67,6 +66,8 @@ export function COETeamUpdates({ isRefreshing, countries, dateFrom, dateTo }: CO
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [selectedManager, setSelectedManager] = useState<string>('all');
   const [availableManagers, setAvailableManagers] = useState<string[]>([]);
+  const [selectedCountry, setSelectedCountry] = useState<string>('all');
+  const [availableCountries, setAvailableCountries] = useState<string[]>([]);
 
   const fetchDetailedData = async (days: number): Promise<DetailedData> => {
     const daysAgo = new Date();
@@ -75,10 +76,10 @@ export function COETeamUpdates({ isRefreshing, countries, dateFrom, dateTo }: CO
     const startDate = dateFrom || daysAgo;
     const endDate = dateTo || new Date();
 
-    // Fetch all project_manager records created or updated in the period
+    // Fetch all project_manager records with customer data for country
     const { data: allProjects, error: projectsError } = await supabase
       .from('project_manager')
-      .select('*')
+      .select('*, customers:customer_id(country)')
       .order('created_at', { ascending: false });
 
     if (projectsError) {
@@ -96,9 +97,16 @@ export function COETeamUpdates({ isRefreshing, countries, dateFrom, dateTo }: CO
     // Apply manager filter
     let filteredProjects = projectsInPeriod;
     if (selectedManager !== 'all') {
-      filteredProjects = projectsInPeriod.filter((p: any) => 
+      filteredProjects = filteredProjects.filter((p: any) => 
         p.project_manager === selectedManager || 
         p.secondary_project_manager === selectedManager
+      );
+    }
+    
+    // Apply country filter
+    if (selectedCountry !== 'all') {
+      filteredProjects = filteredProjects.filter((p: any) => 
+        p.customers?.country === selectedCountry
       );
     }
 
@@ -184,23 +192,41 @@ export function COETeamUpdates({ isRefreshing, countries, dateFrom, dateTo }: CO
     return { projectsAdded, demosAdded, demosCompleted, projectsCompleted };
   };
 
-  // Fetch available managers
+  // Fetch available managers and countries
   useEffect(() => {
-    const fetchManagers = async () => {
-      const { data } = await supabase
+    const fetchFilterOptions = async () => {
+      // Fetch managers
+      const { data: projectData } = await supabase
         .from('project_manager')
-        .select('project_manager, secondary_project_manager');
+        .select('project_manager, secondary_project_manager, customer_id');
 
       const managersSet = new Set<string>();
-      (data || []).forEach((p: any) => {
+      const customerIds = new Set<string>();
+      
+      (projectData || []).forEach((p: any) => {
         if (p.project_manager) managersSet.add(p.project_manager);
         if (p.secondary_project_manager) managersSet.add(p.secondary_project_manager);
+        if (p.customer_id) customerIds.add(p.customer_id);
       });
 
       setAvailableManagers(Array.from(managersSet).sort());
+
+      // Fetch countries from customers linked to projects
+      if (customerIds.size > 0) {
+        const { data: customersData } = await supabase
+          .from('customers')
+          .select('country')
+          .in('id', Array.from(customerIds));
+
+        const countriesSet = new Set<string>();
+        (customersData || []).forEach((c: any) => {
+          if (c.country) countriesSet.add(c.country);
+        });
+        setAvailableCountries(Array.from(countriesSet).sort());
+      }
     };
 
-    fetchManagers();
+    fetchFilterOptions();
   }, []);
 
   useEffect(() => {
@@ -228,7 +254,7 @@ export function COETeamUpdates({ isRefreshing, countries, dateFrom, dateTo }: CO
     };
 
     loadData();
-  }, [isRefreshing, selectedManager, countries, dateFrom, dateTo]);
+  }, [isRefreshing, selectedManager, selectedCountry, dateFrom, dateTo]);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
@@ -345,31 +371,49 @@ export function COETeamUpdates({ isRefreshing, countries, dateFrom, dateTo }: CO
   return (
     <Card className="border-0 shadow-xl bg-gradient-to-br from-card via-card to-card/90 h-full flex flex-col">
       <CardHeader className="border-b border-border/50 pb-4 flex-shrink-0 bg-gradient-to-r from-primary/5 via-transparent to-primary/5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg">
-              <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div>
-              <CardTitle className="text-xl font-bold">COE Team Updates</CardTitle>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {period === 'weekly' ? 'Last 7 days' : 'Last 30 days'} • {stats.total} total activities
-              </p>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg">
+                <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-bold">COE Team Updates</CardTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {period === 'weekly' ? 'Last 7 days' : 'Last 30 days'} • {stats.total} total activities
+                </p>
+              </div>
             </div>
           </div>
-          {/* Project Manager Filter */}
-          <Select value={selectedManager} onValueChange={setSelectedManager}>
-            <SelectTrigger className="w-[200px] bg-background">
-              <Users className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="All Managers" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Managers</SelectItem>
-              {availableManagers.map(manager => (
-                <SelectItem key={manager} value={manager}>{manager}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          
+          {/* Filters Row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+              <SelectTrigger className="w-[160px] h-8 text-xs bg-background">
+                <Globe className="h-3.5 w-3.5 mr-1.5" />
+                <SelectValue placeholder="All Countries" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Countries</SelectItem>
+                {availableCountries.map(country => (
+                  <SelectItem key={country} value={country}>{country}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <Select value={selectedManager} onValueChange={setSelectedManager}>
+              <SelectTrigger className="w-[180px] h-8 text-xs bg-background">
+                <Users className="h-3.5 w-3.5 mr-1.5" />
+                <SelectValue placeholder="All Managers" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Managers</SelectItem>
+                {availableManagers.map(manager => (
+                  <SelectItem key={manager} value={manager}>{manager}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </CardHeader>
 
