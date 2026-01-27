@@ -1131,6 +1131,7 @@ export type Database = {
       project_manager: {
         Row: {
           checklist_items: Json | null
+          completed_at: string | null
           created_at: string | null
           customer_id: string
           customer_logo: string | null
@@ -1148,10 +1149,12 @@ export type Database = {
           service_description: string | null
           service_type: string | null
           status: string
+          testing_links: Json | null
           updated_at: string | null
         }
         Insert: {
           checklist_items?: Json | null
+          completed_at?: string | null
           created_at?: string | null
           customer_id: string
           customer_logo?: string | null
@@ -1169,10 +1172,12 @@ export type Database = {
           service_description?: string | null
           service_type?: string | null
           status?: string
+          testing_links?: Json | null
           updated_at?: string | null
         }
         Update: {
           checklist_items?: Json | null
+          completed_at?: string | null
           created_at?: string | null
           customer_id?: string
           customer_logo?: string | null
@@ -1190,6 +1195,7 @@ export type Database = {
           service_description?: string | null
           service_type?: string | null
           status?: string
+          testing_links?: Json | null
           updated_at?: string | null
         }
         Relationships: [
