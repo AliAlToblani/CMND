@@ -79,6 +79,14 @@ interface TestingLink {
   url: string;
 }
 
+interface ProjectDocument {
+  id: string;
+  name: string;
+  url: string;
+  size?: number;
+  uploaded_at: string;
+}
+
 interface ProjectCustomer {
   id: string;
   customer_id: string;
@@ -92,13 +100,22 @@ interface ProjectCustomer {
   notes: string;
   status: 'ongoing' | 'completed' | 'demo';
   priority: Priority;
+  start_date?: string;
   deadline?: string;
   demo_date?: string;
-  demo_delivered?: boolean; // Track if demo was delivered
-  testing_links?: TestingLink[]; // AI Agent testing links
+  demo_delivered?: boolean;
+  testing_links?: TestingLink[];
+  documents?: ProjectDocument[];
   created_at: string;
-  completed_at?: string; // Track when project was completed
+  completed_at?: string;
 }
+
+// Owner display: last name only (e.g. "John Doe" → "Doe"); hover shows full name via title
+const getOwnerDisplay = (fullName?: string | null): string => {
+  if (!fullName?.trim()) return '—';
+  const parts = fullName.trim().split(/\s+/);
+  return parts.length >= 2 ? parts[parts.length - 1] : parts[0];
+};
 
 // Helper function to calculate days until deadline and get color
 const getDeadlineInfo = (deadline?: string) => {
@@ -149,6 +166,7 @@ interface SubTask {
   checked: boolean;
   deadline?: string;
   stage?: TaskStage;
+  owner?: string;
 }
 
 interface ChecklistItem {
@@ -159,7 +177,65 @@ interface ChecklistItem {
   expanded?: boolean;
   deadline?: string;
   stage?: TaskStage;
+  owner?: string;
 }
+
+const makeSubtask = (label: string): SubTask => ({
+  id: crypto.randomUUID(), label, checked: false, stage: 'not_started',
+});
+
+const makePhase = (label: string, subtasks: string[]): ChecklistItem => ({
+  id: crypto.randomUUID(), label, checked: false, expanded: true, stage: 'not_started',
+  subtasks: subtasks.map(makeSubtask),
+});
+
+const getOngoingTemplate = (): ChecklistItem[] => [
+  makePhase('Phase 1: Initiation', [
+    'Requirement Documents Gathering',
+  ]),
+  makePhase('Phase 2: Planning & Kick-off', [
+    'Project Charter Development',
+    'Milestone & Timeline Planning',
+  ]),
+  makePhase('Phase 3: AI Agent Development', [
+    'Agent Development (Knowledge Base & Workflow)',
+    'Configuration',
+    'Testing & QA (Internal)',
+    'Client Review',
+    'Revisions',
+  ]),
+  makePhase('Phase 4: Integrations', [
+    'Channel Integrations',
+    'Testing & QA',
+    'Client Review',
+    'Revisions',
+  ]),
+  makePhase('Phase 5: Go-Live', [
+    'Product Deploy',
+    'Continuous Service & Maintenance',
+  ]),
+];
+
+const getDemoTemplate = (): ChecklistItem[] => [
+  makePhase('Phase 1: Document Gathering', [
+    'Collect Knowledge Base',
+    'Define Demo Scenario',
+  ]),
+  makePhase('Phase 2: Demo Creation', [
+    'Agent Setup',
+    'Prompt Setup',
+    'Workflow Configuration',
+  ]),
+  makePhase('Phase 3: Quality Checking', [
+    'Internal QA',
+    'Demo Polishing',
+    'Final Demo Link Delivery',
+  ]),
+];
+
+const getProjectTemplate = (status: string): ChecklistItem[] => {
+  return status === 'demo' ? getDemoTemplate() : getOngoingTemplate();
+};
 
 interface Customer {
   id: string;
@@ -269,12 +345,18 @@ export default function ProjectManager() {
   // Track if secondary project manager field is visible
   const [showSecondaryManager, setShowSecondaryManager] = useState(false);
   
+  // Service description expand + document upload
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const docInputRef = useRef<HTMLInputElement>(null);
+  
   // Debounce timer for search
   const searchTimerRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Reset secondary manager visibility when project changes
+  // Reset UI state when project changes
   useEffect(() => {
     setShowSecondaryManager(false);
+    setDescExpanded(false);
   }, [selectedProject?.id]);
 
   // Load projects from database (shared across all users)
@@ -310,10 +392,12 @@ export default function ProjectManager() {
         notes: p.notes || '',
         status: p.status as 'ongoing' | 'completed' | 'demo',
         priority: (p.priority as Priority) || 'moderate',
+        start_date: p.start_date || undefined,
         deadline: p.deadline || undefined,
         demo_date: p.demo_date || undefined,
         demo_delivered: p.demo_delivered || false,
         testing_links: (p.testing_links as TestingLink[]) || [],
+        documents: (p.documents as ProjectDocument[]) || [],
         created_at: p.created_at,
         completed_at: p.completed_at || undefined,
       }));
@@ -610,11 +694,7 @@ export default function ProjectManager() {
         service_type: null,
         project_manager: '',
         service_description: request.description || '',
-        checklist_items: [
-          { id: crypto.randomUUID(), label: 'Phase 1', checked: false, subtasks: [], expanded: true },
-          { id: crypto.randomUUID(), label: 'Phase 2', checked: false, subtasks: [], expanded: true },
-          { id: crypto.randomUUID(), label: 'Phase 3', checked: false, subtasks: [], expanded: true },
-        ],
+        checklist_items: getProjectTemplate(request.request_type === 'demo' ? 'demo' : 'ongoing'),
         notes: '',
         status: request.request_type === 'demo' ? 'demo' : 'ongoing',
         priority: 'moderate' as Priority,
@@ -855,9 +935,11 @@ export default function ProjectManager() {
             notes: newRecord.notes || '',
             status: newRecord.status as 'ongoing' | 'completed' | 'demo',
             priority: (newRecord.priority as Priority) || 'moderate',
+            start_date: newRecord.start_date || undefined,
             deadline: newRecord.deadline || undefined,
             demo_date: newRecord.demo_date || undefined,
             demo_delivered: newRecord.demo_delivered || false,
+            documents: (newRecord.documents as ProjectDocument[]) || [],
             created_at: newRecord.created_at,
           };
           
@@ -894,10 +976,12 @@ export default function ProjectManager() {
             notes: updatedRecord.notes || '',
             status: updatedRecord.status as 'ongoing' | 'completed' | 'demo',
             priority: (updatedRecord.priority as Priority) || 'moderate',
+            start_date: updatedRecord.start_date || undefined,
             deadline: updatedRecord.deadline || undefined,
             demo_date: updatedRecord.demo_date || undefined,
             demo_delivered: updatedRecord.demo_delivered || false,
             testing_links: (updatedRecord.testing_links as TestingLink[]) || [],
+            documents: (updatedRecord.documents as ProjectDocument[]) || [],
             created_at: updatedRecord.created_at,
           };
           
@@ -984,11 +1068,7 @@ export default function ProjectManager() {
         service_type: customer.service_type || null,
         project_manager: customer.project_owner || '',
       service_description: '',
-      checklist_items: [
-        { id: crypto.randomUUID(), label: 'Phase 1', checked: false, subtasks: [], expanded: true },
-        { id: crypto.randomUUID(), label: 'Phase 2', checked: false, subtasks: [], expanded: true },
-        { id: crypto.randomUUID(), label: 'Phase 3', checked: false, subtasks: [], expanded: true },
-      ],
+      checklist_items: getProjectTemplate(activeTab === 'completed' ? 'demo' : activeTab),
       notes: '',
       status: activeTab === 'completed' ? 'demo' : activeTab,
         priority: 'moderate' as Priority,
@@ -1030,10 +1110,12 @@ export default function ProjectManager() {
         notes: responseData.notes || '',
         status: responseData.status as 'ongoing' | 'completed' | 'demo',
         priority: (responseData.priority as Priority) || 'moderate',
+        start_date: responseData.start_date || undefined,
         deadline: responseData.deadline || undefined,
         demo_date: responseData.demo_date || undefined,
         demo_delivered: responseData.demo_delivered || false,
         testing_links: (responseData.testing_links as TestingLink[]) || [],
+        documents: (responseData.documents as ProjectDocument[]) || [],
         created_at: responseData.created_at,
       };
       
@@ -1097,10 +1179,12 @@ export default function ProjectManager() {
       if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
       if (updates.status !== undefined) dbUpdates.status = updates.status;
         if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
+        if (updates.start_date !== undefined) dbUpdates.start_date = updates.start_date || null;
         if (updates.deadline !== undefined) dbUpdates.deadline = updates.deadline || null;
       if (updates.demo_date !== undefined) dbUpdates.demo_date = updates.demo_date || null;
         if (updates.demo_delivered !== undefined) dbUpdates.demo_delivered = updates.demo_delivered;
       if (updates.testing_links !== undefined) dbUpdates.testing_links = updates.testing_links || [];
+      if (updates.documents !== undefined) dbUpdates.documents = updates.documents || [];
       if (updates.completed_at !== undefined) dbUpdates.completed_at = updates.completed_at || null;
 
       const { error } = await supabase
@@ -1218,6 +1302,55 @@ export default function ProjectManager() {
     updateProject(selectedProject.id, { checklist_items: updatedItems });
   };
 
+  const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedProject || !e.target.files?.length) return;
+    const file = e.target.files[0];
+    
+    try {
+      setUploadingDoc(true);
+      const filePath = `projects/${selectedProject.id}/${Date.now()}_${file.name}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('project-files')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        toast.error('Failed to upload document');
+        return;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('project-files')
+        .getPublicUrl(filePath);
+
+      const newDoc: ProjectDocument = {
+        id: crypto.randomUUID(),
+        name: file.name,
+        url: urlData.publicUrl,
+        size: file.size,
+        uploaded_at: new Date().toISOString(),
+      };
+
+      const updatedDocs = [...(selectedProject.documents || []), newDoc];
+      updateProject(selectedProject.id, { documents: updatedDocs });
+      toast.success('Document uploaded');
+    } catch (err) {
+      console.error('Upload error:', err);
+      toast.error('Failed to upload document');
+    } finally {
+      setUploadingDoc(false);
+      if (docInputRef.current) docInputRef.current.value = '';
+    }
+  };
+
+  const handleDocDelete = (docId: string) => {
+    if (!selectedProject) return;
+    const updatedDocs = (selectedProject.documents || []).filter(d => d.id !== docId);
+    updateProject(selectedProject.id, { documents: updatedDocs });
+    toast.success('Document removed');
+  };
+
   const updatePhaseDeadline = (phaseId: string, deadline: string) => {
     if (!selectedProject) return;
 
@@ -1231,12 +1364,35 @@ export default function ProjectManager() {
     if (!selectedProject) return;
 
     const updatedItems = selectedProject.checklist_items.map(item =>
-      item.id === phaseId 
+      item.id === phaseId
         ? { 
             ...item, 
             subtasks: (item.subtasks || []).map(st =>
               st.id === subtaskId ? { ...st, deadline: deadline || undefined } : st
             )
+          }
+        : item
+    );
+    updateProject(selectedProject.id, { checklist_items: updatedItems });
+  };
+
+  const updatePhaseOwner = (phaseId: string, owner: string) => {
+    if (!selectedProject) return;
+    const updatedItems = selectedProject.checklist_items.map(item =>
+      item.id === phaseId ? { ...item, owner: owner || undefined } : item
+    );
+    updateProject(selectedProject.id, { checklist_items: updatedItems });
+  };
+
+  const updateSubtaskOwner = (phaseId: string, subtaskId: string, owner: string) => {
+    if (!selectedProject) return;
+    const updatedItems = selectedProject.checklist_items.map(item =>
+      item.id === phaseId
+        ? {
+            ...item,
+            subtasks: (item.subtasks || []).map(st =>
+              st.id === subtaskId ? { ...st, owner: owner || undefined } : st
+            ),
           }
         : item
     );
@@ -1792,22 +1948,32 @@ export default function ProjectManager() {
               )}
             </div>
             
-            {/* Row 3: Manager + Deadline */}
+            {/* Row 3: Lead + Timeline */}
             <div className="flex items-center justify-between gap-2 mt-1.5">
               <span className="text-[10px] text-muted-foreground truncate">
-                {project.project_manager || 'Unassigned'}
+                {project.project_manager || 'No lead'}
                 {project.secondary_project_manager && ` +1`}
               </span>
-              {project.deadline && activeTab !== 'completed' && (
-                <Badge className={`text-[10px] h-4 px-1.5 shrink-0 ${getDeadlineInfo(project.deadline)?.color}`}>
-                  {getDeadlineInfo(project.deadline)?.label}
-                </Badge>
-              )}
-              {activeTab === 'demo' && project.demo_date && !project.deadline && (
-                <span className="text-[10px] text-blue-500 shrink-0">
-                  {new Date(project.demo_date).toLocaleDateString()}
-                </span>
-              )}
+              <div className="flex items-center gap-1 shrink-0">
+                {project.start_date && activeTab !== 'completed' && (
+                  <span className="text-[10px] text-muted-foreground">
+                    {new Date(project.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                )}
+                {project.start_date && project.deadline && activeTab !== 'completed' && (
+                  <ArrowRight className="h-2.5 w-2.5 text-muted-foreground" />
+                )}
+                {project.deadline && activeTab !== 'completed' && (
+                  <Badge className={`text-[10px] h-4 px-1.5 ${getDeadlineInfo(project.deadline)?.color}`}>
+                    {getDeadlineInfo(project.deadline)?.label}
+                  </Badge>
+                )}
+                {activeTab === 'demo' && project.demo_date && !project.deadline && !project.start_date && (
+                  <span className="text-[10px] text-blue-500">
+                    {new Date(project.demo_date).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1933,10 +2099,10 @@ export default function ProjectManager() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Project Manager */}
+            {/* Project Lead */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-              <Label htmlFor="project-manager">Project Manager</Label>
+              <Label htmlFor="project-manager">Project Lead</Label>
                 {!selectedProject.secondary_project_manager && !showSecondaryManager && (
                   <Button
                     size="sm"
@@ -1945,7 +2111,7 @@ export default function ProjectManager() {
                     onClick={() => setShowSecondaryManager(true)}
                   >
                     <Plus className="h-3 w-3 mr-1" />
-                    Add Secondary
+                    Add Assignee
                   </Button>
                 )}
               </div>
@@ -1954,10 +2120,10 @@ export default function ProjectManager() {
                 onValueChange={(value) => updateProject(selectedProject.id, { project_manager: value === 'unassigned' ? '' : value })}
               >
                 <SelectTrigger className="bg-background">
-                  <SelectValue placeholder="Select assignee" />
+                  <SelectValue placeholder="Select lead" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  <SelectItem value="unassigned">No lead</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.full_name}>
                       {user.full_name}
@@ -1966,11 +2132,11 @@ export default function ProjectManager() {
                 </SelectContent>
               </Select>
               
-              {/* Secondary Project Manager */}
+              {/* Assignee */}
               {(selectedProject.secondary_project_manager || showSecondaryManager) && (
                 <div className="space-y-1 mt-2">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="secondary-manager" className="text-xs text-muted-foreground">Secondary Manager</Label>
+                    <Label htmlFor="secondary-manager" className="text-xs text-muted-foreground">Assignee</Label>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -1988,10 +2154,10 @@ export default function ProjectManager() {
                     onValueChange={(value) => updateProject(selectedProject.id, { secondary_project_manager: value === 'unassigned' ? '' : value })}
                   >
                     <SelectTrigger className="bg-background h-8 text-sm">
-                      <SelectValue placeholder="Select secondary" />
+                      <SelectValue placeholder="Select assignee" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="unassigned">None</SelectItem>
+                      <SelectItem value="unassigned">No assignee</SelectItem>
                       {users
                         .filter(user => user.full_name !== selectedProject.project_manager)
                         .map((user) => (
@@ -2038,33 +2204,68 @@ export default function ProjectManager() {
               </Select>
             </div>
 
-            {/* Deadline */}
-            <div className="space-y-2">
-              <Label htmlFor="deadline">Deadline</Label>
-              <div className="relative">
-                <Input
-                  id="deadline"
-                  type="date"
-                  value={selectedProject.deadline || ''}
-                  onChange={(e) => updateProject(selectedProject.id, { deadline: e.target.value })}
-                  className="bg-background"
-                />
-                {selectedProject.deadline && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="absolute right-8 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground hover:text-destructive"
-                    onClick={() => updateProject(selectedProject.id, { deadline: '' })}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                )}
+            {/* Timeline: Start & Due stacked */}
+            <div className="space-y-1.5">
+              <Label>Timeline</Label>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground w-7 shrink-0">Start</span>
+                  <div className="relative flex-1">
+                    <Input
+                      type="date"
+                      value={selectedProject.start_date || ''}
+                      onChange={(e) => updateProject(selectedProject.id, { start_date: e.target.value })}
+                      className="bg-background h-8 text-xs"
+                    />
+                    {selectedProject.start_date && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="absolute right-7 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground hover:text-destructive"
+                        onClick={() => updateProject(selectedProject.id, { start_date: '' })}
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground w-7 shrink-0">Due</span>
+                  <div className="relative flex-1">
+                    <Input
+                      type="date"
+                      value={selectedProject.deadline || ''}
+                      onChange={(e) => updateProject(selectedProject.id, { deadline: e.target.value })}
+                      className="bg-background h-8 text-xs"
+                    />
+                    {selectedProject.deadline && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="absolute right-7 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground hover:text-destructive"
+                        onClick={() => updateProject(selectedProject.id, { deadline: '' })}
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
-              {selectedProject.deadline && (
-                <Badge className={`text-xs ${getDeadlineInfo(selectedProject.deadline)?.color}`}>
-                  <Clock className="h-3 w-3 mr-1" />
-                  {getDeadlineInfo(selectedProject.deadline)?.label}
-                </Badge>
+              {(selectedProject.start_date || selectedProject.deadline) && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {selectedProject.deadline && (
+                    <Badge className={`text-[10px] h-4 px-1.5 ${getDeadlineInfo(selectedProject.deadline)?.color}`}>
+                      <Clock className="h-2.5 w-2.5 mr-0.5" />
+                      {getDeadlineInfo(selectedProject.deadline)?.label}
+                    </Badge>
+                  )}
+                  {selectedProject.start_date && selectedProject.deadline && (() => {
+                    const start = new Date(selectedProject.start_date);
+                    const end = new Date(selectedProject.deadline);
+                    const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                    return days > 0 ? <span className="text-[10px] text-muted-foreground">{days}d span</span> : null;
+                  })()}
+                </div>
               )}
             </div>
 
@@ -2083,17 +2284,99 @@ export default function ProjectManager() {
             )}
           </div>
 
-          {/* Service Description */}
+          {/* Service Description & Documents */}
           <div className="space-y-2">
-            <Label htmlFor="service-description">Service Description</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="service-description">Service Description</Label>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 px-2 text-xs text-muted-foreground"
+                onClick={() => setDescExpanded(!descExpanded)}
+              >
+                {descExpanded ? 'Collapse' : 'Expand'}
+                {descExpanded ? <ChevronDown className="h-3 w-3 ml-1" /> : <ChevronRight className="h-3 w-3 ml-1" />}
+              </Button>
+            </div>
             <Textarea
               id="service-description"
               placeholder="Describe the services being implemented for this customer..."
               value={selectedProject.service_description}
               onChange={(e) => updateProject(selectedProject.id, { service_description: e.target.value })}
-              rows={3}
-              className="resize-none bg-background"
+              rows={descExpanded ? 8 : 3}
+              className={`bg-background transition-all ${descExpanded ? 'resize-y' : 'resize-none'}`}
             />
+            
+            {/* Documents */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">
+                {(selectedProject.documents || []).length > 0 
+                  ? `${(selectedProject.documents || []).length} document${(selectedProject.documents || []).length !== 1 ? 's' : ''}` 
+                  : 'No documents'}
+              </span>
+              <div>
+                <input
+                  ref={docInputRef}
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.csv,.png,.jpg,.jpeg"
+                  onChange={handleDocUpload}
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => docInputRef.current?.click()}
+                  disabled={uploadingDoc}
+                >
+                  {uploadingDoc ? (
+                    <><RefreshCw className="h-3 w-3 mr-1 animate-spin" />Uploading...</>
+                  ) : (
+                    <><Upload className="h-3 w-3 mr-1" />Upload</>
+                  )}
+                </Button>
+              </div>
+            </div>
+            {(selectedProject.documents || []).length > 0 && (
+              <div className="space-y-1">
+                {(selectedProject.documents || []).map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="flex items-center justify-between gap-2 rounded-md border border-border/50 bg-muted/30 px-2.5 py-1.5 group"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span className="text-xs truncate">{doc.name}</span>
+                      {doc.size && (
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          {doc.size < 1024 * 1024 
+                            ? `${Math.round(doc.size / 1024)}KB` 
+                            : `${(doc.size / (1024 * 1024)).toFixed(1)}MB`}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-5 w-5 text-muted-foreground hover:text-primary"
+                        onClick={() => window.open(doc.url, '_blank')}
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-5 w-5 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => handleDocDelete(doc.id)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Implementation Checklist */}
@@ -2188,6 +2471,25 @@ export default function ProjectManager() {
                           <SelectItem value="done">
                             <span className={stageConfig.done.color}>Done</span>
                           </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {/* Phase Owner */}
+                      <Select
+                        value={phase.owner || 'unassigned'}
+                        onValueChange={(v) => updatePhaseOwner(phase.id, v === 'unassigned' ? '' : v)}
+                      >
+                        <SelectTrigger
+                          className="h-6 w-auto max-w-[10rem] min-w-[3rem] px-2 shrink-0 text-xs font-medium border [&>svg]:shrink-0"
+                          title={phase.owner ? phase.owner : 'Owner'}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="block min-w-0 whitespace-nowrap" title={phase.owner || undefined}>{getOwnerDisplay(phase.owner)}</span>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="unassigned">— No owner</SelectItem>
+                          {users.map((u) => (
+                            <SelectItem key={u.id} value={u.full_name}>{u.full_name}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       {/* Phase Deadline */}
@@ -2295,6 +2597,25 @@ export default function ProjectManager() {
                                 <SelectItem value="done">
                                   <span className={`text-xs ${stageConfig.done.color}`}>Done</span>
                                 </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {/* Subtask Owner */}
+                            <Select
+                              value={subtask.owner || 'unassigned'}
+                              onValueChange={(v) => updateSubtaskOwner(phase.id, subtask.id, v === 'unassigned' ? '' : v)}
+                            >
+                              <SelectTrigger
+                                className="h-5 w-auto max-w-[10rem] min-w-[2.5rem] px-1.5 shrink-0 text-[11px] font-medium border [&>svg]:shrink-0"
+                                title={subtask.owner ? subtask.owner : 'Owner'}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <span className="block min-w-0 whitespace-nowrap" title={subtask.owner || undefined}>{getOwnerDisplay(subtask.owner)}</span>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="unassigned">— No owner</SelectItem>
+                                {users.map((u) => (
+                                  <SelectItem key={u.id} value={u.full_name}>{u.full_name}</SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                             {/* Subtask Deadline */}
@@ -2658,7 +2979,7 @@ export default function ProjectManager() {
     
     // Add filtered projects to their managers
     filteredProjects.forEach(project => {
-      const manager = project.project_manager || 'Unassigned';
+      const manager = project.project_manager || 'No lead';
       if (!grouped[manager]) {
         grouped[manager] = [];
       }
@@ -2700,7 +3021,7 @@ export default function ProjectManager() {
             <h3 className="text-lg font-medium mb-2">No Team Members Assigned</h3>
             <p className="text-sm text-muted-foreground max-w-md">
               No projects have been assigned to team members yet.
-              Add projects in the Demos or Ongoing tabs and assign a project manager.
+              Add projects in the Demos or Ongoing tabs and assign a project lead.
             </p>
           </CardContent>
         </Card>
@@ -3057,13 +3378,13 @@ export default function ProjectManager() {
                 )}
               </div>
               
-              {/* Assignee Filter */}
+              {/* Lead filter */}
               <Select value={selectedAssignee} onValueChange={setSelectedAssignee}>
                 <SelectTrigger className="w-full sm:w-[180px] h-10">
-                  <SelectValue placeholder="Filter by assignee" />
+                  <SelectValue placeholder="Filter by lead" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Assignees</SelectItem>
+                  <SelectItem value="all">All leads</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.full_name}>
                       {user.full_name}

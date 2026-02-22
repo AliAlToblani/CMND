@@ -1142,6 +1142,7 @@ export type Database = {
           deadline: string | null
           demo_date: string | null
           demo_delivered: boolean | null
+          documents: Json | null
           file_name: string | null
           file_url: string | null
           id: string
@@ -1151,6 +1152,7 @@ export type Database = {
           secondary_project_manager: string | null
           service_description: string | null
           service_type: string | null
+          start_date: string | null
           status: string
           testing_links: Json | null
           updated_at: string | null
@@ -1165,6 +1167,7 @@ export type Database = {
           deadline?: string | null
           demo_date?: string | null
           demo_delivered?: boolean | null
+          documents?: Json | null
           file_name?: string | null
           file_url?: string | null
           id?: string
@@ -1174,6 +1177,7 @@ export type Database = {
           secondary_project_manager?: string | null
           service_description?: string | null
           service_type?: string | null
+          start_date?: string | null
           status?: string
           testing_links?: Json | null
           updated_at?: string | null
@@ -1188,6 +1192,7 @@ export type Database = {
           deadline?: string | null
           demo_date?: string | null
           demo_delivered?: boolean | null
+          documents?: Json | null
           file_name?: string | null
           file_url?: string | null
           id?: string
@@ -1197,6 +1202,7 @@ export type Database = {
           secondary_project_manager?: string | null
           service_description?: string | null
           service_type?: string | null
+          start_date?: string | null
           status?: string
           testing_links?: Json | null
           updated_at?: string | null
