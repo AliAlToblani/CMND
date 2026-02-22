@@ -30,11 +30,7 @@ export const AcceptInvite = () => {
   const [tokenError, setTokenError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Add debug logging
-    console.log('AcceptInvite component mounted');
-    console.log('Current URL:', window.location.href);
-    console.log('Raw token from URL:', rawToken);
-    console.log('Decoded token:', token);
+    // Validate token on mount
     
     if (token) {
       validateInvitationToken();
@@ -46,27 +42,20 @@ export const AcceptInvite = () => {
 
   const validateInvitationToken = async () => {
     try {
-      console.log('Validating invitation token:', token);
-      console.log('Token length:', token?.length);
-      console.log('Token type:', typeof token);
+      
       
       if (!token) {
         setTokenError('No invitation token provided');
         return;
       }
       
-      // Query invitations table directly
+      // Use secure RPC function to validate token (SECURITY DEFINER bypasses RLS)
       const { data, error } = await supabase
-        .from('invitations' as any)
-        .select('*')
-        .eq('token', token)
-        .gt('expires_at', new Date().toISOString())
-        .is('accepted_at', null)
+        .rpc('get_valid_invitation', { token_param: token })
         .single();
 
       if (error) {
-        console.error('Error validating invitation:', error);
-        console.error('Database error details:', error.details, error.hint, error.code);
+        console.error('Error validating invitation:', error.code);
         
         if (error.code === 'PGRST116') {
           setTokenError('This invitation link has expired, been used, or is invalid');
@@ -76,7 +65,6 @@ export const AcceptInvite = () => {
         return;
       }
 
-      console.log('Valid invitation found:', data);
       setInvitationData(data as unknown as InvitationData);
     } catch (error) {
       console.error('Error validating token:', error);
