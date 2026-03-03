@@ -21,13 +21,9 @@ import { CustomerData } from "@/types/customers";
 import { toast } from "sonner";
 import { syncCustomersToDatabase } from "@/utils/customerDataSync";
 import { exportCustomersToExcel } from "@/utils/excelExport";
-import { canonicalizeStageName, createStageNameMap } from "@/utils/stageNames";
 import { sortStagesByOrder } from "@/utils/stageOrdering";
-import { isCompletedLike, isInProgressLike, isBlockedLike, getOperationalStatusFromArray } from "@/utils/stageStatus";
 import { resolvePipelineStageFromLifecycleStages } from "@/utils/pipelineRules";
 import { syncCustomerPipelineStages } from "@/utils/pipelineSync";
-import { debugNawaraPipeline } from "@/utils/debugPipeline";
-import { auditCustomerStages } from "@/utils/stageAudit";
 
 const Customers = () => {
   const navigate = useNavigate();
@@ -161,6 +157,7 @@ const Customers = () => {
         name: "Unassigned",
         role: "Unassigned"
       },
+      description: dbCustomer.description || undefined,
       lifecycleStages: cardLifecycleStages,
       lastUpdatedAt: lastUpdatedAt,
       last_contacted_at: lastContactedAt ?? null
@@ -375,138 +372,84 @@ const Customers = () => {
         setIsLoading(true);
       }
       
-      // Fetch customers and their lifecycle stages (only needed columns for performance)
+      // Single query for all customer columns including last_contacted_at
       const { data: customers, error: customersError } = await supabase
         .from('customers')
-        .select('id, name, logo, segment, country, stage, status, contract_size, deal_owner, project_owner, owner_id, industry, description, updated_at, estimated_deal_value');
+        .select('id, name, logo, segment, country, stage, status, contract_size, deal_owner, project_owner, owner_id, industry, description, updated_at, estimated_deal_value, last_contacted_at');
 
       if (customersError) {
         console.error("Supabase error:", customersError);
         throw customersError;
       }
 
-      // Try to fetch last_contacted_at separately (column may not exist yet)
-      let contactedMap: Record<string, string | null> = {};
-      const { data: contactedData, error: contactedError } = await supabase
-        .from('customers')
-        .select('id, last_contacted_at');
-      if (!contactedError && contactedData) {
-        contactedData.forEach((c: any) => {
-          contactedMap[c.id] = c.last_contacted_at || null;
-        });
-      }
-      // If contactedError, column likely doesn't exist yet — silently ignore
-
-      // Fetch lifecycle stages more efficiently - only for existing customers
-      const customerIds = (customers || []).map(c => c.id);
-      let allLifecycleStages: any[] = [];
-
-      // Fetch in batches for better performance
-      if (customerIds.length > 0) {
-        const batchSize = 100;
-        for (let i = 0; i < customerIds.length; i += batchSize) {
-          const batch = customerIds.slice(i, i + batchSize);
-
-          const { data: batchStages, error: stagesError } = await supabase
-            .from('lifecycle_stages')
-            .select('id, customer_id, name, status, category, updated_at, created_at')
-            .in('customer_id', batch);
-
-          if (stagesError) {
-            console.error("Lifecycle stages error:", stagesError);
-            throw stagesError;
-          }
-
-          if (batchStages) {
-            allLifecycleStages = allLifecycleStages.concat(batchStages);
-          }
-        }
-      }
-
-      // Fetch active contracts for all customers
-      let allContracts: any[] = [];
-      if (customers && customers.length > 0) {
-        const customerIds = customers.map(c => c.id);
-        const batchSize = 100;
-
-        for (let i = 0; i < customerIds.length; i += batchSize) {
-          const batch = customerIds.slice(i, i + batchSize);
-
-          const { data: batchContracts, error: contractsError } = await supabase
-            .from('contracts')
-            .select('customer_id, value, status')
-            .in('customer_id', batch)
-            .in('status', ['active', 'pending']); // Only active/pending contracts (exclude draft/expired)
-
-          if (contractsError) {
-            console.error('Error fetching contracts:', contractsError);
-          } else if (batchContracts) {
-            allContracts = allContracts.concat(batchContracts);
-          }
-        }
-      }
-
-      // Create a map of customer_id to total contract value
-      const contractValuesByCustomer: Record<string, number> = {};
-      allContracts.forEach(contract => {
-        if (!contractValuesByCustomer[contract.customer_id]) {
-          contractValuesByCustomer[contract.customer_id] = 0;
-        }
-        contractValuesByCustomer[contract.customer_id] += contract.value || 0;
-      });
-
-      // console.log("Customers data fetched:", customers);
-      // console.log(`Lifecycle stages fetched: ${allLifecycleStages.length}, Contracts fetched: ${allContracts.length}`);
-
-      if (customers && customers.length > 0) {
-        // Group all stages by customer (not just completed ones)
-        const stagesByCustomer: Record<string, any[]> = {};
-        allLifecycleStages?.forEach(stage => {
-          if (!stagesByCustomer[stage.customer_id]) {
-            stagesByCustomer[stage.customer_id] = [];
-          }
-          stagesByCustomer[stage.customer_id].push(stage);
-        });
-
-        // Debug: Find Macqueen
-        const macqueenCustomer = customers.find(c => c.name?.toLowerCase().includes('macqueen'));
-        if (macqueenCustomer) {
-          const macqueenStages = stagesByCustomer[macqueenCustomer.id] || [];
-          // console.log('🟡 MACQUEEN FETCH DEBUG:');
-          // console.log('   Customer ID:', macqueenCustomer.id);
-          // console.log('   Customer name:', macqueenCustomer.name);
-          // console.log('   DB stage:', macqueenCustomer.stage);
-          // console.log('   Number of stages:', macqueenStages.length);
-          // console.log('   Stage names:', macqueenStages.map((s: any) => `${s.name} (${s.status})`));
-        }
-
-        const formattedCustomers = customers.map(customer =>
-          formatDatabaseCustomer(
-            customer,
-            stagesByCustomer[customer.id] || [],
-            contractValuesByCustomer[customer.id],
-            contactedMap[customer.id]
-          )
-        );
-        
-        // Debug: Check Macqueen after formatting
-        const macqueenFormatted = formattedCustomers.find(c => c.name?.toLowerCase().includes('macqueen'));
-        if (macqueenFormatted) {
-          // console.log('🟢 MACQUEEN AFTER FORMAT:');
-          // console.log('   Computed stage:', macqueenFormatted.stage);
-        }
-        
-        setCustomers(formattedCustomers);
-        extractUniqueCountries(formattedCustomers);
-        extractUniqueStages(allLifecycleStages || []);
-        extractUniqueSegments(formattedCustomers);
-      } else {
-        // console.log("No customers found in database");
+      if (!customers || customers.length === 0) {
         setCustomers([]);
         setUniqueCountries([]);
         setUniqueStages([]);
         setUniqueSegments([]);
+        return;
       }
+
+      const customerIds = customers.map(c => c.id);
+
+      // Build all batch promises for stages and contracts in parallel
+      const batchSize = 50;
+      const stagePromises: Promise<any>[] = [];
+      const contractPromises: Promise<any>[] = [];
+
+      for (let i = 0; i < customerIds.length; i += batchSize) {
+        const batch = customerIds.slice(i, i + batchSize);
+        stagePromises.push(
+          supabase
+            .from('lifecycle_stages')
+            .select('id, customer_id, name, status, category, updated_at, created_at')
+            .in('customer_id', batch)
+            .limit(batch.length * 20)
+        );
+        contractPromises.push(
+          supabase
+            .from('contracts')
+            .select('customer_id, value, status')
+            .in('customer_id', batch)
+            .in('status', ['active', 'pending'])
+        );
+      }
+
+      // Fire all stage + contract batches at once
+      const [stageResults, contractResults] = await Promise.all([
+        Promise.all(stagePromises),
+        Promise.all(contractPromises),
+      ]);
+
+      const allLifecycleStages = stageResults.flatMap(r => r.data || []);
+      const allContracts = contractResults.flatMap(r => r.data || []);
+
+      // Group stages by customer
+      const stagesByCustomer: Record<string, any[]> = {};
+      allLifecycleStages.forEach(stage => {
+        if (!stagesByCustomer[stage.customer_id]) stagesByCustomer[stage.customer_id] = [];
+        stagesByCustomer[stage.customer_id].push(stage);
+      });
+
+      // Sum contract values by customer
+      const contractValuesByCustomer: Record<string, number> = {};
+      allContracts.forEach(contract => {
+        contractValuesByCustomer[contract.customer_id] = (contractValuesByCustomer[contract.customer_id] || 0) + (contract.value || 0);
+      });
+
+      const formattedCustomers = customers.map(customer =>
+        formatDatabaseCustomer(
+          customer,
+          stagesByCustomer[customer.id] || [],
+          contractValuesByCustomer[customer.id],
+          (customer as any).last_contacted_at ?? null
+        )
+      );
+      
+      setCustomers(formattedCustomers);
+      extractUniqueCountries(formattedCustomers);
+      extractUniqueStages(allLifecycleStages);
+      extractUniqueSegments(formattedCustomers);
     } catch (error) {
       console.error("Error fetching customers:", error);
       toast.error("Failed to load customers");
@@ -581,45 +524,27 @@ const Customers = () => {
   };
 
   useEffect(() => {
-    // Fetch customers directly without sync on every load (sync only on manual refresh)
     fetchCustomers();
     fetchUsers();
   }, []);
 
-  // Real-time subscription for live updates across users
+  // Debounced realtime subscription — coalesces rapid changes into a single refetch
   useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const debouncedRefetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => fetchCustomers(false), 1500);
+    };
+
     const channel = supabase
       .channel('customers-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'customers'
-        },
-        (payload) => {
-          console.log('🔄 Customer change detected:', payload.eventType);
-          // Debounced refresh to avoid rapid updates
-          fetchCustomers(false);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'lifecycle_stages'
-        },
-        (payload) => {
-          console.log('🔄 Lifecycle stage change detected:', payload.eventType);
-          fetchCustomers(false);
-        }
-      )
-      .subscribe((status) => {
-        console.log('📡 Customers realtime subscription status:', status);
-      });
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, debouncedRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lifecycle_stages' }, debouncedRefetch)
+      .subscribe();
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
     };
   }, []);
@@ -639,12 +564,14 @@ const Customers = () => {
   // Removed window focus auto-refresh for performance
 
   const handleRefresh = async () => {
-    // console.log('=== Running Pipeline Sync Before Refresh ===');
+    setIsRefreshing(true);
     try {
-      const syncResult = await syncCustomerPipelineStages();
-      // console.log("✅ Refresh pipeline sync completed:", syncResult);
+      await Promise.all([
+        autoFixCustomerStages(),
+        syncCustomerPipelineStages(),
+      ]);
     } catch (error) {
-      console.error("❌ Refresh pipeline sync failed:", error);
+      console.error("Refresh sync failed:", error);
     }
     fetchCustomers(true);
   };

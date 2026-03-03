@@ -39,12 +39,14 @@ import {
   XCircle,
   Inbox,
   Users,
-  ExternalLink
+  ExternalLink,
+  GanttChart
 } from "lucide-react";
 import { toast } from "sonner";
 import { createNotification } from "@/utils/notificationHelpers";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { GanttChartView, GanttProject } from "@/components/project-manager/GanttChartView";
 import {
   Dialog,
   DialogContent,
@@ -278,7 +280,7 @@ export default function ProjectManager() {
   const navigate = useNavigate();
   const [projects, setProjects] = useState<ProjectCustomer[]>([]);
   const [selectedProject, setSelectedProject] = useState<ProjectCustomer | null>(null);
-  const [activeTab, setActiveTab] = useState<'ongoing' | 'completed' | 'demo' | 'requests' | 'team'>('demo');
+  const [activeTab, setActiveTab] = useState<'ongoing' | 'completed' | 'demo' | 'requests' | 'team' | 'gantt'>('demo');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -3318,7 +3320,7 @@ export default function ProjectManager() {
         </div>
 
         <Tabs value={activeTab} onValueChange={(v) => {
-          setActiveTab(v as 'ongoing' | 'completed' | 'demo' | 'requests' | 'team');
+          setActiveTab(v as 'ongoing' | 'completed' | 'demo' | 'requests' | 'team' | 'gantt');
           setSelectedProject(null);
         }}>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
@@ -3351,6 +3353,10 @@ export default function ProjectManager() {
                 <TabsTrigger value="team" className="gap-2">
                   <Users className="h-4 w-4" />
                   Team Overview
+                </TabsTrigger>
+                <TabsTrigger value="gantt" className="gap-2">
+                  <GanttChart className="h-4 w-4" />
+                  Gantt Chart
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -3938,6 +3944,14 @@ export default function ProjectManager() {
 
           <TabsContent value="team" className="mt-0">
             {renderTeamOverview()}
+          </TabsContent>
+
+          <TabsContent value="gantt" className="mt-0">
+            <GanttChartView
+              projects={projects as unknown as GanttProject[]}
+              loading={loading}
+              onRefresh={loadProjects}
+            />
           </TabsContent>
         </Tabs>
       </div>

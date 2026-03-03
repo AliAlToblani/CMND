@@ -9,7 +9,7 @@ import { CustomerData, CardLifecycleStage } from "@/types/customers";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { sortStagesByOrder } from "@/utils/stageOrdering";
-import { ChevronRight, Clock, Pencil, Phone, Save, Undo2, Loader2, X, CalendarDays } from "lucide-react";
+import { ChevronRight, Clock, Pencil, Phone, Save, Undo2, Loader2, X, CalendarDays, StickyNote } from "lucide-react";
 
 export interface CustomerOwner {
   id: string;
@@ -91,6 +91,9 @@ function CustomerCardComponent({ customer, showEditOptions = false, isDetailed =
   const [isMarkingContacted, setIsMarkingContacted] = useState(false);
   const [contactedOpen, setContactedOpen] = useState(false);
   const [customDate, setCustomDate] = useState("");
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [notesValue, setNotesValue] = useState(customer.description || "");
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
 
   const originalStagesRef = useRef(customer.lifecycleStages || []);
 
@@ -174,6 +177,25 @@ function CustomerCardComponent({ customer, showEditOptions = false, isDetailed =
     }
     saveContactedDate(date.toISOString());
   }, [customDate, saveContactedDate]);
+
+  const handleSaveNotes = useCallback(async () => {
+    setIsSavingNotes(true);
+    try {
+      const { error } = await supabase
+        .from("customers")
+        .update({ description: notesValue || null })
+        .eq("id", customer.id);
+
+      if (error) throw error;
+      toast.success("Notes saved");
+      setNotesOpen(false);
+    } catch (error) {
+      console.error("Error saving notes:", error);
+      toast.error("Failed to save notes");
+    } finally {
+      setIsSavingNotes(false);
+    }
+  }, [customer.id, notesValue]);
 
   const handleSetStageStatus = useCallback((stageId: string, newStatus: StageStatus) => {
     const original = originalStagesRef.current.find(s => s.id === stageId);
@@ -424,6 +446,66 @@ function CustomerCardComponent({ customer, showEditOptions = false, isDetailed =
             </PopoverContent>
           </Popover>
         )}
+
+        {/* Notes */}
+        <Popover open={notesOpen} onOpenChange={setNotesOpen}>
+          <PopoverTrigger asChild>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setNotesOpen(!notesOpen);
+              }}
+              className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md border border-border/60 hover:bg-accent/50 transition-colors text-left ${notesValue ? "" : "opacity-60"}`}
+            >
+              <StickyNote className={`h-3.5 w-3.5 shrink-0 ${notesValue ? "text-amber-500" : "text-muted-foreground"}`} />
+              <span className="text-[11px] text-muted-foreground truncate flex-1">
+                {notesValue || "Add a note..."}
+              </span>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-72 p-0"
+            align="start"
+            side="right"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-3 border-b">
+              <h4 className="font-medium text-sm">Notes</h4>
+            </div>
+            <div className="p-3 space-y-2">
+              <textarea
+                value={notesValue}
+                onChange={(e) => setNotesValue(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                placeholder="Add notes about this customer..."
+                className="w-full min-h-[100px] text-sm bg-background border rounded-md px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setNotesValue(customer.description || "");
+                    setNotesOpen(false);
+                  }}
+                  className="px-2.5 py-1 rounded-md text-xs font-medium text-muted-foreground hover:bg-accent transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSaveNotes();
+                  }}
+                  disabled={isSavingNotes}
+                  className="flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  {isSavingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                  Save
+                </button>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
 
         {/* Footer: Updated + Contacted */}
         <div className="flex items-center justify-between pt-1 border-t border-border/40">
