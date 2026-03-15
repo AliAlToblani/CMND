@@ -27,9 +27,6 @@ export async function fetchDashboardMetrics(filterParams?: FilterParams): Promis
   const today = new Date();
   const thirtyDaysFromNow = new Date();
   thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setDate(sixMonthsAgo.getDate() - 180);
-
   // Build filter conditions
   const countryFilter = filterParams?.countries?.length ? filterParams.countries : null;
   const segmentFilter = filterParams?.segments?.length ? filterParams.segments : null;
@@ -47,12 +44,11 @@ export async function fetchDashboardMetrics(filterParams?: FilterParams): Promis
   // BATCH 2: Contracts data (single query for revenue/ARR/MRR)
   let contractsQuery = supabase
     .from('contracts')
-    .select('id, customer_id, status, annual_rate, setup_fee, value, renewal_date, end_date, created_at, customers!inner(id, country, segment, status)');
+    .select('id, customer_id, status, annual_rate, setup_fee, value, renewal_date, start_date, end_date, payment_frequency, created_at, customers!inner(id, country, segment, status)');
 
   if (countryFilter) contractsQuery = contractsQuery.in('customers.country', countryFilter);
   if (segmentFilter) contractsQuery = contractsQuery.in('customers.segment', segmentFilter);
-  if (filterParams?.dateFrom) contractsQuery = contractsQuery.gte('created_at', filterParams.dateFrom.toISOString());
-  if (filterParams?.dateTo) contractsQuery = contractsQuery.lte('created_at', filterParams.dateTo.toISOString());
+  // Note: Don't filter contracts by created_at — ARR/MRR are current-state metrics (all in-effect contracts)
 
   // BATCH 3: Lifecycle stages for timing calculations (only if needed)
   let stagesQuery = supabase
@@ -129,14 +125,24 @@ export async function fetchDashboardMetrics(filterParams?: FilterParams): Promis
     return sum + contractValue;
   }, 0);
 
-  // ARR from active contracts
-  const totalARR = validContracts.reduce((sum, c) => sum + (c.annual_rate || 0), 0);
+  // ARR: annual recurring only (exclude setup fees). Use annual_rate, else value for legacy/one-time.
+  const getARRAmount = (c: (typeof contracts)[0]) => {
+    if ((c.annual_rate || 0) > 0) return c.annual_rate!;
+    if ((c.value || 0) > 0) return c.value!;
+    return 0;
+  };
+  const arrContracts = contracts.filter(c => {
+    if (c.customers?.status === 'churned') return false;
+    const status = (c.status || '').toLowerCase();
+    if (!['active', 'pending', 'expired', ''].includes(status)) return false;
+    const start = c.start_date ? new Date(c.start_date) : null;
+    const hasStarted = !start || start <= today;
+    return hasStarted && getARRAmount(c) > 0;
+  });
+  const totalARR = arrContracts.reduce((sum, c) => sum + getARRAmount(c), 0);
 
-  // MRR (active contracts with future end date)
-  const activeContractsForMRR = validContracts.filter(c => 
-    c.end_date && new Date(c.end_date) > today
-  );
-  const mrr = Math.round(activeContractsForMRR.reduce((sum, c) => sum + (c.annual_rate || 0), 0) / 12);
+  // MRR = ARR / 12 (same contracts in effect today)
+  const mrr = Math.round(totalARR / 12);
 
   // Customers at risk (contracts renewing in 30 days)
   const atRiskContracts = contracts.filter(c =>
@@ -148,14 +154,21 @@ export async function fetchDashboardMetrics(filterParams?: FilterParams): Promis
   const uniqueAtRiskCustomers = new Set(atRiskContracts.map(c => c.customer_id));
   const customersAtRisk = uniqueAtRiskCustomers.size;
 
-  // Churn rate - churned in period / (active + churned in period)
-  const churnedInPeriod = customers.filter(c => 
-    c.status === 'churned' && 
-    c.churn_date && 
+  // Churn rate - last 6 months, only among customers who have (or had) contracts
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setDate(sixMonthsAgo.getDate() - 180);
+  const customerIdsWithContracts = new Set(contracts.map(c => c.customer_id).filter(Boolean));
+  const customersWithContracts = customers.filter(c => customerIdsWithContracts.has(c.id));
+  const activeWithContracts = customersWithContracts.filter(c =>
+    c.status !== 'churned' && !isLostStage(c.stage)
+  );
+  const churnedInPeriod = customersWithContracts.filter(c =>
+    c.status === 'churned' &&
+    c.churn_date &&
     new Date(c.churn_date) >= sixMonthsAgo
   ).length;
-  const baseForChurn = totalCustomers + churnedInPeriod;
-  const churnRate = baseForChurn > 0 
+  const baseForChurn = activeWithContracts.length + churnedInPeriod;
+  const churnRate = baseForChurn > 0
     ? `${((churnedInPeriod / baseForChurn) * 100).toFixed(1)}%`
     : "0.0%";
 

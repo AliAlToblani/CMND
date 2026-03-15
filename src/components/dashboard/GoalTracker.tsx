@@ -81,25 +81,29 @@ export function GoalTracker({
 
   const fetchGoalData = async () => {
     try {
-      // Fetch total revenue - same logic as dashboard KPI (active/pending/null status)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Fetch contracts for ARR - same logic as dashboard (active/pending/expired/null, exclude churned, started only)
       const { data: contracts, error } = await supabase
         .from('contracts')
-        .select('value, setup_fee, annual_rate, status')
-        .or('status.eq.active,status.eq.pending,status.is.null');
+        .select('value, annual_rate, status, start_date, customers!inner(status)')
+        .or('status.eq.active,status.eq.pending,status.eq.expired,status.is.null');
 
       if (error) {
         console.error('Error fetching contracts for goal:', error);
       }
 
-      // Calculate total using same logic as dashboard: setup_fee + annual_rate, fallback to value
-      const totalRevenue = (contracts || []).reduce((sum, c) => {
-        const contractValue = (c.setup_fee > 0 || c.annual_rate > 0) 
-          ? (c.setup_fee || 0) + (c.annual_rate || 0)
-          : (c.value || 0);
-        return sum + contractValue;
+      // ARR: annual_rate or value (exclude setup fees), only contracts that have started
+      const arr = (contracts || []).reduce((sum, c: any) => {
+        if (c.customers?.status === 'churned') return sum;
+        const start = c.start_date ? new Date(c.start_date) : null;
+        if (start && start > today) return sum;
+        const amount = (c.annual_rate || 0) > 0 ? c.annual_rate : (c.value || 0) > 0 ? c.value : 0;
+        return sum + amount;
       }, 0);
-      
-      setCurrentRevenue(totalRevenue);
+
+      setCurrentRevenue(arr);
 
       // Fetch completed clients from project_manager
       const { count } = await supabase
@@ -287,13 +291,13 @@ export function GoalTracker({
                   <DollarSign className={`h-5 w-5 ${isRevenueGoalMet ? 'text-green-500' : 'text-green-600'}`} />
                 </div>
                 <div>
-                  <p className="font-semibold">Revenue Goal</p>
+                  <p className="font-semibold">ARR Goal</p>
                   <p className="text-xs text-muted-foreground">Target: {formatCurrency(revenueGoal)}</p>
                 </div>
               </div>
               <div className="text-right">
                 <p className="text-2xl font-bold text-green-500">{formatCurrency(currentRevenue)}</p>
-                <p className="text-xs text-muted-foreground">{revenuePercentage.toFixed(1)}% achieved</p>
+                <p className="text-xs text-muted-foreground">ARR · {revenuePercentage.toFixed(1)}% achieved</p>
               </div>
             </div>
           

@@ -32,18 +32,33 @@ export const ChurnRateDetail = ({ countries, dateFrom, dateTo }: ChurnRateDetail
   useEffect(() => {
     const fetchChurnData = async () => {
       try {
-        // Match dashboard logic exactly:
-        // Period: last 6 months (180 days)
-        // churnedInPeriod = customers with status='churned' and churn_date >= 6 months ago
-        // totalCustomers = non-churned, non-lost customers
-        // base = totalCustomers + churnedInPeriod
-        // churnRate = churnedInPeriod / base * 100
+        // Churn rate - last 6 months, only among customers who have (or had) contracts
         const sixMonthsAgo = new Date();
         sixMonthsAgo.setDate(sixMonthsAgo.getDate() - 180);
 
-        // Get all customers
-        let allCustomersQuery = supabase.from('customers').select('id, name, status, stage, churn_date, updated_at, country, created_at');
-        
+        const { data: contractsData, error: contractsError } = await supabase
+          .from('contracts')
+          .select('customer_id');
+        if (contractsError) throw contractsError;
+
+        const customerIdsWithContracts = new Set(
+          (contractsData || []).map((c: any) => c.customer_id).filter(Boolean)
+        );
+        if (customerIdsWithContracts.size === 0) {
+          setAllChurnedCustomers([]);
+          setChurnedInPeriod(0);
+          setTotalCustomers(0);
+          setBaseForChurn(0);
+          setChurnRate(0);
+          setLoading(false);
+          return;
+        }
+
+        let allCustomersQuery = supabase
+          .from('customers')
+          .select('id, name, status, stage, churn_date, updated_at, country, created_at')
+          .in('id', Array.from(customerIdsWithContracts));
+
         if (countries && countries.length > 0) {
           allCustomersQuery = allCustomersQuery.in('country', countries);
         }
@@ -59,33 +74,30 @@ export const ChurnRateDetail = ({ countries, dateFrom, dateTo }: ChurnRateDetail
 
         const isLostStage = (stage?: string | null) => stage?.toLowerCase() === 'lost';
 
-        // Active customers: not churned, not lost — matches dashboard
-        const activeCustomers = (allCustomers || []).filter(c =>
+        const customersWithContracts = allCustomers || [];
+
+        const activeCustomers = customersWithContracts.filter(c =>
           c.status !== 'churned' && !isLostStage(c.stage)
         );
         const totalActive = activeCustomers.length;
 
-        // All churned customers
-        const churned = (allCustomers || []).filter(c => c.status === 'churned');
-
-        // Churned in last 6 months — matches dashboard
-        const churnedRecent = churned.filter(c =>
+        const churned = customersWithContracts.filter(c => c.status === 'churned');
+        const churnedInLast6Months = churned.filter(c =>
           c.churn_date && new Date(c.churn_date) >= sixMonthsAgo
         );
+        const churnedAllInPeriod = churnedInLast6Months.length;
 
-        const base = totalActive + churnedRecent.length;
-        const rate = base > 0 ? (churnedRecent.length / base) * 100 : 0;
+        const base = totalActive + churnedAllInPeriod;
+        const rate = base > 0 ? (churnedAllInPeriod / base) * 100 : 0;
 
-        // Mark which ones are in the 6-month period
         const churnedWithFlag = churned.map(c => ({
           id: c.id,
           name: c.name,
           churn_date: c.churn_date,
           updated_at: c.updated_at,
-          inPeriod: !!(c.churn_date && new Date(c.churn_date) >= sixMonthsAgo)
+          inPeriod: !!(c.churn_date && new Date(c.churn_date) >= sixMonthsAgo),
         }));
 
-        // Sort: in-period first, then by churn date
         churnedWithFlag.sort((a, b) => {
           if (a.inPeriod !== b.inPeriod) return a.inPeriod ? -1 : 1;
           const dateA = a.churn_date ? new Date(a.churn_date).getTime() : 0;
@@ -94,7 +106,7 @@ export const ChurnRateDetail = ({ countries, dateFrom, dateTo }: ChurnRateDetail
         });
 
         setAllChurnedCustomers(churnedWithFlag);
-        setChurnedInPeriod(churnedRecent.length);
+        setChurnedInPeriod(churnedAllInPeriod);
         setTotalCustomers(totalActive);
         setBaseForChurn(base);
         setChurnRate(rate);
@@ -137,14 +149,14 @@ export const ChurnRateDetail = ({ countries, dateFrom, dateTo }: ChurnRateDetail
           <Info className="h-5 w-5 text-primary mt-0.5 shrink-0" />
           <div className="text-sm text-muted-foreground">
             <span className="font-medium text-foreground">How it's calculated:</span>{" "}
-            Customers churned in the last 6 months divided by (active customers + churned in 6 months).
+            Churn rate (last 6 months) among clients with contracts. Churned in period ÷ (active + churned in period).
           </div>
         </div>
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingDown className="h-5 w-5" />
-              Churn Rate (6 months): 0.0%
+              Churn Rate (6 months, clients with contracts): 0.0%
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -167,7 +179,7 @@ export const ChurnRateDetail = ({ countries, dateFrom, dateTo }: ChurnRateDetail
         <Info className="h-5 w-5 text-primary mt-0.5 shrink-0" />
         <div className="text-sm text-muted-foreground">
           <span className="font-medium text-foreground">How it's calculated:</span>{" "}
-          Customers churned in the last 6 months ({churnedInPeriod}) divided by (active customers ({totalCustomers}) + churned in period ({churnedInPeriod})) = {churnedInPeriod} / {baseForChurn} = {churnRate.toFixed(1)}%
+          Last 6 months, clients with contracts. Churned in period ({churnedInPeriod}) ÷ (active ({totalCustomers}) + churned in period ({churnedInPeriod})) = {churnedInPeriod} / {baseForChurn} = {churnRate.toFixed(1)}%
         </div>
       </div>
 
@@ -175,7 +187,7 @@ export const ChurnRateDetail = ({ countries, dateFrom, dateTo }: ChurnRateDetail
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingDown className="h-5 w-5" />
-            Churn Rate (6 months): {churnRate.toFixed(1)}%
+            Churn Rate (6 months, clients with contracts): {churnRate.toFixed(1)}%
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -186,20 +198,20 @@ export const ChurnRateDetail = ({ countries, dateFrom, dateTo }: ChurnRateDetail
             </div>
             <div>
               <p className="text-2xl font-bold text-primary">{totalCustomers}</p>
-              <p className="text-sm text-muted-foreground">Active Customers</p>
+              <p className="text-sm text-muted-foreground">Active (with contracts)</p>
             </div>
             <div>
-              <p className="text-2xl font-bold">{allChurnedCustomers.length}</p>
-              <p className="text-sm text-muted-foreground">Total Ever Churned</p>
+              <p className="text-2xl font-bold">{baseForChurn}</p>
+              <p className="text-sm text-muted-foreground">Total (Active + Churned)</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Churned in period */}
+      {/* Churned in last 6 months (counted in rate) */}
       {churnedInPeriod > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-medium text-muted-foreground">Churned in Last 6 Months ({churnedInPeriod}) — counted in rate</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Churned in Last 6 Months ({churnedInPeriod})</h3>
           {allChurnedCustomers.filter(c => c.inPeriod).map(customer => (
             <Card 
               key={customer.id}
@@ -222,14 +234,14 @@ export const ChurnRateDetail = ({ countries, dateFrom, dateTo }: ChurnRateDetail
         </div>
       )}
 
-      {/* Older churned */}
+      {/* Older churned (not in 6-month rate) */}
       {allChurnedCustomers.filter(c => !c.inPeriod).length > 0 && (
-        <div className="space-y-2 opacity-60">
+        <div className="space-y-2 opacity-75">
           <h3 className="text-sm font-medium text-muted-foreground">
-            Churned Before 6 Months ({allChurnedCustomers.filter(c => !c.inPeriod).length}) — not counted in rate
+            Churned Before 6 Months ({allChurnedCustomers.filter(c => !c.inPeriod).length}) — not in rate
           </h3>
           {allChurnedCustomers.filter(c => !c.inPeriod).map(customer => (
-            <Card 
+            <Card
               key={customer.id}
               className="cursor-pointer hover:bg-accent transition-colors"
               onClick={() => navigate(`/customers/${customer.id}`)}
@@ -238,9 +250,7 @@ export const ChurnRateDetail = ({ countries, dateFrom, dateTo }: ChurnRateDetail
                 <div className="flex items-center justify-between">
                   <p className="font-medium flex-1">{customer.name}</p>
                   <div className="flex items-center gap-2">
-                    <p className="text-sm text-muted-foreground">
-                      {formatChurnDate(customer)}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{formatChurnDate(customer)}</p>
                     <ExternalLink className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </div>

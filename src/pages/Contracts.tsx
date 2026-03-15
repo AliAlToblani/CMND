@@ -5,14 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
   FileText, 
-  Filter, 
+  Filter,
   Search, 
-  Calendar,
   FileSignature,
   FileCheck,
   FileWarning,
   Download,
-  RefreshCw
+  RefreshCw,
+  DollarSign,
+  TrendingUp,
+  Calendar,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { 
@@ -23,13 +25,15 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AddEditContract, ContractData } from "@/components/contracts/AddEditContract";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +41,7 @@ import { contractQueryKeys, calculateContractValue, formatCurrency } from "@/uti
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ContractsByYearView from "@/components/contracts/ContractsByYearView";
+import ContractPaymentsView from "@/components/contracts/ContractPaymentsView";
 
 const getStatusBadge = (status: string) => {
   switch(status) {
@@ -69,7 +74,8 @@ const getContractIcon = (type: string) => {
 const ContractsPage = () => {
   const [contracts, setContracts] = useState<ContractData[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [revenueFilter, setRevenueFilter] = useState<"all" | "realized" | "unrealized">("all");
+  const [yearFilter, setYearFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const queryClient = useQueryClient();
   
@@ -277,28 +283,42 @@ const ContractsPage = () => {
     }
   };
   
+  const parseContractValue = (v: string) => {
+    const n = Number(v.replace(/[^0-9.-]+/g, ""));
+    return isNaN(n) ? 0 : n;
+  };
+
+  const getContractYear = (contract: ContractData): string | null => {
+    if (!contract.startDate || contract.startDate === "-") return null;
+    const y = contract.startDate.substring(0, 4);
+    return /^\d{4}$/.test(y) ? y : null;
+  };
+
+  const availableYears = Array.from(
+    new Set(contracts.map(getContractYear).filter(Boolean) as string[])
+  ).sort((a, b) => b.localeCompare(a));
+
   const filteredContracts = contracts.filter(contract => {
-    // Filter by search term (search in customer name and contract number)
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       const matchesCustomer = contract.customer.toLowerCase().includes(searchLower);
       const matchesContractNumber = contract.contractNumber?.toLowerCase().includes(searchLower);
-      if (!matchesCustomer && !matchesContractNumber) {
-        return false;
-      }
+      if (!matchesCustomer && !matchesContractNumber) return false;
     }
-    
-    // Filter by status
-    if (statusFilter && contract.status !== statusFilter) {
-      return false;
-    }
-    
+    if (revenueFilter === "realized" && contract.status !== "active") return false;
+    if (revenueFilter === "unrealized" && contract.status !== "pending") return false;
+    if (yearFilter !== "all" && getContractYear(contract) !== yearFilter) return false;
     return true;
   });
-  
-  const handleFilter = (status: string | null) => {
-    setStatusFilter(status);
-  };
+
+  const activeContracts = filteredContracts.filter(c => c.status === "active");
+  const pendingContracts = filteredContracts.filter(c => c.status === "pending");
+  const realizedRevenue = activeContracts.reduce((sum, c) => sum + parseContractValue(c.value), 0);
+  const unrealizedRevenue = pendingContracts.reduce((sum, c) => sum + parseContractValue(c.value), 0);
+  const filteredValue = filteredContracts.reduce((sum, c) => sum + parseContractValue(c.value), 0);
+
+  const activeFilterCount =
+    (revenueFilter !== "all" ? 1 : 0) + (yearFilter !== "all" ? 1 : 0);
 
   const refreshContracts = () => {
     fetchContracts();
@@ -311,43 +331,92 @@ const ContractsPage = () => {
         <TabsList>
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="by-year">By Year</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all">
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <h1 className="text-2xl font-bold">Contracts</h1>
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center gap-3">
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input 
                     type="search" 
-                    placeholder="Search contracts or numbers..." 
-                    className="pl-8 glass-input w-[250px]" 
+                    placeholder="Search contracts..." 
+                    className="pl-8 glass-input w-[220px]" 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <Button variant="outline" onClick={refreshContracts}>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Refresh
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="glass-input">
-                      <Filter className="h-4 w-4 mr-2" />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="gap-1.5">
+                      <Filter className="h-4 w-4" />
                       Filter
+                      {activeFilterCount > 0 && (
+                        <Badge
+                          variant="secondary"
+                          className="h-4 w-4 p-0 flex items-center justify-center text-[10px] ml-0.5"
+                        >
+                          {activeFilterCount}
+                        </Badge>
+                      )}
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="glass-card">
-                    <DropdownMenuItem onClick={() => handleFilter(null)}>All Contracts</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleFilter('active')}>Active Contracts</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleFilter('pending')}>Pending Approval</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleFilter('expired')}>Expired</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleFilter('draft')}>Drafts</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-3 space-y-3" align="end">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Filters</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 text-xs"
+                        onClick={() => {
+                          setRevenueFilter("all");
+                          setYearFilter("all");
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">Revenue Type</label>
+                      <Select
+                        value={revenueFilter}
+                        onValueChange={(v) => setRevenueFilter(v as "all" | "realized" | "unrealized")}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Contracts</SelectItem>
+                          <SelectItem value="realized">Realized Revenue (Active)</SelectItem>
+                          <SelectItem value="unrealized">Unrealized Revenue (Pending)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">Year</label>
+                      <Select value={yearFilter} onValueChange={setYearFilter}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Years</SelectItem>
+                          {availableYears.map((y) => (
+                            <SelectItem key={y} value={y}>{y}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                  </PopoverContent>
+                </Popover>
+                <Button variant="outline" size="sm" onClick={refreshContracts} title="Refresh">
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
               </div>
             </div>
 
@@ -359,56 +428,61 @@ const ContractsPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-4 gap-4 mb-5">
+                <div className={`grid gap-4 mb-5 ${revenueFilter !== "all" ? "grid-cols-3" : "grid-cols-2"}`}>
                   <Card className="glass-card p-4 animate-bounce-in" style={{ animationDelay: "0.1s" }}>
                     <div className="flex justify-between items-center">
                       <div>
-                        <p className="text-sm text-muted-foreground">Active Contracts</p>
-                        <h3 className="text-2xl font-bold">{contracts.filter(c => c.status === 'active').length}</h3>
+                        <p className="text-sm text-muted-foreground">Contracts</p>
+                        <h3 className="text-2xl font-bold">{filteredContracts.length}</h3>
                       </div>
                       <div className="h-10 w-10 rounded-full bg-doo-purple-100 flex items-center justify-center">
-                        <FileCheck className="h-5 w-5 text-doo-purple-600" />
+                        <FileText className="h-5 w-5 text-doo-purple-600" />
                       </div>
                     </div>
                   </Card>
                   <Card className="glass-card p-4 animate-bounce-in" style={{ animationDelay: "0.2s" }}>
                     <div className="flex justify-between items-center">
                       <div>
-                        <p className="text-sm text-muted-foreground">Pending Approval</p>
-                        <h3 className="text-2xl font-bold">{contracts.filter(c => c.status === 'pending').length}</h3>
-                      </div>
-                      <div className="h-10 w-10 rounded-full bg-doo-purple-100 flex items-center justify-center">
-                        <FileWarning className="h-5 w-5 text-doo-purple-600" />
-                      </div>
-                    </div>
-                  </Card>
-                  <Card className="glass-card p-4 animate-bounce-in" style={{ animationDelay: "0.3s" }}>
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Expiring Soon</p>
-                        <h3 className="text-2xl font-bold">{contracts.filter(c => c.status === 'expired').length}</h3>
-                      </div>
-                      <div className="h-10 w-10 rounded-full bg-doo-purple-100 flex items-center justify-center">
-                        <Calendar className="h-5 w-5 text-doo-purple-600" />
-                      </div>
-                    </div>
-                  </Card>
-                  <Card className="glass-card p-4 animate-bounce-in" style={{ animationDelay: "0.4s" }}>
-                    <div className="flex justify-between items-center">
-                      <div>
                         <p className="text-sm text-muted-foreground">Total Value</p>
-                        <h3 className="text-2xl font-bold">
-                          {formatCurrency(contracts.reduce((sum, contract) => {
-                            const numericValue = Number(contract.value.replace(/[^0-9.-]+/g, ""));
-                            return sum + (isNaN(numericValue) ? 0 : numericValue);
-                          }, 0))}
-                        </h3>
+                        <h3 className="text-2xl font-bold">{formatCurrency(filteredValue)}</h3>
                       </div>
                       <div className="h-10 w-10 rounded-full bg-doo-purple-100 flex items-center justify-center">
-                        <FileSignature className="h-5 w-5 text-doo-purple-600" />
+                        <DollarSign className="h-5 w-5 text-doo-purple-600" />
                       </div>
                     </div>
                   </Card>
+                  {revenueFilter === "realized" && (
+                    <Card className="glass-card p-4 animate-bounce-in" style={{ animationDelay: "0.3s" }}>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Realized Revenue</p>
+                          <h3 className="text-2xl font-bold text-green-600">{formatCurrency(realizedRevenue)}</h3>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {activeContracts.length} active
+                          </p>
+                        </div>
+                        <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                          <TrendingUp className="h-5 w-5 text-green-600" />
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+                  {revenueFilter === "unrealized" && (
+                    <Card className="glass-card p-4 animate-bounce-in" style={{ animationDelay: "0.3s" }}>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Unrealized Revenue</p>
+                          <h3 className="text-2xl font-bold text-blue-600">{formatCurrency(unrealizedRevenue)}</h3>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {pendingContracts.length} pending
+                          </p>
+                        </div>
+                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                          <Calendar className="h-5 w-5 text-blue-600" />
+                        </div>
+                      </div>
+                    </Card>
+                  )}
                 </div>
 
                 <div className="rounded-md border">
@@ -491,6 +565,21 @@ const ContractsPage = () => {
 
         <TabsContent value="by-year">
           <ContractsByYearView />
+        </TabsContent>
+
+        <TabsContent value="payments">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold">Payment Tracking</h1>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Track and collect payments across active contracts
+                </p>
+              </div>
+              <AddEditContract onSave={handleAddContract} />
+            </div>
+            <ContractPaymentsView />
+          </div>
         </TabsContent>
       </Tabs>
     </DashboardLayout>

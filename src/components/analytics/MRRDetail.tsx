@@ -29,34 +29,23 @@ export const MRRDetail = ({ countries, dateFrom, dateTo }: MRRDetailProps) => {
     const fetchMRRData = async () => {
       try {
         const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
-        // Match dashboard logic exactly:
-        // Contracts with status active/pending/null, from non-churned customers,
-        // with end_date in the future
-        // MRR = sum(annual_rate) / 12
+        // Match ARR logic: contracts that have started (include one-time, include expired, exclude future only)
         let query = supabase
           .from('contracts')
           .select(`
             annual_rate,
+            setup_fee,
+            value,
             customer_id,
-            status,
-            end_date,
-            created_at,
+            start_date,
             customers!inner(id, name, status, country)
           `)
-          .or('status.eq.active,status.eq.pending,status.is.null')
-          .gt('end_date', today.toISOString());
+          .or('status.eq.active,status.eq.pending,status.eq.expired,status.is.null');
         
         if (countries && countries.length > 0) {
           query = query.in('customers.country', countries);
-        }
-        
-        if (dateFrom) {
-          query = query.gte('created_at', dateFrom.toISOString());
-        }
-        
-        if (dateTo) {
-          query = query.lte('created_at', dateTo.toISOString());
         }
         
         const { data, error } = await query;
@@ -68,11 +57,14 @@ export const MRRDetail = ({ countries, dateFrom, dateTo }: MRRDetailProps) => {
 
         (data || []).forEach(contract => {
           const customer = contract.customers as any;
-          
-          // Exclude churned customers — matches dashboard
           if (customer.status === 'churned') return;
 
-          const annualRate = contract.annual_rate || 0;
+          const start = (contract as any).start_date ? new Date((contract as any).start_date) : null;
+          const hasStarted = !start || start <= today;
+          if (!hasStarted) return;
+
+          const c = contract as any;
+          const annualRate = (c.annual_rate || 0) > 0 ? c.annual_rate : (c.value || 0) > 0 ? c.value : 0;
           if (annualRate <= 0) return;
 
           const monthlyAmount = annualRate / 12;
@@ -125,7 +117,7 @@ export const MRRDetail = ({ countries, dateFrom, dateTo }: MRRDetailProps) => {
         <Info className="h-5 w-5 text-primary mt-0.5 shrink-0" />
         <div className="text-sm text-muted-foreground">
           <span className="font-medium text-foreground">How it's calculated:</span>{" "}
-          Sum of (annual_rate / 12) from active/pending contracts where end_date is in the future, from non-churned customers.
+          ARR ÷ 12. Sum of (annual_rate / 12) from contracts that have started (setup fees excluded). Includes one-time and expired. Excludes future contracts only.
         </div>
       </div>
 
