@@ -30,6 +30,12 @@ import {
   LazyLegalDocuments,
   LazyProposalGenie,
   LazyReports,
+  LazyBatelcoDashboard,
+  LazyBatelcoCustomers,
+  LazyBatelcoContracts,
+  LazyBatelcoDocuments,
+  LazyBatelcoPipeline,
+  LazyBatelcoProjects,
 } from "@/components/routing/LazyRoutes";
 
 // Create a client with optimized settings
@@ -92,6 +98,19 @@ const App = () => {
                   <Route path="/settings" element={<ProtectedRoute><LazySettings /></ProtectedRoute>} />
                   <Route path="/analytics/:metric" element={<ProtectedRoute><LazyAnalyticsDetail /></ProtectedRoute>} />
                   
+                  {/* Batelco Partner Portal */}
+                  <Route path="/batelco" element={<ProtectedRoute><LazyBatelcoDashboard /></ProtectedRoute>} />
+                  <Route path="/batelco/customers" element={<ProtectedRoute><LazyBatelcoCustomers /></ProtectedRoute>} />
+                  <Route path="/batelco/customers/new" element={<ProtectedRoute><LazyAddEditCustomer /></ProtectedRoute>} />
+                  <Route path="/batelco/customers/:id/edit" element={<ProtectedRoute><LazyAddEditCustomer /></ProtectedRoute>} />
+                  <Route path="/batelco/customers/:id" element={<ProtectedRoute><LazyCustomerDetails /></ProtectedRoute>} />
+                  <Route path="/batelco/lifecycle" element={<ProtectedRoute><LazyLifecycle /></ProtectedRoute>} />
+                  <Route path="/batelco/lifecycle/:customerId" element={<ProtectedRoute><LazyLifecycle /></ProtectedRoute>} />
+                  <Route path="/batelco/pipeline" element={<ProtectedRoute><LazyBatelcoPipeline /></ProtectedRoute>} />
+                  <Route path="/batelco/projects" element={<ProtectedRoute><LazyBatelcoProjects /></ProtectedRoute>} />
+                  <Route path="/batelco/contracts" element={<ProtectedRoute><LazyBatelcoContracts /></ProtectedRoute>} />
+                  <Route path="/batelco/documents" element={<ProtectedRoute><LazyBatelcoDocuments /></ProtectedRoute>} />
+
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<LazyNotFound />} />
                 </Routes>

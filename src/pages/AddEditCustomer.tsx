@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { CustomerForm, type CustomerFormData } from "@/components/customers/CustomerForm";
 import { Contract } from "@/components/customers/ContractsList";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { BatelcoLayout } from "@/components/batelco/BatelcoLayout";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { defaultLifecycleStages } from "@/data/defaultLifecycleStages";
 import { logCustomerCreated, logCustomerUpdated } from "@/utils/activityLogger";
@@ -88,7 +90,11 @@ const saveDocumentsToDatabase = async (customerId: string, documents: any[]) => 
 export default function AddEditCustomer() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  const isBatelco = location.pathname.startsWith("/batelco/");
+  const Layout = isBatelco ? BatelcoLayout : DashboardLayout;
+  const backPath = isBatelco ? "/batelco/customers" : "/customers";
   const [initialData, setInitialData] = useState<Partial<CustomerFormData> | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -214,8 +220,7 @@ export default function AddEditCustomer() {
         description: "Customer deleted successfully!",
       });
 
-      // Navigate back with refresh state to trigger data reload
-      navigate('/customers', { state: { refresh: true } });
+      navigate(backPath, { state: { refresh: true } });
     } catch (error: any) {
       console.error('Error deleting customer:', error);
       
@@ -294,14 +299,30 @@ export default function AddEditCustomer() {
         // Log the update activity
         await logCustomerUpdated(id, customerData.name);
       } else {
-        // Create new customer
-        const { data: newCustomer, error } = await supabase
+        // Create new customer — tag with partner_label if coming from Batelco portal
+        const insertPayload: Record<string, any> = { ...customerData };
+        if (isBatelco) {
+          insertPayload.partner_label = "batelco";
+        }
+
+        let insertResult = await (supabase as any)
           .from('customers')
-          .insert([customerData])
+          .insert([insertPayload])
           .select()
           .single();
 
-        if (error) throw error;
+        // If partner_label column doesn't exist yet, retry without it
+        if (insertResult.error?.message?.includes("partner_label")) {
+          delete insertPayload.partner_label;
+          insertResult = await supabase
+            .from('customers')
+            .insert([insertPayload as any])
+            .select()
+            .single();
+        }
+
+        if (insertResult.error) throw insertResult.error;
+        const newCustomer = insertResult.data;
         customerId = newCustomer.id;
 
         // Create default lifecycle stages for the new customer
@@ -397,8 +418,7 @@ export default function AddEditCustomer() {
         description: `Customer ${id ? 'updated' : 'created'} successfully!`,
       });
 
-      // Navigate to lifecycle page with the customer ID
-      navigate(`/lifecycle/${customerId}`);
+      navigate(isBatelco ? `/batelco/lifecycle/${customerId}` : `/lifecycle/${customerId}`);
     } catch (error: any) {
       console.error('Error saving customer:', error);
       console.error('Error details:', {
@@ -420,23 +440,23 @@ export default function AddEditCustomer() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
+      <Layout>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
-      </DashboardLayout>
+      </Layout>
     );
   }
 
   return (
-    <DashboardLayout>
+    <Layout>
       <div className="max-w-4xl mx-auto p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate('/customers')}
+              onClick={() => navigate(backPath)}
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Customers
@@ -444,6 +464,11 @@ export default function AddEditCustomer() {
             <h1 className="text-2xl font-bold">
               {id ? 'Edit Customer' : 'Add New Customer'}
             </h1>
+            {isBatelco && !id && (
+              <Badge className="bg-red-100 text-red-700 border-red-200 text-xs dark:bg-red-950/30 dark:text-red-400 dark:border-red-800">
+                Batelco Partner
+              </Badge>
+            )}
           </div>
           
           {id && (
@@ -477,6 +502,6 @@ export default function AddEditCustomer() {
           isDeleting={isDeleting}
         />
       </div>
-    </DashboardLayout>
+    </Layout>
   );
 }

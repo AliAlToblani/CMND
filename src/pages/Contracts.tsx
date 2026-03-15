@@ -76,6 +76,7 @@ const ContractsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [revenueFilter, setRevenueFilter] = useState<"all" | "realized" | "unrealized">("all");
   const [yearFilter, setYearFilter] = useState<string>("all");
+  const [partnerFilter, setPartnerFilter] = useState<"all" | "batelco" | "non-batelco">("all");
   const [loading, setLoading] = useState(true);
   const queryClient = useQueryClient();
   
@@ -84,20 +85,25 @@ const ContractsPage = () => {
       setLoading(true);
       
       // Fetch contracts from the database
-      const { data, error } = await supabase
+      // Try with partner_label, fall back to without if column doesn't exist
+      let data: any[] | null = null;
+      const { data: tryData, error: tryErr } = await (supabase as any)
         .from('contracts')
-        .select(`
-          *,
-          customers (name)
-        `);
-      
-      if (error) {
-        throw error;
+        .select(`*, customers (name, partner_label)`);
+
+      if (tryErr) {
+        const { data: fallbackData, error: fallbackErr } = await supabase
+          .from('contracts')
+          .select(`*, customers (name)`);
+        if (fallbackErr) throw fallbackErr;
+        data = fallbackData;
+      } else {
+        data = tryData;
       }
       
       if (data && data.length > 0) {
         // Map database contracts to our ContractData format
-        const formattedContracts: ContractData[] = data.map(contract => ({
+        const formattedContracts: ContractData[] = data.map((contract: any) => ({
           id: contract.id,
           customer: contract.customers?.name || "Unknown Customer",
           customerId: contract.customer_id,
@@ -111,7 +117,8 @@ const ContractsPage = () => {
           annualRate: contract.annual_rate ? `${contract.annual_rate}` : "0",
           paymentFrequency: (contract.payment_frequency as "annual" | "quarterly" | "semi-annual" | "one-time") || "annual",
           documentUrl: undefined,
-          documentName: undefined
+          documentName: undefined,
+          partnerLabel: contract.partner_label || contract.customers?.partner_label || null,
         }));
         
         setContracts(formattedContracts);
@@ -308,6 +315,8 @@ const ContractsPage = () => {
     if (revenueFilter === "realized" && contract.status !== "active") return false;
     if (revenueFilter === "unrealized" && contract.status !== "pending") return false;
     if (yearFilter !== "all" && getContractYear(contract) !== yearFilter) return false;
+    if (partnerFilter === "batelco" && contract.partnerLabel !== "batelco") return false;
+    if (partnerFilter === "non-batelco" && contract.partnerLabel === "batelco") return false;
     return true;
   });
 
@@ -318,7 +327,7 @@ const ContractsPage = () => {
   const filteredValue = filteredContracts.reduce((sum, c) => sum + parseContractValue(c.value), 0);
 
   const activeFilterCount =
-    (revenueFilter !== "all" ? 1 : 0) + (yearFilter !== "all" ? 1 : 0);
+    (revenueFilter !== "all" ? 1 : 0) + (yearFilter !== "all" ? 1 : 0) + (partnerFilter !== "all" ? 1 : 0);
 
   const refreshContracts = () => {
     fetchContracts();
@@ -374,6 +383,7 @@ const ContractsPage = () => {
                         onClick={() => {
                           setRevenueFilter("all");
                           setYearFilter("all");
+                          setPartnerFilter("all");
                         }}
                       >
                         Clear
@@ -408,6 +418,20 @@ const ContractsPage = () => {
                           {availableYears.map((y) => (
                             <SelectItem key={y} value={y}>{y}</SelectItem>
                           ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-muted-foreground">Partner</label>
+                      <Select value={partnerFilter} onValueChange={(v) => setPartnerFilter(v as "all" | "batelco" | "non-batelco")}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Contracts</SelectItem>
+                          <SelectItem value="batelco">Batelco Contracts</SelectItem>
+                          <SelectItem value="non-batelco">Non-Batelco Only</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -514,7 +538,16 @@ const ContractsPage = () => {
                             <TableCell className="font-mono text-sm">
                               {contract.contractNumber || <span className="text-muted-foreground">-</span>}
                             </TableCell>
-                            <TableCell className="font-medium">{contract.customer}</TableCell>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-1.5">
+                                {contract.customer}
+                                {contract.partnerLabel === "batelco" && (
+                                  <Badge className="text-[10px] px-1 py-0 h-4 bg-red-100 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800">
+                                    Batelco
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
                             <TableCell>
                               <div className="flex items-center">
                                 {getContractIcon(contract.type)}

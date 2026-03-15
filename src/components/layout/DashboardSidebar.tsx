@@ -104,7 +104,7 @@ export function DashboardSidebar() {
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center p-1">
             <img src="/lovable-uploads/7103ec49-9766-44ba-a938-b218c15a85e7.png" alt="DOO Command" className="h-full w-full object-contain" />
           </div>
-          <h2 className="text-xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">CMND Center</h2>
+          <h2 className="text-xl font-bold bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent">CMND</h2>
         </div>
       </SidebarHeader>
       <SidebarContent className="bg-transparent px-3 py-4">

@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 interface InvitationData {
   id: string;
   email: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'batelco';
   invited_by: string;
 }
 
@@ -189,7 +189,7 @@ export const AcceptInvite = () => {
           navigate('/auth');
         } else {
           toast.success('Welcome! Your account has been created and you are now signed in.');
-          navigate('/');
+          navigate(invitationData.role === 'batelco' ? '/batelco' : '/');
         }
       }
     } catch (error: any) {
@@ -246,7 +246,7 @@ export const AcceptInvite = () => {
           </div>
           <CardTitle className="text-2xl font-bold">Complete Your Registration</CardTitle>
           <CardDescription>
-            You've been invited to join as <strong>{invitationData?.role}</strong>
+            You've been invited to join as <strong>{invitationData?.role === 'batelco' ? 'Batelco Partner' : invitationData?.role}</strong>
             <br />
             Create your account to get started
           </CardDescription>

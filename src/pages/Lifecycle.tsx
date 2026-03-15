@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { BatelcoLayout } from "@/components/batelco/BatelcoLayout";
 import { LifecycleTracker } from "@/components/lifecycle/LifecycleTracker";
 import { 
   Select,
@@ -49,6 +50,9 @@ const convertDefaultStageToProps = (defaultStage: any): LifecycleStageProps => {
 
 const Lifecycle = () => {
   const { customerId: urlCustomerId } = useParams();
+  const location = useLocation();
+  const isBatelco = location.pathname.startsWith("/batelco");
+  const Layout = isBatelco ? BatelcoLayout : DashboardLayout;
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [customerList, setCustomerList] = useState<Customer[]>([]);
   const [customerStages, setCustomerStages] = useState<LifecycleStageProps[]>([]);
@@ -106,8 +110,15 @@ const Lifecycle = () => {
         }
 
         if (data && data.length > 0) {
-          // Cast the status and service_type to proper types
-          const typedCustomers = data.map(customer => ({
+          // Filter for Batelco portal: only Bahrain + Batelco-labeled customers
+          const visibleData = isBatelco
+            ? data.filter((c: any) =>
+                (c.country && c.country.trim().toLowerCase() === "bahrain") ||
+                (c.partner_label && String(c.partner_label).toLowerCase() === "batelco")
+              )
+            : data;
+
+          const typedCustomers = visibleData.map(customer => ({
             ...customer,
             status: customer.status as "not-started" | "in-progress" | "done" | "blocked" | "churned" | null,
             service_type: customer.service_type as 'text' | 'voice' | 'both' | null,
@@ -227,7 +238,7 @@ const Lifecycle = () => {
   }, [selectedCustomer]);
 
   return (
-    <DashboardLayout>
+    <Layout>
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-bold">Customer Lifecycle</h1>
@@ -293,7 +304,7 @@ const Lifecycle = () => {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </Layout>
   );
 };
 

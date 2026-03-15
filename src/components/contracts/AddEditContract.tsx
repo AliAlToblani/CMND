@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,6 +25,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface ContractData {
   id?: string;
@@ -40,6 +42,7 @@ export interface ContractData {
   paymentFrequency?: "annual" | "quarterly" | "semi-annual" | "one-time";
   documentUrl?: string;
   documentName?: string;
+  partnerLabel?: string | null;
 }
 
 interface AddEditContractProps {
@@ -48,14 +51,22 @@ interface AddEditContractProps {
   onSave: (contract: Partial<ContractData>) => void;
 }
 
+interface CustomerOption {
+  id: string;
+  name: string;
+}
+
 export function AddEditContract({ contract, isEditing = false, onSave }: AddEditContractProps) {
   const [open, setOpen] = useState(false);
+  const [customers, setCustomers] = useState<CustomerOption[]>([]);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const location = useLocation();
+  const isBatelco = location.pathname.startsWith("/batelco");
+  const needsCustomerPicker = !isEditing && !contract?.customerId;
   
-  // Helper to format date for input fields
   const formatDateForInput = (dateString: string | undefined): string => {
     if (!dateString || dateString === "-") return "";
     try {
-      // Handle ISO date strings
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return dateString;
       return date.toISOString().split('T')[0];
@@ -80,18 +91,42 @@ export function AddEditContract({ contract, isEditing = false, onSave }: AddEdit
   
   const [formData, setFormData] = useState<Partial<ContractData>>(getInitialFormData());
 
-  // Reset form data when dialog opens or contract changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (open) {
-      console.log("AddEditContract - resetting form data for contract:", contract?.customer);
       setFormData(getInitialFormData());
+      if (needsCustomerPicker) {
+        fetchCustomers();
+      }
     }
   }, [open, contract]);
 
-  // Debug logging to see what contract data we're getting
-  console.log("AddEditContract - contract data:", contract);
-  console.log("AddEditContract - isEditing:", isEditing);
-  console.log("AddEditContract - formData:", formData);
+  const fetchCustomers = async () => {
+    setLoadingCustomers(true);
+    try {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+
+      let filtered = (data || []) as any[];
+      if (isBatelco) {
+        filtered = filtered.filter(
+          (c) =>
+            (c.partner_label && String(c.partner_label).toLowerCase() === "batelco") ||
+            (c.country && String(c.country).trim().toLowerCase() === "bahrain")
+        );
+      }
+
+      setCustomers(filtered.map((c) => ({ id: c.id, name: c.name })));
+    } catch (err) {
+      console.error("Error fetching customers for contract:", err);
+      setCustomers([]);
+    } finally {
+      setLoadingCustomers(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,14 +178,50 @@ export function AddEditContract({ contract, isEditing = false, onSave }: AddEdit
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-2">
-            <Label htmlFor="customer">Customer Name*</Label>
-            <Input
-              id="customer"
-              value={formData.customer}
-              onChange={(e) => setFormData(prev => ({ ...prev, customer: e.target.value }))}
-              placeholder="Enter customer name"
-              required
-            />
+            <Label htmlFor="customer">Customer*</Label>
+            {needsCustomerPicker ? (
+              <>
+                <Select
+                  value={formData.customerId || ""}
+                  onValueChange={(value) => {
+                    const selected = customers.find((c) => c.id === value);
+                    setFormData((prev) => ({
+                      ...prev,
+                      customerId: value,
+                      customer: selected?.name || "",
+                    }));
+                  }}
+                  required
+                >
+                  <SelectTrigger id="customer">
+                    <SelectValue placeholder={loadingCustomers ? "Loading customers..." : "Select a customer"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.length === 0 && !loadingCustomers ? (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">No customers found</div>
+                    ) : (
+                      customers.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {!formData.customerId && !loadingCustomers && customers.length > 0 && (
+                  <p className="text-xs text-muted-foreground">Select a customer to attach this contract to</p>
+                )}
+              </>
+            ) : (
+              <Input
+                id="customer"
+                value={formData.customer}
+                onChange={(e) => setFormData((prev) => ({ ...prev, customer: e.target.value }))}
+                placeholder="Enter customer name"
+                required
+                disabled={isEditing}
+              />
+            )}
           </div>
 
           <div className="grid gap-2">

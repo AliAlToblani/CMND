@@ -24,3 +24,11 @@ export const LazyProjectManager = lazy(() => import('@/pages/ProjectManager'));
 export const LazyLegalDocuments = lazy(() => import('@/pages/LegalDocuments'));
 export const LazyProposalGenie = lazy(() => import('@/pages/ProposalGenie'));
 export const LazyReports = lazy(() => import('@/pages/Reports'));
+
+// Batelco Partner Portal
+export const LazyBatelcoDashboard = lazy(() => import('@/pages/batelco/BatelcoDashboard'));
+export const LazyBatelcoCustomers = lazy(() => import('@/pages/batelco/BatelcoCustomers'));
+export const LazyBatelcoContracts = lazy(() => import('@/pages/batelco/BatelcoContracts'));
+export const LazyBatelcoDocuments = lazy(() => import('@/pages/batelco/BatelcoDocuments'));
+export const LazyBatelcoPipeline = lazy(() => import('@/pages/batelco/BatelcoPipeline'));
+export const LazyBatelcoProjects = lazy(() => import('@/pages/batelco/BatelcoProjects'));

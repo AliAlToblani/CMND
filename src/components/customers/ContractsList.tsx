@@ -240,7 +240,7 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
       const endDate = new Date(validatedContract.end_date);
       
       if (endDate <= startDate) {
-        alert('Contract end date must be after the start date. Please check your dates.');
+        toast.error('Contract end date must be after the start date.');
         return;
       }
     }
@@ -269,7 +269,8 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
 
         if (error) {
           console.error('ContractsList: Error saving new contract:', error);
-          alert('Failed to save contract. Please try again.');
+          toast.error(`Failed to save contract: ${error.message}`);
+          handleCloseDialog();
           return;
         }
 
@@ -343,7 +344,8 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
 
         if (error) {
           console.error('ContractsList: Error updating contract:', error);
-          alert('Failed to update contract. Please try again.');
+          toast.error(`Failed to update contract: ${error.message}`);
+          handleCloseDialog();
           return;
         }
 
@@ -359,7 +361,8 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
       handleCloseDialog();
     } catch (error) {
       console.error('ContractsList: Unexpected error saving contract:', error);
-      alert('Failed to save contract. Please try again.');
+      toast.error('Failed to save contract. Please try again.');
+      handleCloseDialog();
     }
   };
 
@@ -457,12 +460,12 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
     <>
       <div className="space-y-6">
         {/* Enhanced Total Value Summary */}
-        <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
+        <Card className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/30 dark:to-blue-950/30 border-green-200 dark:border-green-800">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-green-100 rounded-full">
-                  <TrendingUp className="h-6 w-6 text-green-600" />
+                <div className="p-3 bg-green-100 dark:bg-green-900/40 rounded-full">
+                  <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
                   <h4 className="text-lg font-semibold text-foreground">Total Lifetime Value</h4>
@@ -473,7 +476,7 @@ export const ContractsList = forwardRef<ContractsListRef, ContractsListProps>(({
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-3xl font-bold text-green-600">
+                <div className="text-3xl font-bold text-green-600 dark:text-green-400">
                   {formatCurrency(totalValue)}
                 </div>
                 {contracts.length > 0 && (
@@ -687,48 +690,46 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
   onSave,
   isNewContract
 }) => {
-  console.log('ContractEditDialog: Rendering dialog for contract:', contract.name);
-  
   const [formData, setFormData] = useState<Contract>({ ...contract });
 
-  // Reset form data when contract changes
   React.useEffect(() => {
-    console.log('ContractEditDialog: Resetting form data for contract:', contract.name);
     setFormData({ ...contract });
   }, [contract]);
 
-  // Calculate total value whenever setup_fee or annual_rate changes
   React.useEffect(() => {
     const setupFee = Number(formData.setup_fee) || 0;
     const annualRate = Number(formData.annual_rate) || 0;
-    const totalValue = setupFee + annualRate;
-    setFormData(prev => ({ ...prev, value: totalValue }));
+    setFormData(prev => ({ ...prev, value: setupFee + annualRate }));
   }, [formData.setup_fee, formData.annual_rate]);
 
-  // CRITICAL: Prevent any form submission events from bubbling up
   const handleSubmit = (e: React.FormEvent) => {
-    console.log('ContractEditDialog: ISOLATED form submission - preventing all bubbling');
-    console.log('ContractEditDialog: Form data being submitted:', formData);
     e.preventDefault();
     e.stopPropagation();
-    
-    // Validate required fields
+  };
+
+  const handleSaveClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     if (!formData.name.trim()) {
-      alert('Contract name is required');
+      toast.error('Contract name is required');
       return;
     }
-    
-    // For one-time contracts, ensure we have either setup_fee or annual_rate
+
     if (formData.payment_frequency === 'one_time') {
       const setupFee = Number(formData.setup_fee) || 0;
       const annualRate = Number(formData.annual_rate) || 0;
       if (setupFee === 0 && annualRate === 0) {
-        alert('One-time contracts must have a setup fee or annual rate greater than 0');
+        toast.error('One-time contracts must have a setup fee or annual rate greater than 0');
         return;
       }
     }
-    
-    // Ensure numeric fields are numbers, not empty strings
+
+    if (!formData.start_date || !formData.end_date) {
+      toast.error('Start date and end date are required');
+      return;
+    }
+
     const contractToSave = {
       ...formData,
       setup_fee: Number(formData.setup_fee) || 0,
@@ -736,27 +737,21 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
       payment_frequency: formData.payment_frequency || "annual",
       value: (Number(formData.setup_fee) || 0) + (Number(formData.annual_rate) || 0)
     };
-    
-    console.log('ContractEditDialog: Saving contract with isolated state:', contractToSave);
+
     onSave(contractToSave);
   };
 
   const handleInputChange = (field: keyof Contract, value: any) => {
-    console.log('ContractEditDialog: Input changed - ISOLATED from parent form:', field);
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  // CRITICAL: Prevent cancel from triggering any parent form events
   const handleCancel = (e: React.MouseEvent) => {
-    console.log('ContractEditDialog: Dialog cancelled - preventing all event bubbling');
     e.preventDefault();
     e.stopPropagation();
     onClose();
   };
 
-  // CRITICAL: Prevent all events from bubbling to parent
   const handleDialogClick = (e: React.MouseEvent) => {
-    console.log('ContractEditDialog: Dialog clicked - preventing event bubbling');
     e.stopPropagation();
   };
 
@@ -773,54 +768,54 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
   }
 
   return (
-    <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" 
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50"
       onClick={handleDialogClick}
     >
-      <div 
-        className="bg-background rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto" 
+      <div
+        className="bg-background mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg p-6"
         onClick={handleDialogClick}
       >
-        <h3 className="text-lg font-semibold mb-4">
+        <h3 className="mb-4 text-lg font-semibold">
           {isNewContract ? "Add New Contract" : "Edit Contract"}
         </h3>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Contract Name*</label>
+            <label className="mb-1 block text-sm font-medium">Contract Name*</label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
-              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
               placeholder="Enter contract name"
               onClick={handleDialogClick}
             />
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Setup Fee ($)</label>
+              <label className="mb-1 block text-sm font-medium">Setup Fee ($)</label>
               <input
                 type="number"
                 value={formData.setup_fee || ''}
                 onChange={(e) => handleInputChange('setup_fee', e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
                 min="0"
                 step="0.01"
                 placeholder="0"
                 onClick={handleDialogClick}
               />
             </div>
-            
+
             <div>
-              <label className="block text-sm font-medium mb-1">Annual Rate ($)</label>
+              <label className="mb-1 block text-sm font-medium">Annual Rate ($)</label>
               <input
                 type="number"
                 value={formData.annual_rate || ''}
                 onChange={(e) => handleInputChange('annual_rate', e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
                 min="0"
                 step="0.01"
                 placeholder="0"
@@ -828,14 +823,13 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
               />
             </div>
           </div>
-          
-          {/* Payment Frequency */}
+
           <div>
-            <label className="block text-sm font-medium mb-1">Payment Frequency</label>
+            <label className="mb-1 block text-sm font-medium">Payment Frequency</label>
             <select
               value={formData.payment_frequency || 'annual'}
               onChange={(e) => handleInputChange('payment_frequency', e.target.value)}
-              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-background"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
               onClick={handleDialogClick}
             >
               <option value="annual">Annual</option>
@@ -845,50 +839,49 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
               <option value="one_time">One-Time</option>
             </select>
           </div>
-          
-          {/* Total Value Display */}
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-            <label className="block text-sm font-medium text-green-800 mb-1">Total Contract Value</label>
-            <div className="text-xl font-bold text-green-600">
+
+          <div className="rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/30">
+            <label className="mb-1 block text-sm font-medium text-green-800 dark:text-green-300">Total Contract Value</label>
+            <div className="text-xl font-bold text-green-600 dark:text-green-400">
               {formatCurrency((Number(formData.setup_fee) || 0) + (Number(formData.annual_rate) || 0))}
             </div>
-            <div className="text-xs text-green-600 mt-1">
+            <div className="mt-1 text-xs text-green-600 dark:text-green-500">
               Auto-calculated from setup fee + annual rate
             </div>
           </div>
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Start Date*</label>
+              <label className="mb-1 block text-sm font-medium">Start Date*</label>
               <input
                 type="date"
                 value={formData.start_date}
                 onChange={(e) => handleInputChange('start_date', e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
                 onClick={handleDialogClick}
               />
             </div>
-            
+
             <div>
-              <label className="block text-sm font-medium mb-1">End Date*</label>
+              <label className="mb-1 block text-sm font-medium">End Date*</label>
               <input
                 type="date"
                 value={formData.end_date}
                 onChange={(e) => handleInputChange('end_date', e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
                 onClick={handleDialogClick}
               />
             </div>
           </div>
-          
+
           <div>
-            <label className="block text-sm font-medium mb-1">Status</label>
+            <label className="mb-1 block text-sm font-medium">Status</label>
             <select
               value={formData.status}
               onChange={(e) => handleInputChange('status', e.target.value as Contract["status"])}
-              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
               onClick={handleDialogClick}
             >
               <option value="draft">Draft</option>
@@ -897,24 +890,24 @@ const ContractEditDialog: React.FC<ContractEditDialogProps> = ({
               <option value="expired">Expired</option>
             </select>
           </div>
-          
+
           <div>
-            <label className="block text-sm font-medium mb-1">Terms (Optional)</label>
+            <label className="mb-1 block text-sm font-medium">Terms (Optional)</label>
             <textarea
               value={formData.terms || ""}
               onChange={(e) => handleInputChange('terms', e.target.value)}
-              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
               rows={3}
               placeholder="Enter contract terms and conditions..."
               onClick={handleDialogClick}
             />
           </div>
-          
+
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={handleCancel}>
               Cancel
             </Button>
-            <Button type="submit">
+            <Button type="button" onClick={handleSaveClick}>
               {isNewContract ? "Add Contract" : "Save Changes"}
             </Button>
           </div>

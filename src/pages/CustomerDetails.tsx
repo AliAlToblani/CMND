@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { BatelcoLayout } from "@/components/batelco/BatelcoLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,7 +24,11 @@ import { syncCustomerPipelineStages } from "@/utils/pipelineSync";
 const CustomerDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
+  const isBatelco = location.pathname.startsWith("/batelco");
+  const Layout = isBatelco ? BatelcoLayout : DashboardLayout;
+  const customersPath = isBatelco ? "/batelco/customers" : "/customers";
   const [stages, setStages] = useState<LifecycleStageProps[]>([]);
   const [showChurnDialog, setShowChurnDialog] = useState(false);
 
@@ -194,31 +199,31 @@ const CustomerDetails = () => {
   // NOW CONDITIONAL RETURNS CAN HAPPEN AFTER ALL HOOKS
   if (isLoading) {
     return (
-      <DashboardLayout>
+      <Layout>
         <div className="flex items-center justify-center h-64">
           <div className="animate-pulse">Loading customer details...</div>
         </div>
-      </DashboardLayout>
+      </Layout>
     );
   }
 
   if (error) {
     return (
-      <DashboardLayout>
+      <Layout>
         <div className="flex items-center justify-center h-64">
           <div className="text-red-500">Error loading customer details</div>
         </div>
-      </DashboardLayout>
+      </Layout>
     );
   }
 
   if (!customer) {
     return (
-      <DashboardLayout>
+      <Layout>
         <div className="flex items-center justify-center h-64">
           <div>Customer not found</div>
         </div>
-      </DashboardLayout>
+      </Layout>
     );
   }
 
@@ -264,12 +269,12 @@ const CustomerDetails = () => {
   };
 
   return (
-    <DashboardLayout>
+    <Layout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" onClick={() => navigate("/customers")}>
+            <Button variant="ghost" onClick={() => navigate(customersPath)}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Customers
             </Button>
@@ -306,7 +311,7 @@ const CustomerDetails = () => {
                 Mark as Churned
               </Button>
             )}
-            <Button onClick={() => navigate(`/customers/${id}/edit`)}>
+            <Button onClick={() => navigate(isBatelco ? `/batelco/customers/${id}/edit` : `/customers/${id}/edit`)}>
               <Edit className="mr-2 h-4 w-4" />
               Edit Customer
             </Button>
@@ -459,7 +464,7 @@ const CustomerDetails = () => {
           isProcessing={churnMutation.isPending}
         />
       </div>
-    </DashboardLayout>
+    </Layout>
   );
 };
 

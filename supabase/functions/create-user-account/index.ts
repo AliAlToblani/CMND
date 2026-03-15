@@ -9,9 +9,9 @@ const corsHeaders = {
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const VALID_ROLES = ['admin', 'user'] as const;
+const VALID_ROLES = ['admin', 'user', 'batelco'] as const;
 
-function validateCreateUserInput(data: unknown): { valid: true; email: string; password: string; full_name: string; role: 'admin' | 'user' } | { valid: false; error: string } {
+function validateCreateUserInput(data: unknown): { valid: true; email: string; password: string; full_name: string; role: 'admin' | 'user' | 'batelco' } | { valid: false; error: string } {
   if (!data || typeof data !== 'object') {
     return { valid: false, error: "Invalid request body" };
   }
@@ -54,7 +54,7 @@ function validateCreateUserInput(data: unknown): { valid: true; email: string; p
   }
 
   // Role validation
-  const validatedRole = (role && typeof role === 'string' && VALID_ROLES.includes(role as any)) ? role as 'admin' | 'user' : 'user';
+  const validatedRole = (role && typeof role === 'string' && VALID_ROLES.includes(role as any)) ? role as 'admin' | 'user' | 'batelco' : 'user';
 
   return { valid: true, email: trimmedEmail, password, full_name: trimmedName, role: validatedRole };
 }

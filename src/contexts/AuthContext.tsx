@@ -3,13 +3,25 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+export interface Profile {
+  id: string;
+  email: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  role: string;
+}
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  profile: Profile | null;
   loading: boolean;
+  profileLoading: boolean;
+  profileUpdating: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
+  updateProfile: (updates: { full_name?: string; avatar_url?: string }) => Promise<{ error?: any; data?: Profile }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,32 +37,61 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileUpdating, setProfileUpdating] = useState(false);
   const { toast } = useToast();
 
+  // Single profile fetch - runs when user changes
   useEffect(() => {
-    // Set up auth state listener FIRST
+    if (!user) {
+      setProfile(null);
+      setProfileLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setProfileLoading(true);
+    supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) {
+          console.error('Error fetching profile:', error);
+          setProfile(null);
+        } else {
+          setProfile(data);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error('Error fetching profile:', err);
+          setProfile(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setProfileLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [user?.id]);
+
+  useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-        
         if (event === 'SIGNED_IN') {
-          toast({
-            title: "Welcome back!",
-            description: "You have been successfully signed in.",
-          });
+          toast({ title: "Welcome back!", description: "You have been successfully signed in." });
         } else if (event === 'SIGNED_OUT') {
-          toast({
-            title: "Signed out",
-            description: "You have been successfully signed out.",
-          });
+          setProfile(null);
+          toast({ title: "Signed out", description: "You have been successfully signed out." });
         }
       }
     );
-
-    // THEN check for existing session
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
         setSession(session);
@@ -61,7 +102,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(null);
       })
       .finally(() => setLoading(false));
-
     return () => subscription.unsubscribe();
   }, [toast]);
 
@@ -181,13 +221,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateProfile = async (updates: { full_name?: string; avatar_url?: string }) => {
+    if (!profile) return { error: 'No profile found' };
+    setProfileUpdating(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', profile.id)
+        .select()
+        .single();
+      if (error) {
+        toast.error('Failed to update profile');
+        return { error };
+      }
+      setProfile(data);
+      toast.success('Profile updated successfully');
+      return { data };
+    } catch (err: any) {
+      toast.error('Failed to update profile');
+      return { error: err };
+    } finally {
+      setProfileUpdating(false);
+    }
+  };
+
   const value = {
     user,
     session,
+    profile,
     loading,
+    profileLoading,
+    profileUpdating,
     signIn,
     signOut,
     resetPassword,
+    updateProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

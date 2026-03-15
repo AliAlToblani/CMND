@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProfile } from '@/hooks/useProfile';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +11,7 @@ import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
 
 const AuthPage: React.FC = () => {
   const { user, signIn, resetPassword, loading } = useAuth();
+  const { profile, loading: profileLoading } = useProfile();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -20,9 +22,13 @@ const AuthPage: React.FC = () => {
   const [signUpData, setSignUpData] = useState({ email: '', password: '', fullName: '', confirmPassword: '' });
   const [resetEmail, setResetEmail] = useState('');
 
-  // Redirect if already authenticated
-  const from = location.state?.from?.pathname || '/';
-  if (user && !loading) {
+  // Redirect when authenticated: batelco → /batelco, normal → /
+  if (user && !loading && !profileLoading) {
+    if (profile?.role === 'batelco') {
+      return <Navigate to="/batelco" replace />;
+    }
+    const savedPath = location.state?.from?.pathname || '/';
+    const from = savedPath.startsWith('/batelco') ? '/' : savedPath;
     return <Navigate to={from} replace />;
   }
 

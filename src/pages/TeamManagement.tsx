@@ -52,11 +52,13 @@ import { createNotification, CreateNotificationParams } from "@/utils/notificati
 import { Notification } from "@/types/notifications";
 import { logUserCreated, logActivity } from "@/utils/activityLogger";
 
+type AppRole = 'admin' | 'user' | 'batelco';
+
 interface TeamMember {
   id: string;
   email: string;
   full_name: string;
-  role: 'admin' | 'user';
+  role: AppRole;
   avatar_url?: string;
   created_at: string;
 }
@@ -64,7 +66,7 @@ interface TeamMember {
 interface InvitationRecord {
   id: string;
   email: string;
-  role: 'admin' | 'user';
+  role: AppRole;
   token: string;
   invited_by: string;
   expires_at: string;
@@ -74,19 +76,19 @@ interface InvitationRecord {
 
 const inviteFormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
-  role: z.enum(["admin", "user"]),
+  role: z.enum(["admin", "user", "batelco"]),
 });
 
 const createAccountSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
   full_name: z.string().min(2, { message: "Name must be at least 2 characters" }),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
-  role: z.enum(["admin", "user"]),
+  role: z.enum(["admin", "user", "batelco"]),
 });
 
 const editMemberSchema = z.object({
   full_name: z.string().min(2, { message: "Name must be at least 2 characters" }),
-  role: z.enum(["admin", "user"]),
+  role: z.enum(["admin", "user", "batelco"]),
 });
 
 type InviteFormValues = z.infer<typeof inviteFormSchema>;
@@ -748,10 +750,29 @@ const TeamManagementPage = () => {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent className="glass-card">
-                                  <SelectItem value="admin">Admin</SelectItem>
-                                  <SelectItem value="user">User</SelectItem>
+                                  <SelectItem value="admin">
+                                    <div className="flex items-center gap-2">
+                                      <Shield className="h-4 w-4 text-purple-500" />
+                                      Admin
+                                    </div>
+                                  </SelectItem>
+                                  <SelectItem value="user">
+                                    <div className="flex items-center gap-2">
+                                      <User className="h-4 w-4 text-blue-500" />
+                                      User
+                                    </div>
+                                  </SelectItem>
+                                  <SelectItem value="batelco">
+                                    <div className="flex items-center gap-2">
+                                      <Shield className="h-4 w-4 text-red-500" />
+                                      Batelco Partner
+                                    </div>
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {field.value === 'admin' ? 'Full access to all features and settings' : field.value === 'batelco' ? 'Access to Batelco partner portal only' : 'Standard access to platform features'}
+                              </p>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -807,8 +828,24 @@ const TeamManagementPage = () => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent className="glass-card">
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="user">User</SelectItem>
+                            <SelectItem value="admin">
+                              <div className="flex items-center gap-2">
+                                <Shield className="h-4 w-4 text-purple-500" />
+                                Admin
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="user">
+                              <div className="flex items-center gap-2">
+                                <User className="h-4 w-4 text-blue-500" />
+                                User
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="batelco">
+                              <div className="flex items-center gap-2">
+                                <Shield className="h-4 w-4 text-red-500" />
+                                Batelco Partner
+                              </div>
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -877,7 +914,7 @@ const TeamManagementPage = () => {
                       <div>
                         <p className="font-medium">{invitation.email}</p>
                         <p className="text-sm text-muted-foreground">
-                          Invited as {invitation.role} • Expires {new Date(invitation.expires_at).toLocaleDateString()}
+                          Invited as {invitation.role === 'batelco' ? 'Batelco Partner' : invitation.role} • Expires {new Date(invitation.expires_at).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
@@ -910,17 +947,23 @@ const TeamManagementPage = () => {
                         {member.avatar_url ? (
                           <AvatarImage src={member.avatar_url} alt={member.full_name || ''} />
                         ) : null}
-                        <AvatarFallback className={member.role === 'admin' ? 'bg-doo-purple-500' : 'bg-blue-500'}>
+                        <AvatarFallback className={member.role === 'admin' ? 'bg-doo-purple-500' : member.role === 'batelco' ? 'bg-red-500' : 'bg-blue-500'}>
                           {getInitials(member.full_name)}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="flex items-center">
+                        <div className="flex items-center gap-2">
                           <p className="font-medium">{member.full_name || 'Unknown'}</p>
                           {member.role === 'admin' && (
-                            <Badge variant="secondary" className="ml-2">
+                            <Badge variant="secondary">
                               <Shield className="h-3 w-3 mr-1" />
                               Admin
+                            </Badge>
+                          )}
+                          {member.role === 'batelco' && (
+                            <Badge className="bg-red-100 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800">
+                              <Shield className="h-3 w-3 mr-1" />
+                              Batelco
                             </Badge>
                           )}
                         </div>
@@ -1040,10 +1083,16 @@ const TeamManagementPage = () => {
                             User
                           </div>
                         </SelectItem>
+                        <SelectItem value="batelco">
+                          <div className="flex items-center gap-2">
+                            <Shield className="h-4 w-4 text-red-500" />
+                            Batelco Partner
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {field.value === 'admin' ? 'Full access to all features and settings' : 'Standard access to platform features'}
+                      {field.value === 'admin' ? 'Full access to all features and settings' : field.value === 'batelco' ? 'Access to Batelco partner portal only' : 'Standard access to platform features'}
                     </p>
                     <FormMessage />
                   </FormItem>

@@ -34,6 +34,7 @@ const Customers = () => {
   const [segmentFilter, setSegmentFilter] = useState("all");
   const [dealOwnerFilter, setDealOwnerFilter] = useState("all");
   const [projectOwnerFilter, setProjectOwnerFilter] = useState("all");
+  const [partnerFilter, setPartnerFilter] = useState<"all" | "batelco" | "non-batelco">("all");
   const [contactedFilter, setContactedFilter] = useState("all");
   const [contactedFrom, setContactedFrom] = useState("");
   const [contactedTo, setContactedTo] = useState("");
@@ -160,7 +161,8 @@ const Customers = () => {
       description: dbCustomer.description || undefined,
       lifecycleStages: cardLifecycleStages,
       lastUpdatedAt: lastUpdatedAt,
-      last_contacted_at: lastContactedAt ?? null
+      last_contacted_at: lastContactedAt ?? null,
+      partner_label: (dbCustomer as any).partner_label || null,
     };
   };
 
@@ -375,7 +377,7 @@ const Customers = () => {
       // Single query for all customer columns including last_contacted_at
       const { data: customers, error: customersError } = await supabase
         .from('customers')
-        .select('id, name, logo, segment, country, stage, status, contract_size, deal_owner, project_owner, owner_id, industry, description, updated_at, estimated_deal_value, last_contacted_at');
+        .select('*');
 
       if (customersError) {
         console.error("Supabase error:", customersError);
@@ -561,7 +563,7 @@ const Customers = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, countryFilter, stageFilter, segmentFilter, dealOwnerFilter, projectOwnerFilter, contactedFilter, contactedFrom, contactedTo]);
+  }, [searchTerm, countryFilter, stageFilter, segmentFilter, dealOwnerFilter, projectOwnerFilter, partnerFilter, contactedFilter, contactedFrom, contactedTo]);
 
   // Removed window focus auto-refresh for performance
 
@@ -616,6 +618,9 @@ const Customers = () => {
       if (projectOwnerFilter !== "all" && customer.project_owner !== projectOwnerFilter) {
         return false;
       }
+
+      if (partnerFilter === "batelco" && customer.partner_label !== "batelco") return false;
+      if (partnerFilter === "non-batelco" && customer.partner_label === "batelco") return false;
 
       if (
         searchTerm &&
@@ -672,7 +677,7 @@ const Customers = () => {
     }
 
     return result;
-  }, [customers, filter, countryFilter, stageFilter, segmentFilter, dealOwnerFilter, projectOwnerFilter, contactedFilter, contactedFrom, contactedTo, searchTerm, sortOrder, sortBy]);
+  }, [customers, filter, countryFilter, stageFilter, segmentFilter, dealOwnerFilter, projectOwnerFilter, partnerFilter, contactedFilter, contactedFrom, contactedTo, searchTerm, sortOrder, sortBy]);
 
   return (
     <DashboardLayout>
@@ -753,9 +758,9 @@ const Customers = () => {
                 <Filter className="h-4 w-4" />
                 Filters
                 {(filter !== "all" || countryFilter !== "all" || stageFilter !== "all" || 
-                  segmentFilter !== "all" || dealOwnerFilter !== "all" || projectOwnerFilter !== "all" || contactedFilter !== "all") && (
+                  segmentFilter !== "all" || dealOwnerFilter !== "all" || projectOwnerFilter !== "all" || partnerFilter !== "all" || contactedFilter !== "all") && (
                   <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                    {[filter, countryFilter, stageFilter, segmentFilter, dealOwnerFilter, projectOwnerFilter, contactedFilter]
+                    {[filter, countryFilter, stageFilter, segmentFilter, dealOwnerFilter, projectOwnerFilter, partnerFilter, contactedFilter]
                       .filter(f => f !== "all").length}
                   </Badge>
                 )}
@@ -775,6 +780,7 @@ const Customers = () => {
                       setSegmentFilter("all");
                       setDealOwnerFilter("all");
                       setProjectOwnerFilter("all");
+                      setPartnerFilter("all");
                       setContactedFilter("all");
                       setContactedFrom("");
                       setContactedTo("");
@@ -849,6 +855,20 @@ const Customers = () => {
                             {segment}
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Partner</Label>
+                    <Select value={partnerFilter} onValueChange={(v) => setPartnerFilter(v as "all" | "batelco" | "non-batelco")}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="All Partners" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Customers</SelectItem>
+                        <SelectItem value="batelco">Batelco Only</SelectItem>
+                        <SelectItem value="non-batelco">Non-Batelco Only</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

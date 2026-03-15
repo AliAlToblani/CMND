@@ -38,6 +38,7 @@ interface CustomerWithContract {
   name: string;
   logo?: string;
   segment?: string;
+  partner_label?: string | null;
   contracts: {
     id: string;
     name: string;
@@ -77,7 +78,8 @@ const LegalDocuments = () => {
             id,
             name,
             logo,
-            segment
+            segment,
+            partner_label
           )
         `)
         .eq('status', 'active');
@@ -114,6 +116,7 @@ const LegalDocuments = () => {
             name: customer.name,
             logo: customer.logo,
             segment: customer.segment,
+            partner_label: customer.partner_label || null,
             contracts: [],
             documents: []
           });
@@ -486,6 +489,11 @@ const LegalDocuments = () => {
                             {customer.name}
                           </Link>
                           <div className="flex items-center gap-2 mt-0.5">
+                            {customer.partner_label === "batelco" && (
+                              <Badge className="text-[10px] px-1.5 py-0 h-5 shrink-0 font-medium bg-red-100 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800">
+                                Batelco
+                              </Badge>
+                            )}
                             {customer.segment && (
                               <Badge variant="secondary" className="text-xs">
                                 {customer.segment}

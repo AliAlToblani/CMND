@@ -175,8 +175,11 @@ export const defaultLifecycleStages = [
 
 export const industryOptions = [
   "Technology",
+  "Telecom",
   "Healthcare",
   "Finance",
+  "Insurance",
+  "F&B",
   "Manufacturing",
   "Retail",
   "Education",

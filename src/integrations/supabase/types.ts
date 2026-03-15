@@ -171,6 +171,7 @@ export type Database = {
           id: string
           name: string
           owner_id: string | null
+          partner_label: string | null
           partnership_id: string | null
           payment_frequency: string | null
           renewal_date: string | null
@@ -190,6 +191,7 @@ export type Database = {
           id?: string
           name: string
           owner_id?: string | null
+          partner_label?: string | null
           partnership_id?: string | null
           payment_frequency?: string | null
           renewal_date?: string | null
@@ -209,6 +211,7 @@ export type Database = {
           id?: string
           name?: string
           owner_id?: string | null
+          partner_label?: string | null
           partnership_id?: string | null
           payment_frequency?: string | null
           renewal_date?: string | null
@@ -435,6 +438,7 @@ export type Database = {
           manual_stage_set_by: string | null
           name: string
           owner_id: string | null
+          partner_label: string | null
           payment_terms_days: number | null
           project_manager: string | null
           project_owner: string | null
@@ -484,6 +488,7 @@ export type Database = {
           manual_stage_set_by?: string | null
           name: string
           owner_id?: string | null
+          partner_label?: string | null
           payment_terms_days?: number | null
           project_manager?: string | null
           project_owner?: string | null
@@ -533,6 +538,7 @@ export type Database = {
           manual_stage_set_by?: string | null
           name?: string
           owner_id?: string | null
+          partner_label?: string | null
           payment_terms_days?: number | null
           project_manager?: string | null
           project_owner?: string | null

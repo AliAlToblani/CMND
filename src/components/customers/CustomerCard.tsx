@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { CustomerData, CardLifecycleStage } from "@/types/customers";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -80,6 +80,8 @@ function getRelativeTime(dateStr: string): string {
 
 function CustomerCardComponent({ customer, showEditOptions = false, isDetailed = false, onStageUpdate }: CustomerCardProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isBatelco = location.pathname.startsWith("/batelco");
   const [stagesOpen, setStagesOpen] = useState(false);
   const [localStages, setLocalStages] = useState<CardLifecycleStage[]>(
     customer.lifecycleStages || []
@@ -129,7 +131,7 @@ function CustomerCardComponent({ customer, showEditOptions = false, isDetailed =
   };
 
   const handleCardClick = () => {
-    navigate(`/customers/${customer.id}`);
+    navigate(isBatelco ? `/batelco/customers/${customer.id}` : `/customers/${customer.id}`);
   };
 
   const saveContactedDate = useCallback(async (dateValue: string | null) => {
@@ -300,6 +302,11 @@ function CustomerCardComponent({ customer, showEditOptions = false, isDetailed =
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="font-medium text-sm truncate">{customer.name}</h3>
+              {customer.partner_label === "batelco" && (
+                <Badge className="text-[10px] px-1.5 py-0 h-5 shrink-0 font-medium bg-red-100 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800">
+                  Batelco
+                </Badge>
+              )}
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 shrink-0 font-medium">
                 {customer.stage || "New"}
               </Badge>

@@ -245,4 +245,5 @@ export interface CustomerData {
   lifecycleStages?: CardLifecycleStage[];
   lastUpdatedAt?: string;
   last_contacted_at?: string | null;
+  partner_label?: string | null;
 }
