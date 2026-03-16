@@ -168,7 +168,22 @@ async function getEmailRecipients(notificationType: string, supabaseClient: any)
   }
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function buildEmailContent(notification: NotificationData): string {
+  // Sanitize all user-controlled fields
+  const safeTitle = escapeHtml(notification.title);
+  const safeMessage = escapeHtml(notification.message);
+  const safeRelatedId = notification.related_id ? escapeHtml(notification.related_id) : undefined;
+  const safeRelatedType = notification.related_type ? escapeHtml(notification.related_type) : undefined;
+
   // Icon and color based on notification type
   let icon = "🔔";
   let color = "#3B82F6";
@@ -202,7 +217,7 @@ function buildEmailContent(notification: NotificationData): string {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${notification.title}</title>
+        <title>${safeTitle}</title>
       </head>
       <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: linear-gradient(135deg, ${color}20, ${color}10); padding: 30px; border-radius: 12px; border-left: 4px solid ${color};">
@@ -213,13 +228,13 @@ function buildEmailContent(notification: NotificationData): string {
           </div>
           
           <div style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h2 style="color: #1F2937; margin: 0 0 15px 0; font-size: 20px; font-weight: 600;">${notification.title}</h2>
-            <p style="color: #4B5563; margin: 0; font-size: 16px; line-height: 1.6;">${notification.message}</p>
+            <h2 style="color: #1F2937; margin: 0 0 15px 0; font-size: 20px; font-weight: 600;">${safeTitle}</h2>
+            <p style="color: #4B5563; margin: 0; font-size: 16px; line-height: 1.6;">${safeMessage}</p>
             
-            ${notification.related_id ? `
+            ${safeRelatedId ? `
               <div style="margin-top: 20px; padding: 15px; background: #F9FAFB; border-radius: 6px; border-left: 3px solid ${color};">
                 <p style="margin: 0; font-size: 14px; color: #6B7280;">
-                  <strong>Related ${notification.related_type || 'Item'}:</strong> ${notification.related_id}
+                  <strong>Related ${safeRelatedType || 'Item'}:</strong> ${safeRelatedId}
                 </p>
               </div>
             ` : ''}
