@@ -633,12 +633,12 @@ export default function ProjectManager() {
           return;
         }
 
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
+        // Get signed URL
+        const { data: signedData } = await supabase.storage
           .from('project-files')
-          .getPublicUrl(filePath);
+          .createSignedUrl(filePath, 3600);
 
-        fileUrl = publicUrl;
+        fileUrl = signedData?.signedUrl || '';
         fileName = requestFile.name;
         setUploadingFile(false);
       }
