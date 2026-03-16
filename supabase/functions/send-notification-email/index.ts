@@ -168,7 +168,22 @@ async function getEmailRecipients(notificationType: string, supabaseClient: any)
   }
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function buildEmailContent(notification: NotificationData): string {
+  // Sanitize all user-controlled fields
+  const safeTitle = escapeHtml(notification.title);
+  const safeMessage = escapeHtml(notification.message);
+  const safeRelatedId = notification.related_id ? escapeHtml(notification.related_id) : undefined;
+  const safeRelatedType = notification.related_type ? escapeHtml(notification.related_type) : undefined;
+
   // Icon and color based on notification type
   let icon = "🔔";
   let color = "#3B82F6";
