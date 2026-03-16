@@ -221,7 +221,7 @@ const BatelcoDashboard = () => {
                 </span>
               </h2>
               <p className="text-muted-foreground mt-1 opacity-0 animate-fade-in" style={{ animationDelay: "0.4s" }}>
-                Welcome to the Batelco Partner Portal
+                Welcome to the DOO Partner Portal
               </p>
             </div>
           </div>

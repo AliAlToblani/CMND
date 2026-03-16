@@ -74,7 +74,7 @@ export function BatelcoLayout({ children }: BatelcoLayoutProps) {
                 <div className="hidden sm:flex items-center gap-2">
                   <div className="h-5 w-px bg-border" />
                   <span className="text-xs font-medium text-red-600 bg-red-50 dark:bg-red-950/30 px-2.5 py-1 rounded-full">
-                    Batelco Partner Portal
+                    DOO Partner Portal
                   </span>
                 </div>
               </div>
@@ -104,7 +104,7 @@ export function BatelcoLayout({ children }: BatelcoLayoutProps) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="glass-dropdown">
-                    <DropdownMenuLabel>Batelco Account</DropdownMenuLabel>
+                    <DropdownMenuLabel>Partner Account</DropdownMenuLabel>
                     <DropdownMenuSeparator className="bg-white/10" />
                     <DropdownMenuItem
                       className="cursor-pointer hover:bg-white/10 dark:hover:bg-white/5 transition-colors text-red-500"
