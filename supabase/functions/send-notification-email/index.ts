@@ -1,8 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+import { sendEmail, buildEmailTemplate } from "../_shared/smtpEmail.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -89,24 +87,25 @@ serve(async (req) => {
       );
     }
 
-    // Build email content
-    const emailContent = buildEmailContent(notification);
+    // Build email content using shared DOO-branded template
+    const emailContent = buildEmailTemplate({
+      title: notification.title,
+      bodyHtml: `<p>${notification.message}</p>`,
+    });
 
-    // Send email using Resend
-    const emailResponse = await resend.emails.send({
-      from: "DOO Command <hello@doo.ooo>",
+    // Send email via SMTP
+    await sendEmail({
       to: emailRecipients,
-      subject: `[DOO Command] ${notification.title}`,
+      subject: `[CMND] ${notification.title}`,
       html: emailContent,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("Email sent successfully via SMTP");
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        emailId: emailResponse.data?.id,
-        sentTo: emailRecipients.length 
+      JSON.stringify({
+        success: true,
+        sentTo: emailRecipients.length
       }),
       { 
         status: 200, 
@@ -128,136 +127,32 @@ serve(async (req) => {
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getEmailRecipients(notificationType: string, supabaseClient: any): Promise<string[]> {
+async function getEmailRecipients(_notificationType: string, supabaseClient: any): Promise<string[]> {
   try {
-    // Get users who have email notifications enabled for this type
-    const { data: settings, error } = await supabaseClient
-      .from('user_notification_settings')
-      .select(`
-        email_enabled,
-        profiles!inner(email)
-      `)
-      .eq('notification_type', notificationType)
-      .eq('email_enabled', true);
-    
+    // Recipient rules for main CMND portal notifications:
+    //   1. notifications_enabled = true
+    //   2. role must NOT be 'batelco' (batelco-only users don't get main portal emails)
+    const { data: profiles, error } = await supabaseClient
+      .from('profiles')
+      .select('email, role, notifications_enabled')
+      .eq('notifications_enabled', true)
+      .neq('role', 'batelco');
+
     if (error) {
-      console.error("Error fetching notification settings:", error);
-      // Fallback: get all admin emails
-      const { data: profiles } = await supabaseClient
-        .from('profiles')
-        .select('email')
-        .eq('role', 'admin');
-      return profiles?.map((p: { email: string }) => p.email) || ["hello@doo.ooo"];
+      console.error("Error fetching notification recipients:", error);
+      return [];
     }
-    
-    const emails = settings?.map((setting: { profiles?: { email: string } }) => setting.profiles?.email).filter(Boolean) || [];
-    
-    // If no users have settings, fallback to admins
-    if (emails.length === 0) {
-      const { data: profiles } = await supabaseClient
-        .from('profiles')
-        .select('email')
-        .eq('role', 'admin');
-      return profiles?.map((p: { email: string }) => p.email) || ["hello@doo.ooo"];
-    }
-    
-    return emails as string[];
+
+    const emails = (profiles || [])
+      .map((p: { email: string }) => p.email)
+      .filter(Boolean) as string[];
+
+    console.log(`getEmailRecipients: ${emails.length} eligible recipient(s)`);
+    return emails;
   } catch (error) {
     console.error("Error in getEmailRecipients:", error);
-    return ["hello@doo.ooo"]; // Fallback email
+    return [];
   }
 }
 
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function buildEmailContent(notification: NotificationData): string {
-  // Sanitize all user-controlled fields
-  const safeTitle = escapeHtml(notification.title);
-  const safeMessage = escapeHtml(notification.message);
-  const safeRelatedId = notification.related_id ? escapeHtml(notification.related_id) : undefined;
-  const safeRelatedType = notification.related_type ? escapeHtml(notification.related_type) : undefined;
-
-  // Icon and color based on notification type
-  let icon = "🔔";
-  let color = "#3B82F6";
-  
-  switch (notification.type) {
-    case 'lifecycle':
-      icon = "🔄";
-      color = "#10B981";
-      break;
-    case 'customer':
-      icon = "👤";
-      color = "#F59E0B";
-      break;
-    case 'deadline':
-      icon = "⏰";
-      color = "#EF4444";
-      break;
-    case 'contract':
-      icon = "📄";
-      color = "#8B5CF6";
-      break;
-    case 'team':
-      icon = "👥";
-      color = "#06B6D4";
-      break;
-  }
-
-  return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${safeTitle}</title>
-      </head>
-      <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, ${color}20, ${color}10); padding: 30px; border-radius: 12px; border-left: 4px solid ${color};">
-          <div style="text-align: center; margin-bottom: 20px;">
-            <div style="font-size: 48px; margin-bottom: 10px;">${icon}</div>
-            <h1 style="color: ${color}; margin: 0; font-size: 24px; font-weight: 600;">DOO Command</h1>
-            <p style="color: #6B7280; margin: 5px 0 0 0; font-size: 14px;">Customer Success Management Platform</p>
-          </div>
-          
-          <div style="background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h2 style="color: #1F2937; margin: 0 0 15px 0; font-size: 20px; font-weight: 600;">${safeTitle}</h2>
-            <p style="color: #4B5563; margin: 0; font-size: 16px; line-height: 1.6;">${safeMessage}</p>
-            
-            ${safeRelatedId ? `
-              <div style="margin-top: 20px; padding: 15px; background: #F9FAFB; border-radius: 6px; border-left: 3px solid ${color};">
-                <p style="margin: 0; font-size: 14px; color: #6B7280;">
-                  <strong>Related ${safeRelatedType || 'Item'}:</strong> ${safeRelatedId}
-                </p>
-              </div>
-            ` : ''}
-          </div>
-          
-          <div style="text-align: center; margin-top: 25px;">
-            <a href="${Deno.env.get('SITE_URL') || 'https://your-app.lovable.app'}" style="display: inline-block; background: ${color}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; transition: background-color 0.2s;">
-              Open DOO Command
-            </a>
-          </div>
-          
-          <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid #E5E7EB; text-align: center;">
-            <p style="margin: 0; font-size: 12px; color: #9CA3AF;">
-              This notification was sent from DOO Command. 
-              <br>
-              <a href="${Deno.env.get('SITE_URL') || 'https://your-app.lovable.app'}/settings" style="color: ${color}; text-decoration: none;">Manage notification preferences</a>
-            </p>
-            <p style="margin: 10px 0 0 0; font-size: 11px; color: #D1D5DB;">
-              © ${new Date().getFullYear()} DOO. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </body>
-    </html>
-  `;
-}
+// Email content is now handled by the shared buildEmailTemplate utility.

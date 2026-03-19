@@ -62,6 +62,14 @@ const BatelcoCustomers = () => {
       updated_at: s.updated_at || s.created_at,
     }));
 
+    const timestamps = [
+      dbCustomer.updated_at,
+      ...lifecycleStages.map((s: any) => s.updated_at || s.created_at),
+    ].filter(Boolean);
+    const lastUpdatedAt = timestamps.length > 0
+      ? timestamps.reduce((a, b) => (new Date(a) > new Date(b) ? a : b))
+      : dbCustomer.updated_at || undefined;
+
     return {
       id: dbCustomer.id,
       name: dbCustomer.name,
@@ -78,6 +86,7 @@ const BatelcoCustomers = () => {
       lifecycleStages: cardLifecycleStages,
       partner_label: dbCustomer.partner_label || undefined,
       last_contacted_at: dbCustomer.last_contacted_at ?? null,
+      lastUpdatedAt,
     };
   };
 

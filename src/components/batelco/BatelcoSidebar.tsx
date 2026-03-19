@@ -47,8 +47,8 @@ export function BatelcoSidebar() {
     <Sidebar className="border-0 transition-all duration-300 bg-transparent backdrop-blur-sm">
       <SidebarHeader className="p-4 border-b border-border/50 bg-gradient-to-r from-red-500/10 to-transparent">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-600/20 to-red-500/10 flex items-center justify-center">
-            <span className="text-lg font-bold text-red-600">B</span>
+          <div className="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center">
+            <img src="/batelco-logo.jpg" alt="Batelco" className="w-full h-full object-cover" />
           </div>
           <div>
             <h2 className="text-lg font-bold bg-gradient-to-br from-red-600 to-red-500 bg-clip-text text-transparent">

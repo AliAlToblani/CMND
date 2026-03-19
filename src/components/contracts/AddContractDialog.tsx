@@ -26,6 +26,7 @@ import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { notifyNewContract } from "@/utils/emailNotifications";
 
 export interface ContractDialogProps {
   customerId?: string | null;
@@ -172,7 +173,19 @@ export function AddContractDialog({
       toast.success(isEditing ? "Contract updated successfully" : "Contract added successfully");
       resetForm();
       setOpen(false);
-      
+
+      // Notify team on new contract — fire-and-forget, not on edits, not from batelco URLs
+      if (!isEditing && result.data && !window.location.pathname.startsWith("/batelco")) {
+        notifyNewContract({
+          contractId: result.data.id,
+          customerId: result.data.customer_id,
+          customerName: "", // edge function resolves this via customerId
+          contractName: result.data.name || type || "Service Agreement",
+          contractValue: result.data.value ?? 0,
+          paymentFrequency: result.data.payment_frequency || "annual",
+        });
+      }
+
       // Pass the action type and contract data to allow targeted updates
       onSuccess(isEditing ? 'updated' : 'created', result.data);
     } catch (err) {

@@ -2,8 +2,8 @@ import React from "react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { 
-  Bell, 
+import {
+  Bell,
   Moon,
   Sun,
   Calendar,
@@ -19,7 +19,7 @@ import {
   Trash2,
   Plus
 } from "lucide-react";
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -27,8 +27,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
+import { toast as sonnerToast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -65,6 +67,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [bellTab, setBellTab] = useState<'notifications' | 'activity'>('notifications');
   const [bellOpen, setBellOpen] = useState(false); // Track if bell dropdown is open
   const [dataLoaded, setDataLoaded] = useState(false); // Lazy load flag
+  const [emailNotifEnabled, setEmailNotifEnabled] = useState(false);
+  const [emailNotifToggling, setEmailNotifToggling] = useState(false);
   const { profile } = useProfile();
   const { signOut } = useAuth();
   const navigate = useNavigate();
@@ -104,6 +108,41 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       localStorage.setItem(THEME_KEY, "light");
     }
   }, []);
+
+  // Fetch current user's email notification preference
+  useEffect(() => {
+    const fetchEmailNotifPref = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("notifications_enabled")
+        .eq("id", user.id)
+        .single();
+      if (data) setEmailNotifEnabled(!!data.notifications_enabled);
+    };
+    fetchEmailNotifPref();
+  }, []);
+
+  const handleToggleEmailNotif = async () => {
+    setEmailNotifToggling(true);
+    const newValue = !emailNotifEnabled;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { error } = await supabase
+        .from("profiles")
+        .update({ notifications_enabled: newValue })
+        .eq("id", user.id);
+      if (error) throw error;
+      setEmailNotifEnabled(newValue);
+      sonnerToast.success(newValue ? "Email notifications turned ON" : "Email notifications turned OFF");
+    } catch {
+      sonnerToast.error("Failed to update notification preference");
+    } finally {
+      setEmailNotifToggling(false);
+    }
+  };
 
   // LAZY LOAD: Only fetch notifications/activity when bell dropdown opens
   const loadBellData = async () => {
@@ -405,6 +444,20 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                       </ScrollArea>
                     </TabsContent>
                   </Tabs>
+
+                  {/* Email notification toggle */}
+                  <div className="border-t border-border/50 px-3 py-2.5 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium">Email notifications</p>
+                      <p className="text-[10px] text-muted-foreground">New customers &amp; contracts</p>
+                    </div>
+                    <Switch
+                      checked={emailNotifEnabled}
+                      onCheckedChange={handleToggleEmailNotif}
+                      disabled={emailNotifToggling}
+                      aria-label="Toggle email notifications"
+                    />
+                  </div>
                 </DropdownMenuContent>
               </DropdownMenu>
               

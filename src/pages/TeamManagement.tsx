@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserPlus, Users, User, Mail, Shield, MoreVertical, Trash2, Edit2, Key, Eye, EyeOff, Copy, Check } from "lucide-react";
+import { UserPlus, Users, User, Mail, Shield, MoreVertical, Trash2, Edit2, Key, Eye, EyeOff, Copy, Check, Bell, BellOff, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Select,
@@ -34,6 +35,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
@@ -61,6 +63,25 @@ interface TeamMember {
   role: AppRole;
   avatar_url?: string;
   created_at: string;
+  notifications_enabled: boolean;
+  notification_preferences?: {
+    new_customer?: boolean;
+    new_contract?: boolean;
+    batelco_notifications?: boolean;
+  };
+}
+
+interface NotificationLog {
+  id: string;
+  notification_type: string;
+  recipient_email: string;
+  recipient_name?: string;
+  sent_at: string;
+  status: 'sent' | 'failed' | 'pending';
+  related_entity_type?: string;
+  related_entity_name?: string;
+  related_entity_id?: string;
+  error_message?: string;
 }
 
 interface InvitationRecord {
@@ -111,6 +132,10 @@ const TeamManagementPage = () => {
   const [memberToEdit, setMemberToEdit] = useState<TeamMember | null>(null);
   const [memberToDelete, setMemberToDelete] = useState<TeamMember | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [notificationLogs, setNotificationLogs] = useState<NotificationLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("team");
 
   const form = useForm<InviteFormValues>({
     resolver: zodResolver(inviteFormSchema),
@@ -142,6 +167,70 @@ const TeamManagementPage = () => {
     fetchTeamMembers();
     fetchPendingInvitations();
   }, []);
+
+  const fetchNotificationLogs = async () => {
+    try {
+      setLogsLoading(true);
+      const { data, error } = await supabase
+        .from('notification_logs' as any)
+        .select('*')
+        .order('sent_at', { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      setNotificationLogs((data as unknown as NotificationLog[]) || []);
+    } catch (error) {
+      console.error("Error fetching notification logs:", error);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
+  const handleToggleNotifications = async (member: TeamMember) => {
+    setTogglingId(member.id);
+    const newValue = !member.notifications_enabled;
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ notifications_enabled: newValue })
+        .eq('id', member.id);
+      if (error) throw error;
+      setTeamMembers(prev =>
+        prev.map(m => m.id === member.id ? { ...m, notifications_enabled: newValue } : m)
+      );
+      toast.success(
+        newValue
+          ? `Email notifications enabled for ${member.full_name || member.email}`
+          : `Email notifications disabled for ${member.full_name || member.email}`
+      );
+    } catch (error) {
+      console.error("Error toggling notifications:", error);
+      toast.error("Failed to update notification setting");
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  const handleToggleNotificationPref = async (
+    member: TeamMember,
+    prefKey: 'new_customer' | 'new_contract' | 'batelco_notifications',
+    value: boolean
+  ) => {
+    const current = member.notification_preferences ?? { new_customer: true, new_contract: true };
+    const updated = { ...current, [prefKey]: value };
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ notification_preferences: updated } as any)
+        .eq('id', member.id);
+      if (error) throw error;
+      setTeamMembers(prev =>
+        prev.map(m => m.id === member.id ? { ...m, notification_preferences: updated } : m)
+      );
+    } catch (error) {
+      console.error("Error updating notification preference:", error);
+      toast.error("Failed to update preference");
+    }
+  };
 
   useEffect(() => {
     if (editMember) {
@@ -894,6 +983,24 @@ const TeamManagementPage = () => {
           </Dialog>
         </div>
 
+        {/* Page-level tabs: Team Members | Notification History */}
+        <Tabs value={activeTab} onValueChange={(v) => {
+          setActiveTab(v);
+          if (v === "history" && notificationLogs.length === 0) fetchNotificationLogs();
+        }}>
+          <TabsList>
+            <TabsTrigger value="team" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Team Members
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <History className="h-4 w-4" />
+              Notification History
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="team" className="space-y-6 mt-4">
+
         {/* Pending Invitations Section */}
         {pendingInvitations.length > 0 && (
           <Card className="glass-card animate-fade-in">
@@ -970,6 +1077,62 @@ const TeamManagementPage = () => {
                         <p className="text-sm text-muted-foreground">{member.email}</p>
                       </div>
                     </div>
+                    <div className="flex items-center gap-3">
+                      {/* Notification toggle + preferences */}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 px-2 gap-1.5">
+                            {member.notifications_enabled
+                              ? <Bell className="h-4 w-4 text-primary" />
+                              : <BellOff className="h-4 w-4 text-muted-foreground" />
+                            }
+                            <span className="text-xs text-muted-foreground">
+                              {member.notifications_enabled ? "On" : "Off"}
+                            </span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-3" align="end">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                            Email Notifications
+                          </p>
+                          {/* Master toggle */}
+                          <div className="flex items-center justify-between py-1.5 border-b border-border/50 mb-2">
+                            <p className="text-sm font-medium">All emails</p>
+                            <Switch
+                              checked={!!member.notifications_enabled}
+                              onCheckedChange={() => handleToggleNotifications(member)}
+                              disabled={togglingId === member.id}
+                            />
+                          </div>
+                          {/* Per-type toggles */}
+                          <div className={`space-y-2 ${!member.notifications_enabled ? 'opacity-40 pointer-events-none' : ''}`}>
+                            <div className="flex items-center justify-between py-1">
+                              <p className="text-sm">New Customer</p>
+                              <Switch
+                                checked={member.notification_preferences?.new_customer !== false}
+                                onCheckedChange={(v) => handleToggleNotificationPref(member, 'new_customer', v)}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between py-1">
+                              <p className="text-sm">New Contract</p>
+                              <Switch
+                                checked={member.notification_preferences?.new_contract !== false}
+                                onCheckedChange={(v) => handleToggleNotificationPref(member, 'new_contract', v)}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between py-1 border-t border-border/50 pt-2">
+                              <div>
+                                <p className="text-sm">Batelco Emails</p>
+                                <p className="text-[10px] text-muted-foreground">Customers &amp; contracts from Batelco portal</p>
+                              </div>
+                              <Switch
+                                checked={!!member.notification_preferences?.batelco_notifications}
+                                onCheckedChange={(v) => handleToggleNotificationPref(member, 'batelco_notifications', v)}
+                              />
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -994,6 +1157,7 @@ const TeamManagementPage = () => {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1013,6 +1177,77 @@ const TeamManagementPage = () => {
             )}
           </CardContent>
         </Card>
+
+          </TabsContent>{/* end team tab */}
+
+          {/* ── Notification History Tab ── */}
+          <TabsContent value="history" className="mt-4">
+            <Card className="glass-card animate-fade-in">
+              <CardHeader>
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <History className="h-5 w-5" />
+                  Notification History
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {logsLoading ? (
+                  <div className="text-center py-8">
+                    <History className="h-12 w-12 text-muted-foreground mx-auto animate-pulse" />
+                    <p className="mt-4 text-muted-foreground">Loading history...</p>
+                  </div>
+                ) : notificationLogs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-40" />
+                    <p className="font-medium text-muted-foreground">No notifications sent yet</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Email notification history will appear here once notifications are triggered.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {notificationLogs.map((log) => (
+                      <div key={log.id} className="p-3 glass-card rounded-lg flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className={`h-2 w-2 rounded-full flex-shrink-0 ${
+                            log.status === 'sent' ? 'bg-green-500' :
+                            log.status === 'failed' ? 'bg-red-500' : 'bg-yellow-500'
+                          }`} />
+                          <div className="min-w-0">
+                            <p className="font-medium text-sm truncate">
+                              {log.notification_type}
+                              {log.related_entity_name && (
+                                <span className="text-muted-foreground font-normal"> — {log.related_entity_name}</span>
+                              )}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              To: {log.recipient_name ? `${log.recipient_name} (${log.recipient_email})` : log.recipient_email}
+                            </p>
+                            {log.error_message && (
+                              <p className="text-xs text-red-500 mt-0.5">{log.error_message}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Badge variant="outline" className={
+                            log.status === 'sent' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800' :
+                            log.status === 'failed' ? 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800' :
+                            'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/30 dark:text-yellow-400 dark:border-yellow-800'
+                          }>
+                            {log.status}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(log.sent_at).toLocaleDateString()} {new Date(log.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+        </Tabs>
       </div>
 
       {/* Edit Member Dialog */}

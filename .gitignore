@@ -25,3 +25,10 @@ dist-ssr
 
 # Exclude demo / one-off folders
 WebsummitDemo/
+.vercel
+
+# Environment — never commit secrets
+.env
+.env.local
+.env.*.local
+# .env.example is safe to commit (no real values)

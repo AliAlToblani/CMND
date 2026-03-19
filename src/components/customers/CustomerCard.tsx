@@ -359,9 +359,7 @@ function CustomerCardComponent({ customer, showEditOptions = false, isDetailed =
               <div className="p-3 border-b">
                 <h4 className="font-medium text-sm">Lifecycle Stages</h4>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {isBatelco
-                    ? "View-only lifecycle stage progress."
-                    : `Click a status to change it. ${pendingCount > 0 ? "Changes save when you close." : ""}`}
+                  {`Click a status to change it. ${pendingCount > 0 ? "Changes save when you close." : ""}`}
                 </p>
               </div>
               <div className="max-h-[400px] overflow-y-auto p-1">
@@ -392,7 +390,7 @@ function CustomerCardComponent({ customer, showEditOptions = false, isDetailed =
                               {config.label}
                             </span>
                           </button>
-                          {!isBatelco && isExpanded && (
+                          {isExpanded && (
                             <div className="flex items-center gap-1 px-3 pb-2 pt-0.5">
                               {STATUS_CYCLE.map((status) => {
                                 const sc = STATUS_CONFIG[status];
@@ -423,7 +421,7 @@ function CustomerCardComponent({ customer, showEditOptions = false, isDetailed =
                   </div>
                 ))}
               </div>
-              {!isBatelco && pendingCount > 0 && (
+              {pendingCount > 0 && (
                 <div className="border-t p-2 flex items-center gap-2 bg-muted/30">
                   <span className="text-xs text-muted-foreground flex-1 pl-1">
                     {pendingCount} unsaved change{pendingCount > 1 ? "s" : ""}
@@ -484,14 +482,12 @@ function CustomerCardComponent({ customer, showEditOptions = false, isDetailed =
             <div className="p-3 space-y-2">
               <textarea
                 value={notesValue}
-                readOnly={isBatelco}
-                onChange={isBatelco ? undefined : (e) => setNotesValue(e.target.value)}
+                onChange={(e) => setNotesValue(e.target.value)}
                 onClick={(e) => e.stopPropagation()}
-                placeholder={isBatelco ? "No notes." : "Add notes about this customer..."}
-                className={`w-full min-h-[100px] text-sm bg-background border rounded-md px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring ${isBatelco ? "cursor-default opacity-70" : ""}`}
+                placeholder="Add notes about this customer..."
+                className="w-full min-h-[100px] text-sm bg-background border rounded-md px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
               />
-              {!isBatelco && (
-                <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -513,8 +509,7 @@ function CustomerCardComponent({ customer, showEditOptions = false, isDetailed =
                     {isSavingNotes ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
                     Save
                   </button>
-                </div>
-              )}
+              </div>
             </div>
           </PopoverContent>
         </Popover>
@@ -527,14 +522,8 @@ function CustomerCardComponent({ customer, showEditOptions = false, isDetailed =
             <span>Updated {customer.lastUpdatedAt ? formatShortDate(customer.lastUpdatedAt) : "—"}</span>
           </div>
 
-          {/* Last Contacted — read-only for Batelco, interactive popover for DOO */}
-          {isBatelco ? (
-            <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Phone className="h-3 w-3" />
-              <span>Contacted {lastContacted ? formatShortDate(lastContacted) : "Never"}</span>
-            </div>
-          ) : (
-            <Popover open={contactedOpen} onOpenChange={setContactedOpen}>
+          {/* Last Contacted — interactive for all portals */}
+          <Popover open={contactedOpen} onOpenChange={setContactedOpen}>
               <PopoverTrigger asChild>
                 <button
                   onClick={(e) => {
@@ -599,9 +588,9 @@ function CustomerCardComponent({ customer, showEditOptions = false, isDetailed =
                   </>
                 )}
               </PopoverContent>
-            </Popover>
-          )}
+          </Popover>
         </div>
+
       </CardContent>
     </Card>
   );

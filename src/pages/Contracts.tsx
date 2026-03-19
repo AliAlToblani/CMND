@@ -38,6 +38,7 @@ import { AddEditContract, ContractData } from "@/components/contracts/AddEditCon
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { contractQueryKeys, calculateContractValue, formatCurrency } from "@/utils/contractUtils";
+import { notifyNewContract } from "@/utils/emailNotifications";
 import { useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import ContractsByYearView from "@/components/contracts/ContractsByYearView";
@@ -212,15 +213,25 @@ const ContractsPage = () => {
           documentUrl: newContract.documentUrl,
           documentName: newContract.documentName
         };
-        
+
         setContracts(prevContracts => [...prevContracts, newContractData]);
-        
+
         // Invalidate related queries to sync across pages
         queryClient.invalidateQueries({ queryKey: contractQueryKeys.all });
         queryClient.invalidateQueries({ queryKey: contractQueryKeys.subscription() });
         queryClient.invalidateQueries({ queryKey: ['all-customers-for-filters'] });
-        
+
         toast.success("Contract created successfully");
+
+        // Notify team — fire-and-forget, does not block UI
+        notifyNewContract({
+          contractId: data[0].id,
+          customerId: newContract.customerId!,
+          customerName: newContract.customer || "Unknown Customer",
+          contractName: newContract.type || "Service Agreement",
+          contractValue: parseInt(newContract.value?.replace(/[^0-9.-]+/g, "") || "0"),
+          paymentFrequency: newContract.paymentFrequency || "annual",
+        });
       }
     } catch (error) {
       console.error("Error adding contract:", error);

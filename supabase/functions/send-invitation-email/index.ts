@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendEmail } from "../_shared/smtpEmail.ts";
 
 console.log("send-invitation-email: Starting...");
 
@@ -171,71 +172,34 @@ serve(async (req) => {
 
     console.log("Processing invitation for:", invitation.email);
 
-    // Check for RESEND_API_KEY
-    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-    
-    if (!RESEND_API_KEY) {
-      console.log("RESEND_API_KEY not configured - returning success without sending email");
-      return new Response(
-        JSON.stringify({ 
-          success: true,
-          warning: "Email not configured",
-          message: "Invitation created. Email service not configured - share link manually."
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Try to send email with Resend
+    // Send invitation email via SMTP
     try {
-      const { Resend } = await import("https://esm.sh/resend@2.0.0");
-      const resend = new Resend(RESEND_API_KEY);
-
       const emailContent = buildInvitationEmailContent(invitation);
-
-      const fromEmail = Deno.env.get("SENDER_EMAIL") || "DOO Command <hello@doo.ooo>";
-      
-      const result = await resend.emails.send({
-        from: fromEmail,
-        to: [invitation.email],
-        subject: `You're invited to join ${escapeHtml(invitation.companyName || 'our team')} on DOO Command`,
+      await sendEmail({
+        to: invitation.email,
+        subject: `You're invited to join ${escapeHtml(invitation.companyName || 'our team')} on CMND`,
         html: emailContent,
       });
 
-      if (result.error) {
-        console.error("Resend error:", result.error);
-        return new Response(
-          JSON.stringify({ 
-            success: true,
-            warning: "Email failed",
-            message: "Invitation created but email failed to send. Share link manually.",
-            details: result.error.message
-          }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      console.log("Email sent successfully:", result.data?.id);
+      console.log("Invitation email sent successfully via SMTP");
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          emailId: result.data?.id,
-          message: "Invitation email sent successfully"
+        JSON.stringify({
+          success: true,
+          message: "Invitation email sent successfully",
         }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-
     } catch (emailError: unknown) {
-      console.error("Email sending error:", emailError);
+      console.error("SMTP send error:", emailError);
       const errorMessage = emailError instanceof Error ? emailError.message : "Unknown error";
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           success: true,
           warning: "Email failed",
           message: "Invitation created but email failed to send. Share link manually.",
-          details: errorMessage
+          details: errorMessage,
         }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

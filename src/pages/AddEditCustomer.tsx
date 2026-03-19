@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { defaultLifecycleStages } from "@/data/defaultLifecycleStages";
 import { logCustomerCreated, logCustomerUpdated } from "@/utils/activityLogger";
+import { notifyNewCustomer, notifyNewContract } from "@/utils/emailNotifications";
 
 // Helper function to save documents to database
 const saveDocumentsToDatabase = async (customerId: string, documents: any[]) => {
@@ -357,6 +358,11 @@ export default function AddEditCustomer() {
         
         // Log the create activity
         await logCustomerCreated(customerId!, customerData.name);
+
+        // Notify team — fire-and-forget, does not block navigation
+        if (!isBatelco) {
+          notifyNewCustomer({ customerId: customerId!, customerName: customerData.name });
+        }
       }
 
       // Save contracts
@@ -383,12 +389,25 @@ export default function AddEditCustomer() {
           terms: contract.terms,
         }));
 
-        const { error: contractError } = await supabase
+        const { data: insertedContracts, error: contractError } = await supabase
           .from('contracts')
-          .insert(contractsToInsert);
+          .insert(contractsToInsert)
+          .select('id, name, value, payment_frequency');
 
         if (contractError) {
           console.error('Error saving contracts:', contractError);
+        } else if (insertedContracts && !id && !isBatelco) {
+          // Notify for each new contract (only on new customer creation, not edits)
+          for (const c of insertedContracts) {
+            notifyNewContract({
+              contractId: c.id,
+              customerId: customerId!,
+              customerName: customerData.name,
+              contractName: c.name || "Service Agreement",
+              contractValue: c.value ?? 0,
+              paymentFrequency: c.payment_frequency || "annual",
+            });
+          }
         }
       }
 
